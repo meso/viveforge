@@ -7,11 +7,11 @@ export const auth = new Hono<{ Bindings: Env }>()
 // Session management utilities
 const SESSION_DURATION = 7 * 24 * 60 * 60 * 1000 // 7 days
 
-async function createSession(userId: string, kv: KVNamespace | undefined): Promise<Session | null> {
+async function createSession(adminId: string, kv: KVNamespace | undefined): Promise<Session | null> {
   if (!kv) return null
   const session: Session = {
     id: crypto.randomUUID(),
-    userId,
+    adminId,
     expiresAt: new Date(Date.now() + SESSION_DURATION).toISOString(),
   }
   
@@ -48,19 +48,19 @@ export async function requireAuth(c: any, next: () => Promise<void>) {
     return c.json({ error: 'Unauthorized' }, 401)
   }
   
-  c.set('userId', session.userId)
+  c.set('adminId', session.adminId)
   await next()
 }
 
 // Auth endpoints
 auth.get('/me', requireAuth, async (c) => {
-  const userId = c.get('userId')
+  const adminId = c.get('adminId')
   
-  // TODO: Fetch user from D1 database
+  // TODO: Fetch admin from D1 database
   return c.json({
-    id: userId,
-    email: 'user@example.com',
-    name: 'Example User',
+    id: adminId,
+    email: 'admin@example.com',
+    name: 'Example Admin',
   })
 })
 

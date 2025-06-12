@@ -11,7 +11,7 @@ export interface Env {
   GITHUB_CLIENT_SECRET?: string
 }
 
-export interface User {
+export interface Admin {
   id: string
   email: string
   name?: string
@@ -23,6 +23,6 @@ export interface User {
 
 export interface Session {
   id: string
-  userId: string
+  adminId: string
   expiresAt: string
 }

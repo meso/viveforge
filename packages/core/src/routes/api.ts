@@ -37,7 +37,7 @@ api.post('/items', zValidator('json', createItemSchema), async (c) => {
 
   try {
     const data = c.req.valid('json')
-    const userId = c.get('userId') // From auth middleware if logged in
+    const userId = c.get('userId') // Will be from app users, not admins
     
     const item = await db.createItem({
       name: data.name,
@@ -62,7 +62,7 @@ api.get('/items', async (c) => {
     const page = Number(c.req.query('page') || '1')
     const pageSize = Number(c.req.query('pageSize') || '20')
     const offset = (page - 1) * pageSize
-    const userId = c.get('userId') // From auth middleware if logged in
+    const userId = c.get('userId') // Will be from app users, not admins
     
     const result = await db.getItems(userId, pageSize, offset)
     
@@ -141,48 +141,3 @@ api.delete('/items/:id', async (c) => {
   }
 })
 
-// Projects endpoints
-const createProjectSchema = z.object({
-  name: z.string().min(1),
-  description: z.string().optional(),
-})
-
-api.post('/projects', zValidator('json', createProjectSchema), async (c) => {
-  const db = c.get('db') as Database
-  if (!db) {
-    return c.json({ error: 'Database not available' }, 500)
-  }
-
-  try {
-    const data = c.req.valid('json')
-    const ownerId = c.get('userId') || 'anonymous' // Should require auth in real app
-    
-    const project = await db.createProject({
-      name: data.name,
-      description: data.description,
-      ownerId,
-    })
-    
-    return c.json(project, 201)
-  } catch (error) {
-    console.error('Error creating project:', error)
-    return c.json({ error: 'Failed to create project' }, 500)
-  }
-})
-
-api.get('/projects', async (c) => {
-  const db = c.get('db') as Database
-  if (!db) {
-    return c.json({ error: 'Database not available' }, 500)
-  }
-
-  try {
-    const ownerId = c.get('userId') || 'anonymous' // Should require auth in real app
-    const projects = await db.getProjects(ownerId)
-    
-    return c.json({ projects })
-  } catch (error) {
-    console.error('Error fetching projects:', error)
-    return c.json({ error: 'Failed to fetch projects' }, 500)
-  }
-})

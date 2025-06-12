@@ -1,33 +1,33 @@
-import type { Env, User } from '../types'
+import type { Env, Admin } from '../types'
 
 export class Database {
   constructor(private db: D1Database) {}
 
-  // Users
-  async createUser(user: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<User> {
+  // Admins (for dashboard access)
+  async createAdmin(admin: Omit<Admin, 'id' | 'createdAt' | 'updatedAt'>): Promise<Admin> {
     const id = crypto.randomUUID()
     const now = new Date().toISOString()
     
     const result = await this.db
-      .prepare('INSERT INTO users (id, email, name, provider, provider_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .bind(id, user.email, user.name, user.provider, user.providerId, now, now)
+      .prepare('INSERT INTO admins (id, email, name, provider, provider_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .bind(id, admin.email, admin.name, admin.provider, admin.providerId, now, now)
       .run()
 
     if (!result.success) {
-      throw new Error('Failed to create user')
+      throw new Error('Failed to create admin')
     }
 
     return {
       id,
-      ...user,
+      ...admin,
       createdAt: now,
       updatedAt: now,
     }
   }
 
-  async getUserById(id: string): Promise<User | null> {
+  async getAdminById(id: string): Promise<Admin | null> {
     const result = await this.db
-      .prepare('SELECT * FROM users WHERE id = ?')
+      .prepare('SELECT * FROM admins WHERE id = ?')
       .bind(id)
       .first()
 
@@ -44,9 +44,9 @@ export class Database {
     }
   }
 
-  async getUserByEmail(email: string): Promise<User | null> {
+  async getAdminByEmail(email: string): Promise<Admin | null> {
     const result = await this.db
-      .prepare('SELECT * FROM users WHERE email = ?')
+      .prepare('SELECT * FROM admins WHERE email = ?')
       .bind(email)
       .first()
 
@@ -179,43 +179,4 @@ export class Database {
     return { success: true, id }
   }
 
-  // Projects
-  async createProject(data: { name: string; description?: string; ownerId: string }) {
-    const id = crypto.randomUUID()
-    const now = new Date().toISOString()
-
-    const result = await this.db
-      .prepare('INSERT INTO projects (id, name, description, owner_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)')
-      .bind(id, data.name, data.description || null, data.ownerId, now, now)
-      .run()
-
-    if (!result.success) {
-      throw new Error('Failed to create project')
-    }
-
-    return {
-      id,
-      name: data.name,
-      description: data.description || null,
-      ownerId: data.ownerId,
-      createdAt: now,
-      updatedAt: now,
-    }
-  }
-
-  async getProjects(ownerId: string) {
-    const result = await this.db
-      .prepare('SELECT * FROM projects WHERE owner_id = ? ORDER BY created_at DESC')
-      .bind(ownerId)
-      .all()
-
-    return result.results.map((project: any) => ({
-      id: project.id,
-      name: project.name,
-      description: project.description,
-      ownerId: project.owner_id,
-      createdAt: project.created_at,
-      updatedAt: project.updated_at,
-    }))
-  }
 }
