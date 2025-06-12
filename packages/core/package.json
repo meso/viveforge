@@ -1,0 +1,26 @@
+{
+  "name": "@ourforge/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "hono": "^4.0.0",
+    "@hono/oauth-providers": "^0.2.0",
+    "@hono/zod-validator": "^0.2.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240117.0",
+    "wrangler": "^4.19.2",
+    "vitest": "^1.2.0",
+    "miniflare": "^3.20240129.0"
+  }
+}

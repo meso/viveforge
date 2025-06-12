@@ -1,0 +1,16 @@
+# This is the template wrangler.toml for Deploy Button
+# The actual configuration will be in packages/core/wrangler.toml
+
+name = "ourforge"
+main = "packages/core/src/index.ts"
+compatibility_date = "2024-01-01"
+
+# Workers Assets for dashboard
+assets = { directory = "packages/dashboard/dist" }
+
+# Enable Workers Logs
+[observability]
+enabled = true
+
+# Note: D1, R2, and KV resources will be created during deployment
+# See packages/core/wrangler.toml for the actual configuration

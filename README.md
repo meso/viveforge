@@ -1,0 +1,181 @@
+# Ourforge 🔥
+
+> **Personal BaaS on Cloudflare** - フロントエンド開発者のためのミニマムなBackend-as-a-Service
+
+⚠️ **Work in Progress** - このプロジェクトは現在開発中です。基本機能は動作しますが、まだ実験的な段階にあります。本番環境での使用は推奨されません。
+
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/meso/ourforge)
+
+Ourforgeは、Cloudflare上で動作する個人開発者向けのミニマムなBaaSプラットフォームです。フロントエンドやモバイルアプリ開発が得意な開発者が、バックエンドインフラを簡単に構築・管理できることを目指しています。
+
+## ✨ 特徴
+
+- 🚀 **ワンクリックデプロイ** - GitHubから1クリックでCloudflareアカウントにデプロイ
+- 💪 **フルスタックTypeScript** - 型安全性と開発体験の向上
+- ☁️ **Cloudflareエコシステム** - Workers、D1、R2などのCloudflareサービスをフル活用
+- 🎯 **個人開発者フレンドリー** - 複雑な設定不要で、すぐに使い始められる
+- 📱 **モダンなダッシュボード** - Preact + Vite + Tailwind CSSで構築された管理画面
+
+## 🎯 ターゲットユーザー
+
+- フロントエンド開発に強みを持つ個人開発者
+- モバイルアプリ開発者
+- バックエンドインフラの構築に時間をかけたくない開発者
+- Cloudflareのサービスを活用したい開発者
+
+## 🚀 クイックスタート
+
+### ワンクリックデプロイ
+
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/meso/ourforge)
+
+または、以下のコマンドで手動デプロイ：
+
+```bash
+# 1. リポジトリをクローン
+git clone https://github.com/meso/ourforge.git
+cd ourforge
+
+# 2. Wrangler CLIをインストール
+npm install -g wrangler
+
+# 3. Cloudflareにログイン
+wrangler login
+
+# 4. 自動セットアップを実行
+chmod +x deploy/setup.sh
+./deploy/setup.sh
+```
+
+詳細なデプロイ手順は [DEPLOYMENT.md](./DEPLOYMENT.md) をご覧ください。
+
+## 📋 主要機能
+
+### ✅ 実装済み（v0.1.0 MVP）
+
+- 🏗️ **管理ダッシュボード** - Webベースの管理画面
+- 🗄️ **データベース機能（D1）** - SQLiteベースのデータベース
+- 🔧 **基本的なCRUD API** - REST APIの自動生成
+- 📦 **ワンクリックデプロイ** - GitHub経由のデプロイ
+
+### 🚧 開発予定
+
+- 🔐 **認証機能** - OAuth providers（Google、GitHub等）
+- 💾 **ストレージ（R2）** - オブジェクトストレージ
+- ⚡ **リアルタイム機能** - WebSocket/SSE対応
+- 📱 **Push通知** - Web Push/FCM
+- 🛠️ **CLIツール** - 開発効率化ツール
+
+## 🏗️ 技術スタック
+
+- **言語**: TypeScript
+- **ランタイム**: Cloudflare Workers
+- **フレームワーク**: Hono
+- **データベース**: Cloudflare D1 (SQLite)
+- **ストレージ**: Cloudflare R2
+- **フロントエンド**: Preact + Vite + Tailwind CSS
+- **ビルドツール**: Wrangler, Vite
+- **テスト**: Vitest, Miniflare
+
+## 📁 プロジェクト構造
+
+```
+ourforge/
+├── packages/
+│   ├── core/              # コアライブラリ（Hono + Workers）
+│   ├── dashboard/         # 管理ダッシュボード（Preact）
+│   ├── sdk/              # クライアントSDK（予定）
+│   └── cli/              # CLIツール（予定）
+├── examples/             # サンプルアプリケーション
+├── docs/                 # ドキュメント
+├── deploy/              # デプロイメント設定
+├── DEPLOYMENT.md        # デプロイ手順
+└── README.md           # このファイル
+```
+
+## 🔧 ローカル開発
+
+```bash
+# 依存関係をインストール
+pnpm install
+
+# 開発サーバーを起動（API）
+cd packages/core
+pnpm dev
+
+# 別のターミナルでダッシュボード開発サーバー
+cd packages/dashboard
+pnpm dev
+```
+
+## 📖 API使用例
+
+### ヘルスチェック
+```bash
+curl https://your-worker.your-subdomain.workers.dev/api/health
+```
+
+### アイテム管理
+```bash
+# アイテム作成
+curl -X POST https://your-worker.your-subdomain.workers.dev/api/items \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Test Item", "description": "A test item"}'
+
+# アイテム一覧
+curl https://your-worker.your-subdomain.workers.dev/api/items
+```
+
+詳細なAPI仕様は [DEPLOYMENT.md](./DEPLOYMENT.md) をご覧ください。
+
+## 🗺️ ロードマップ
+
+### Phase 1: MVP (v0.1.0) ✅
+- [x] 基本的な管理ダッシュボード
+- [x] D1データベース統合
+- [x] 基本的なCRUD API
+- [x] GitHub経由のデプロイ
+
+### Phase 2: 認証とストレージ (v0.2.0)
+- [ ] OAuth認証実装
+- [ ] R2ストレージ統合
+- [ ] ファイルアップロードAPI
+
+### Phase 3: リアルタイム機能 (v0.3.0)
+- [ ] リアルタイムDB機能
+- [ ] Push通知実装
+- [ ] WebSocket/SSE対応
+
+### Phase 4: 開発体験向上 (v0.4.0)
+- [ ] CLIツール
+- [ ] 各種フレームワーク用SDK
+- [ ] 開発/本番環境の分離
+
+## 🤝 コントリビューション
+
+プロジェクトへの貢献を歓迎します！
+
+1. このリポジトリをフォーク
+2. フィーチャーブランチを作成 (`git checkout -b feature/amazing-feature`)
+3. 変更をコミット (`git commit -m 'Add some amazing feature'`)
+4. ブランチにプッシュ (`git push origin feature/amazing-feature`)
+5. プルリクエストを作成
+
+## 📄 ライセンス
+
+Elastic License 2.0 - 詳細は [LICENSE](LICENSE) ファイルをご覧ください。
+
+**要約**:
+- ✅ 個人・商用利用可能（自分のアプリのバックエンドとして）
+- ✅ 修正・再配布可能
+- ❌ SaaS/PaaSとして第三者に提供することは禁止
+
+## 💬 サポート
+
+- 🐛 **バグ報告**: [Issues](https://github.com/meso/ourforge/issues)
+- 💡 **機能要望**: [Issues](https://github.com/meso/ourforge/issues)
+- 📖 **ドキュメント**: [Wiki](https://github.com/meso/ourforge/wiki)
+
+---
+
+**Ourforge** - Made with ❤️ for developers who want to focus on building great frontend experiences.

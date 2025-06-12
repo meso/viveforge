@@ -1,0 +1,32 @@
+name = "ourforge-core"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# Workers Assets for dashboard
+assets = { directory = "../dashboard/dist" }
+
+# Enable Workers Logs
+[observability]
+enabled = true
+
+# D1 Database binding (will be auto-configured during setup)
+[[d1_databases]]
+binding = "DB"
+database_name = "ourforge-db"
+database_id = "REPLACE_WITH_ACTUAL_DATABASE_ID"
+
+# R2 Storage binding (optional, can be enabled later)
+# [[r2_buckets]]
+# binding = "STORAGE"
+# bucket_name = "ourforge-storage"
+
+# KV Namespace for sessions (optional, can be enabled later)
+# [[kv_namespaces]]
+# binding = "SESSIONS"
+# id = "YOUR_KV_NAMESPACE_ID"
+
+[env.production]
+vars = { ENVIRONMENT = "production" }
+
+[env.development]
+vars = { ENVIRONMENT = "development" }
