@@ -1,12 +1,12 @@
-# Ourforge 🔥
+# Viveforge 🔥
 
-> **Personal BaaS on Cloudflare** - フロントエンド開発者のためのミニマムなBackend-as-a-Service
+> **BaaS for the vive coders** - 活き活きとコードを書く開発者のためのBackend-as-a-Service on Cloudflare
 
 ⚠️ **Work in Progress** - このプロジェクトは現在開発中です。基本機能は動作しますが、まだ実験的な段階にあります。本番環境での使用は推奨されません。
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/meso/ourforge)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/meso/viveforge)
 
-Ourforgeは、Cloudflare上で動作する個人開発者向けのミニマムなBaaSプラットフォームです。フロントエンドやモバイルアプリ開発が得意な開発者が、バックエンドインフラを簡単に構築・管理できることを目指しています。
+Viveforgeは、Cloudflare上で動作する、活き活きとコードを書く開発者（vive coders）のためのBaaSプラットフォームです。フロントエンドやモバイルアプリ開発が得意な開発者が、バックエンドインフラを簡単に構築・管理できることを目指しています。
 
 ## ✨ 特徴
 
@@ -27,14 +27,14 @@ Ourforgeは、Cloudflare上で動作する個人開発者向けのミニマム�
 
 ### ワンクリックデプロイ
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/meso/ourforge)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/meso/viveforge)
 
 または、以下のコマンドで手動デプロイ：
 
 ```bash
 # 1. リポジトリをクローン
-git clone https://github.com/meso/ourforge.git
-cd ourforge
+git clone https://github.com/meso/viveforge.git
+cd viveforge
 
 # 2. Wrangler CLIをインストール
 npm install -g wrangler
@@ -80,7 +80,7 @@ chmod +x deploy/setup.sh
 ## 📁 プロジェクト構造
 
 ```
-ourforge/
+viveforge/
 ├── packages/
 │   ├── core/              # コアライブラリ（Hono + Workers）
 │   ├── dashboard/         # 管理ダッシュボード（Preact）
@@ -172,10 +172,10 @@ Elastic License 2.0 - 詳細は [LICENSE](LICENSE) ファイルをご覧くだ�
 
 ## 💬 サポート
 
-- 🐛 **バグ報告**: [Issues](https://github.com/meso/ourforge/issues)
-- 💡 **機能要望**: [Issues](https://github.com/meso/ourforge/issues)
-- 📖 **ドキュメント**: [Wiki](https://github.com/meso/ourforge/wiki)
+- 🐛 **バグ報告**: [Issues](https://github.com/meso/viveforge/issues)
+- 💡 **機能要望**: [Issues](https://github.com/meso/viveforge/issues)
+- 📖 **ドキュメント**: [Wiki](https://github.com/meso/viveforge/wiki)
 
 ---
 
-**Ourforge** - Made with ❤️ for developers who want to focus on building great frontend experiences.
+**Viveforge** - Made with ❤️ for the vive coders who want to focus on building great experiences.

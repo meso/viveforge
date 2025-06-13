@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Setting up Ourforge on Cloudflare..."
+echo "🚀 Setting up Viveforge on Cloudflare..."
 
 # Check if wrangler is installed
 if ! command -v wrangler &> /dev/null; then
@@ -21,7 +21,7 @@ cd packages/core
 npm install
 
 echo "🗄️ Creating D1 database..."
-DB_OUTPUT=$(wrangler d1 create ourforge-db 2>/dev/null)
+DB_OUTPUT=$(wrangler d1 create viveforge-db 2>/dev/null)
 if [ $? -eq 0 ]; then
     # Extract database ID from output
     DB_ID=$(echo "$DB_OUTPUT" | grep "database_id" | sed 's/.*database_id = "\([^"]*\)".*/\1/')
@@ -36,7 +36,7 @@ else
 fi
 
 echo "🔧 Running database migrations..."
-wrangler d1 execute ourforge-db --file=migrations/0001_initial.sql --remote
+wrangler d1 execute viveforge-db --file=migrations/0001_initial.sql --remote
 
 echo "🏗️ Building dashboard..."
 cd ../dashboard
@@ -48,9 +48,9 @@ cd ../core
 wrangler deploy
 
 echo ""
-echo "🎉 Ourforge has been successfully deployed!"
+echo "🎉 Viveforge has been successfully deployed!"
 echo ""
-echo "Your Ourforge instance is now available at:"
+echo "Your Viveforge instance is now available at:"
 DEPLOY_URL=$(wrangler deployments list --limit 1 2>/dev/null | grep "https://" | awk '{print $2}' | head -1)
 if [ ! -z "$DEPLOY_URL" ]; then
     echo "$DEPLOY_URL"

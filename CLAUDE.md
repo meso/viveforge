@@ -1,8 +1,8 @@
-# Ourforge - Our Personal BaaS on Cloudflare
+# Viveforge - BaaS for the vive coders on Cloudflare
 
 ## 概要
 
-Ourforgeは、Cloudflare上で動作する個人開発者向けのミニマムなBackend-as-a-Service（BaaS）プラットフォームです。フロントエンドやモバイルアプリ開発が得意な開発者が、バックエンドインフラを簡単に構築・管理できることを目指しています。
+Viveforgeは、Cloudflare上で動作する、活き活きとコードを書く開発者（vive coders）のためのBackend-as-a-Service（BaaS）プラットフォームです。フロントエンドやモバイルアプリ開発が得意な開発者が、バックエンドインフラを簡単に構築・管理できることを目指しています。
 
 ## プロジェクトの目的
 
@@ -87,7 +87,7 @@ Ourforgeは、Cloudflare上で動作する個人開発者向けのミニマム�
 ## プロジェクト構造
 
 ```
-ourforge/
+viveforge/
 ├── packages/
 │   ├── core/              # コアライブラリ
 │   ├── dashboard/         # 管理ダッシュボード

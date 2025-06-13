@@ -1,7 +1,7 @@
 # This is the template wrangler.toml for Deploy Button
 # The actual configuration will be in packages/core/wrangler.toml
 
-name = "ourforge"
+name = "viveforge"
 main = "packages/core/src/index.ts"
 compatibility_date = "2024-01-01"
 

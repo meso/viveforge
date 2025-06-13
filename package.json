@@ -1,8 +1,8 @@
 {
-  "name": "ourforge",
+  "name": "viveforge",
   "private": true,
   "version": "0.1.0",
-  "description": "Personal BaaS on Cloudflare",
+  "description": "BaaS for the vive coders on Cloudflare",
   "type": "module",
   "scripts": {
     "dev": "pnpm -r --parallel dev",
