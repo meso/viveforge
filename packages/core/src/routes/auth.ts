@@ -1,8 +1,8 @@
 import { Hono } from 'hono'
 import { getCookie, setCookie } from 'hono/cookie'
-import type { Env, User, Session } from '../types'
+import type { Env, Variables, Session } from '../types'
 
-export const auth = new Hono<{ Bindings: Env }>()
+export const auth = new Hono<{ Bindings: Env; Variables: Variables }>()
 
 // Session management utilities
 const SESSION_DURATION = 7 * 24 * 60 * 60 * 1000 // 7 days

@@ -2,16 +2,22 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { zValidator } from '@hono/zod-validator'
 import { Database } from '../lib/database'
-import type { Env } from '../types'
+import type { Env, Variables } from '../types'
 
-export const api = new Hono<{ Bindings: Env }>()
+export const api = new Hono<{ Bindings: Env; Variables: Variables }>()
 
 // Health check
 api.get('/health', (c) => {
+  const baseUrl = new URL(c.req.url).origin
   return c.json({ 
     status: 'healthy', 
     timestamp: new Date().toISOString(),
-    database: c.env.DB ? 'connected' : 'not configured'
+    database: c.env.DB ? 'connected' : 'not configured',
+    documentation: {
+      swagger: `${baseUrl}/api/docs/swagger`,
+      openapi: `${baseUrl}/api/docs/openapi.json`,
+      tables: `${baseUrl}/api/docs/tables`
+    }
   })
 })
 

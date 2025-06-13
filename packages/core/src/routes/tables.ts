@@ -2,9 +2,9 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { zValidator } from '@hono/zod-validator'
 import { TableManager } from '../lib/table-manager'
-import type { Env } from '../types'
+import type { Env, Variables } from '../types'
 
-export const tables = new Hono<{ Bindings: Env }>()
+export const tables = new Hono<{ Bindings: Env; Variables: Variables }>()
 
 // Middleware to add table manager instance
 tables.use('*', async (c, next) => {
@@ -21,7 +21,16 @@ tables.get('/', async (c) => {
   try {
     const tm = c.get('tableManager') as TableManager
     const tables = await tm.getTables()
-    return c.json({ tables })
+    const baseUrl = new URL(c.req.url).origin
+    
+    return c.json({ 
+      tables,
+      documentation: {
+        swagger: `${baseUrl}/api/docs/swagger`,
+        openapi: `${baseUrl}/api/docs/openapi.json`,
+        description: 'Interactive API documentation for all your tables'
+      }
+    })
   } catch (error) {
     console.error('Error fetching tables:', error)
     return c.json({ 

@@ -5,9 +5,11 @@ import { logger } from 'hono/logger'
 import { api } from './routes/api'
 import { auth } from './routes/auth'
 import { tables } from './routes/tables'
-import type { Env } from './types'
+import { data } from './routes/data'
+import { docs } from './routes/docs'
+import type { Env, Variables } from './types'
 
-const app = new Hono<{ Bindings: Env }>()
+const app = new Hono<{ Bindings: Env; Variables: Variables }>()
 
 app.use('*', logger())
 app.use('/api/*', cors())
@@ -15,6 +17,8 @@ app.use('/api/*', cors())
 // API routes
 app.route('/api', api)
 app.route('/api/tables', tables)
+app.route('/api/data', data)
+app.route('/api/docs', docs)
 app.route('/auth', auth)
 
 // Since we're using Workers Assets, static files are served automatically
@@ -42,6 +46,17 @@ app.get('/', async (c) => {
   return c.html(await getIndexHtml())
 })
 
+// Catch-all route for SPA fallback
+app.get('*', async (c) => {
+  // Check if the request is for an API endpoint
+  if (c.req.path.startsWith('/api/')) {
+    return c.json({ error: 'Not Found' }, 404)
+  }
+  
+  // For all other routes, serve the SPA
+  return c.html(await getIndexHtml())
+})
+
 // Helper function to get index.html content
 async function getIndexHtml(): Promise<string> {
   return `<!DOCTYPE html>
@@ -51,8 +66,8 @@ async function getIndexHtml(): Promise<string> {
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Viveforge Dashboard</title>
-    <script type="module" crossorigin src="/assets/index-pkHAnB2v.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-g6Lxz6Pd.css">
+    <script type="module" crossorigin src="/assets/index-BTtGELXr.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-s_zEFhkd.css">
   </head>
   <body>
     <div id="app"></div>
