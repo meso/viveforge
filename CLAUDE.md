@@ -1,8 +1,8 @@
-# Viveforge - BaaS for the vive coders on Cloudflare
+# Viveforge - Personal BaaS for Vive Coders on Cloudflare
 
 ## 概要
 
-Viveforgeは、Cloudflare上で動作する、活き活きとコードを書く開発者（vive coders）のためのBackend-as-a-Service（BaaS）プラットフォームです。フロントエンドやモバイルアプリ開発が得意な開発者が、バックエンドインフラを簡単に構築・管理できることを目指しています。
+Viveforgeは、Cloudflare上で動作する、AIを活用してコードを書く開発者（Vive Coders）のためのパーソナルBackend-as-a-Service（BaaS）プラットフォームです。フロントエンドやモバイルアプリ開発が得意な開発者が、バックエンドインフラを簡単に構築・管理できることを目指しています。
 
 ## プロジェクトの目的
 
@@ -13,10 +13,10 @@ Viveforgeは、Cloudflare上で動作する、活き活きとコードを書く�
 
 ## ターゲットユーザー
 
-- フロントエンド開発に強みを持つ個人開発者
-- モバイルアプリ開発者
+- AIを活用して効率的にコードを書くVive Coders
+- フロントエンド・モバイルアプリ開発に集中したい開発者
 - バックエンドインフラの構築に時間をかけたくない開発者
-- Cloudflareのサービスを活用したい開発者
+- Cloudflareのサービスをシンプルに活用したい開発者
 
 ## 主要機能
 

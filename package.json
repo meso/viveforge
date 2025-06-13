@@ -2,7 +2,7 @@
   "name": "viveforge",
   "private": true,
   "version": "0.1.0",
-  "description": "BaaS for the vive coders on Cloudflare",
+  "description": "Personal BaaS for Vive Coders on Cloudflare",
   "type": "module",
   "scripts": {
     "dev": "pnpm -r --parallel dev",
