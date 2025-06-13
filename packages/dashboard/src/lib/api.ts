@@ -25,6 +25,12 @@ export interface ColumnInfo {
   pk: number
 }
 
+export interface ForeignKeyInfo {
+  from: string
+  table: string
+  to: string
+}
+
 export interface ApiResponse<T> {
   data?: T
   error?: string
@@ -94,7 +100,7 @@ export const api = {
     return response.json()
   },
 
-  async getTableSchema(tableName: string): Promise<{ tableName: string; columns: ColumnInfo[] }> {
+  async getTableSchema(tableName: string): Promise<{ tableName: string; columns: ColumnInfo[]; foreignKeys: ForeignKeyInfo[] }> {
     const response = await fetch(`${API_BASE}/api/tables/${tableName}/schema`)
     if (!response.ok) {
       throw new Error('Failed to fetch table schema')
@@ -147,6 +153,94 @@ export const api = {
     if (!response.ok) {
       const error = await response.json()
       throw new Error(error.error || 'Failed to execute SQL')
+    }
+    return response.json()
+  },
+
+  // Column management
+  async addColumn(tableName: string, column: { name: string; type: string; constraints?: string; foreignKey?: { table: string; column: string } }): Promise<{ success: boolean; column: string }> {
+    const response = await fetch(`${API_BASE}/api/tables/${tableName}/columns`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(column),
+    })
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to add column')
+    }
+    return response.json()
+  },
+
+  async renameColumn(tableName: string, oldName: string, newName: string): Promise<{ success: boolean; oldName: string; newName: string }> {
+    const response = await fetch(`${API_BASE}/api/tables/${tableName}/columns/${oldName}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ oldName, newName }),
+    })
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to rename column')
+    }
+    return response.json()
+  },
+
+  async dropColumn(tableName: string, columnName: string): Promise<{ success: boolean; column: string }> {
+    const response = await fetch(`${API_BASE}/api/tables/${tableName}/columns/${columnName}`, {
+      method: 'DELETE',
+    })
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to drop column')
+    }
+    return response.json()
+  },
+
+  async modifyColumn(tableName: string, columnName: string, changes: { type?: string; notNull?: boolean; foreignKey?: { table: string; column: string } | null }): Promise<{ success: boolean; column: string; changes: any }> {
+    const response = await fetch(`${API_BASE}/api/tables/${tableName}/columns/${columnName}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(changes),
+    })
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to modify column')
+    }
+    return response.json()
+  },
+
+  async validateColumnChanges(tableName: string, columnName: string, changes: { type?: string; notNull?: boolean; foreignKey?: { table: string; column: string } | null }): Promise<{ valid: boolean; errors: string[]; conflictingRows: number }> {
+    const response = await fetch(`${API_BASE}/api/tables/${tableName}/columns/${columnName}/validate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(changes),
+    })
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to validate column changes')
+    }
+    return response.json()
+  },
+
+  // Record management
+  async updateRecord(tableName: string, id: string, data: Record<string, any>): Promise<{ success: boolean }> {
+    const response = await fetch(`${API_BASE}/api/tables/${tableName}/data/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to update record')
     }
     return response.json()
   },

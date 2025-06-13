@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'preact/hooks'
-import { api, type TableInfo } from '../lib/api'
+import { api, type TableInfo, type ForeignKeyInfo } from '../lib/api'
 
 // Utility function to truncate IDs
 const truncateId = (id: string | null): string => {
@@ -35,6 +35,7 @@ export function DatabasePage() {
   const [selectedTable, setSelectedTable] = useState<string | null>(null)
   const [tableData, setTableData] = useState<any[]>([])
   const [tableColumns, setTableColumns] = useState<any[]>([])
+  const [tableForeignKeys, setTableForeignKeys] = useState<ForeignKeyInfo[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -43,6 +44,16 @@ export function DatabasePage() {
   const [newTable, setNewTable] = useState({ name: '', columns: [{ name: '', type: 'TEXT', notNull: false, foreignKey: { enabled: false, table: '', column: '' } }] })
   const [openDropdownTable, setOpenDropdownTable] = useState<string | null>(null)
   const [copiedCell, setCopiedCell] = useState<string | null>(null)
+  const [showSchemaEditor, setShowSchemaEditor] = useState(false)
+  const [newColumn, setNewColumn] = useState({ name: '', type: 'TEXT', notNull: false, foreignKey: { enabled: false, table: '', column: '' } })
+  const [editingColumn, setEditingColumn] = useState<{ oldName: string; newName: string } | null>(null)
+  const [modifyingColumn, setModifyingColumn] = useState<{ name: string; type: string; notNull: boolean; foreignKey: { enabled: boolean; table: string; column: string } } | null>(null)
+  const [validationWarning, setValidationWarning] = useState<{ errors: string[]; conflictingRows: number; onConfirm: () => void } | null>(null)
+  const [confirmationModal, setConfirmationModal] = useState<{ title: string; message: string; onConfirm: () => void; variant?: 'danger' | 'warning' } | null>(null)
+  const [editingCell, setEditingCell] = useState<{ rowId: string; columnName: string; value: any } | null>(null)
+  const [editingRecord, setEditingRecord] = useState<{ id: string; data: Record<string, any> } | null>(null)
+  const [clickCount, setClickCount] = useState<{[key: string]: { count: number; timeout: number }}>({})
+  const [fkValidation, setFkValidation] = useState<{[key: string]: { isValid: boolean; isChecking: boolean; displayName?: string }}>({})
 
   useEffect(() => {
     loadTables()
@@ -55,6 +66,7 @@ export function DatabasePage() {
       // Close any open forms when switching tables
       setShowCreateForm(false)
       setShowCreateTableForm(false)
+      setShowSchemaEditor(false)
     }
   }, [selectedTable])
 
@@ -85,6 +97,7 @@ export function DatabasePage() {
     try {
       const result = await api.getTableSchema(selectedTable)
       setTableColumns(result.columns)
+      setTableForeignKeys(result.foreignKeys || [])
       // Initialize new record with empty values for each column
       const initialRecord: Record<string, any> = {}
       result.columns.forEach(col => {
@@ -175,16 +188,24 @@ export function DatabasePage() {
   }
 
   const handleDeleteRecord = async (id: string) => {
-    if (!selectedTable || !confirm('Are you sure you want to delete this record?')) return
+    if (!selectedTable) return
 
-    try {
-      await fetch(`${window.location.origin}/api/tables/${selectedTable}/data/${id}`, {
-        method: 'DELETE'
-      })
-      await loadTableData()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete record')
-    }
+    setConfirmationModal({
+      title: 'Delete Record',
+      message: 'Are you sure you want to delete this record? This action cannot be undone.',
+      variant: 'danger',
+      onConfirm: async () => {
+        setConfirmationModal(null)
+        try {
+          await fetch(`${window.location.origin}/api/tables/${selectedTable}/data/${id}`, {
+            method: 'DELETE'
+          })
+          await loadTableData()
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to delete record')
+        }
+      }
+    })
   }
 
   const handleCreateTable = async (e: Event) => {
@@ -214,18 +235,24 @@ export function DatabasePage() {
   }
 
   const handleDropTable = async (tableName: string) => {
-    if (!confirm(`Are you sure you want to drop the table "${tableName}"? This action cannot be undone.`)) return
-
-    try {
-      await api.dropTable(tableName)
-      await loadTables()
-      if (selectedTable === tableName) {
-        setSelectedTable(null)
-        setTableData([])
+    setConfirmationModal({
+      title: 'Drop Table',
+      message: `Are you sure you want to drop the table "${tableName}"? This action cannot be undone.`,
+      variant: 'danger',
+      onConfirm: async () => {
+        setConfirmationModal(null)
+        try {
+          await api.dropTable(tableName)
+          await loadTables()
+          if (selectedTable === tableName) {
+            setSelectedTable(null)
+            setTableData([])
+          }
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to drop table')
+        }
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to drop table')
-    }
+    })
   }
 
   const handleCopyId = async (id: string, rowIndex: number, columnName: string) => {
@@ -285,6 +312,214 @@ export function DatabasePage() {
     }
     
     return null
+  }
+
+  const handleAddColumn = async (e: Event) => {
+    e.preventDefault()
+    if (!selectedTable) return
+
+    try {
+      const columnData = {
+        name: newColumn.name,
+        type: newColumn.type,
+        constraints: newColumn.notNull ? 'NOT NULL' : undefined,
+        ...(newColumn.foreignKey?.enabled && newColumn.foreignKey?.table && newColumn.foreignKey?.column 
+          ? { foreignKey: { table: newColumn.foreignKey.table, column: newColumn.foreignKey.column } }
+          : {})
+      }
+      
+      await api.addColumn(selectedTable, columnData)
+      await loadTableSchema()
+      setNewColumn({ name: '', type: 'TEXT', notNull: false, foreignKey: { enabled: false, table: '', column: '' } })
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add column')
+    }
+  }
+
+  const handleRenameColumn = async (oldName: string, newName: string) => {
+    if (!selectedTable || !newName || oldName === newName) return
+
+    try {
+      await api.renameColumn(selectedTable, oldName, newName)
+      await loadTableSchema()
+      setEditingColumn(null)
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to rename column')
+    }
+  }
+
+  const handleDropColumn = async (columnName: string) => {
+    if (!selectedTable) return
+
+    setConfirmationModal({
+      title: 'Drop Column',
+      message: `Are you sure you want to drop the column "${columnName}"? This action cannot be undone.`,
+      variant: 'danger',
+      onConfirm: async () => {
+        setConfirmationModal(null)
+        try {
+          await api.dropColumn(selectedTable, columnName)
+          await loadTableSchema()
+          setError(null)
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to drop column')
+        }
+      }
+    })
+  }
+
+  const handleModifyColumn = async (columnName: string, changes: { type?: string; notNull?: boolean; foreignKey?: { table: string; column: string } | null }) => {
+    if (!selectedTable) return
+
+    try {
+      // Validate changes first
+      const validation = await api.validateColumnChanges(selectedTable, columnName, changes)
+      
+      if (!validation.valid) {
+        // Show validation warning modal instead of browser alert
+        setValidationWarning({
+          errors: validation.errors,
+          conflictingRows: validation.conflictingRows,
+          onConfirm: async () => {
+            setValidationWarning(null)
+            try {
+              await api.modifyColumn(selectedTable, columnName, changes)
+              await loadTableSchema()
+              setModifyingColumn(null)
+              setError(null)
+            } catch (err) {
+              setError(err instanceof Error ? err.message : 'Failed to modify column')
+            }
+          }
+        })
+        return
+      }
+
+      await api.modifyColumn(selectedTable, columnName, changes)
+      await loadTableSchema()
+      setModifyingColumn(null)
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to modify column')
+    }
+  }
+
+  // Helper function to get foreign key info for a column
+  const getForeignKeyForColumn = (columnName: string): ForeignKeyInfo | null => {
+    return tableForeignKeys.find(fk => fk.from === columnName) || null
+  }
+
+  // Validate FK reference
+  const validateForeignKey = async (value: string, fkInfo: ForeignKeyInfo) => {
+    if (!value.trim()) return null
+    
+    const validationKey = `${fkInfo.table}-${value}`
+    setFkValidation(prev => ({ ...prev, [validationKey]: { isValid: false, isChecking: true } }))
+    
+    try {
+      // Check if the ID exists in the referenced table
+      const result = await api.getTableData(fkInfo.table)
+      const exists = result.data.some(record => record.id === value)
+      
+      setFkValidation(prev => ({ 
+        ...prev, 
+        [validationKey]: { 
+          isValid: exists, 
+          isChecking: false,
+          displayName: exists ? `Valid ID in ${fkInfo.table}` : `ID not found in ${fkInfo.table}`
+        } 
+      }))
+      
+      return exists
+    } catch (err) {
+      setFkValidation(prev => ({ 
+        ...prev, 
+        [validationKey]: { 
+          isValid: false, 
+          isChecking: false,
+          displayName: `Error checking ${fkInfo.table}`
+        } 
+      }))
+      return false
+    }
+  }
+
+  // Handle inline cell editing
+  const handleCellDoubleClick = (rowId: string, columnName: string, currentValue: any) => {
+    // Don't allow editing of system columns
+    if (['id', 'created_at', 'updated_at'].includes(columnName)) {
+      return
+    }
+    
+    // Check if it's a simple field that can be edited inline
+    const column = tableColumns.find(col => col.name === columnName)
+    const hasFK = getForeignKeyForColumn(columnName)
+    
+    if (hasFK || !column) {
+      // Open modal for FK references or complex fields
+      const record = tableData.find(row => row.id === rowId)
+      if (record) {
+        setEditingRecord({ id: rowId, data: { ...record } })
+      }
+    } else {
+      // Inline editing for simple fields
+      setEditingCell({ rowId, columnName, value: currentValue })
+    }
+  }
+
+  // Save inline cell edit
+  const handleCellSave = async (rowId: string, columnName: string, newValue: any) => {
+    if (!selectedTable) return
+
+    // 編集状態を先にクリアしてチカチカを防ぐ
+    setEditingCell(null)
+
+    // ローカルでデータを即座に更新（楽観的更新）
+    setTableData(prevData => 
+      prevData.map(row => 
+        row.id === rowId 
+          ? { ...row, [columnName]: newValue }
+          : row
+      )
+    )
+
+    try {
+      await api.updateRecord(selectedTable, rowId, { [columnName]: newValue })
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update record')
+      // エラーの場合は編集状態を復元し、データを元に戻す
+      setEditingCell({ rowId, columnName, value: newValue })
+      // データも元に戻す
+      await loadTableData()
+    }
+  }
+
+  // Cancel inline cell edit
+  const handleCellCancel = () => {
+    setEditingCell(null)
+  }
+
+  // Handle record edit via modal
+  const handleRecordSave = async () => {
+    if (!selectedTable || !editingRecord) return
+
+    try {
+      // Remove system fields from update data
+      const updateData = { ...editingRecord.data }
+      delete updateData.id
+      delete updateData.created_at
+      delete updateData.updated_at
+
+      await api.updateRecord(selectedTable, editingRecord.id, updateData)
+      await loadTableData()
+      setEditingRecord(null)
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update record')
+    }
   }
 
   const userTables = tables.filter(t => t.type === 'user')
@@ -596,26 +831,555 @@ export function DatabasePage() {
                 <div class="flex items-center justify-between mb-4">
                   <h3 class="text-lg font-medium text-gray-900">{selectedTable}</h3>
                   {tables.find(t => t.name === selectedTable)?.type === 'user' && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        // Reinitialize the form when opening
-                        const initialRecord: Record<string, any> = {}
-                        tableColumns.forEach(col => {
-                          if (!['id', 'created_at', 'updated_at'].includes(col.name)) {
-                            initialRecord[col.name] = ''
-                          }
-                        })
-                        setNewRecord(initialRecord)
-                        setError(null) // Clear any previous errors
-                        setShowCreateForm(true)
-                      }}
-                      class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                    >
-                      Add Record
-                    </button>
+                    <div class="flex space-x-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowSchemaEditor(!showSchemaEditor)}
+                        class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      >
+                        Edit Schema
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Reinitialize the form when opening
+                          const initialRecord: Record<string, any> = {}
+                          tableColumns.forEach(col => {
+                            if (!['id', 'created_at', 'updated_at'].includes(col.name)) {
+                              initialRecord[col.name] = ''
+                            }
+                          })
+                          setNewRecord(initialRecord)
+                          setError(null) // Clear any previous errors
+                          setShowCreateForm(true)
+                        }}
+                        class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      >
+                        Add Record
+                      </button>
+                    </div>
                   )}
                 </div>
+
+                {showSchemaEditor && (
+                  <div class="mb-6 p-4 border border-gray-200 rounded-lg">
+                    <h4 class="text-sm font-medium text-gray-900 mb-3">Table Schema</h4>
+                    
+                    {/* Existing columns */}
+                    <div class="mb-4">
+                      <h5 class="text-xs font-medium text-gray-700 mb-2">Columns</h5>
+                      <div class="space-y-2">
+                        {tableColumns.map(col => (
+                          <div key={col.name} class="flex items-center justify-between p-2 bg-gray-50 rounded">
+                            {editingColumn?.oldName === col.name ? (
+                              <input
+                                type="text"
+                                value={editingColumn.newName}
+                                onInput={(e) => setEditingColumn({ ...editingColumn, newName: (e.target as HTMLInputElement).value })}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleRenameColumn(editingColumn.oldName, editingColumn.newName)
+                                  if (e.key === 'Escape') setEditingColumn(null)
+                                }}
+                                onBlur={() => handleRenameColumn(editingColumn.oldName, editingColumn.newName)}
+                                class="flex-1 text-sm border-gray-300 rounded px-2 py-1"
+                                autoFocus
+                              />
+                            ) : (
+                              <div class="flex-1">
+                                <span class="text-sm font-medium text-gray-900">{col.name}</span>
+                                <span class="ml-2 text-xs text-gray-500">{col.type}</span>
+                                {col.notnull ? <span class="ml-1 text-xs text-red-500">NOT NULL</span> : null}
+                                {col.pk ? <span class="ml-1 text-xs text-blue-500">PRIMARY KEY</span> : null}
+                                {getForeignKeyForColumn(col.name) && (
+                                  <span class="ml-1 text-xs text-green-600">
+                                    FK → {getForeignKeyForColumn(col.name)!.table}.{getForeignKeyForColumn(col.name)!.to}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            
+                            {!['id', 'created_at', 'updated_at'].includes(col.name) && (
+                              <div class="flex space-x-2">
+                                <button
+                                  onClick={() => setEditingColumn({ oldName: col.name, newName: col.name })}
+                                  class="text-xs text-indigo-600 hover:text-indigo-500"
+                                >
+                                  Rename
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    const fkInfo = getForeignKeyForColumn(col.name)
+                                    setModifyingColumn({ 
+                                      name: col.name, 
+                                      type: col.type, 
+                                      notNull: col.notnull === 1,
+                                      foreignKey: { 
+                                        enabled: !!fkInfo, 
+                                        table: fkInfo?.table || '', 
+                                        column: fkInfo?.to || '' 
+                                      }
+                                    })
+                                  }}
+                                  class="text-xs text-blue-600 hover:text-blue-500"
+                                >
+                                  Modify
+                                </button>
+                                <button
+                                  onClick={() => handleDropColumn(col.name)}
+                                  class="text-xs text-red-600 hover:text-red-500"
+                                >
+                                  Drop
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Add new column form */}
+                    <div class="border-t pt-4">
+                      <h5 class="text-xs font-medium text-gray-700 mb-2">Add Column</h5>
+                      <form onSubmit={handleAddColumn}>
+                        <div class="flex space-x-2">
+                          <input
+                            type="text"
+                            value={newColumn.name}
+                            onInput={(e) => setNewColumn({ ...newColumn, name: (e.target as HTMLInputElement).value })}
+                            placeholder="column_name"
+                            pattern="[a-zA-Z_][a-zA-Z0-9_]*"
+                            class="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                            required
+                          />
+                          <select
+                            value={newColumn.type}
+                            onChange={(e) => setNewColumn({ ...newColumn, type: (e.target as HTMLSelectElement).value })}
+                            class="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                          >
+                            <option value="TEXT">TEXT</option>
+                            <option value="INTEGER">INTEGER</option>
+                            <option value="REAL">REAL</option>
+                            <option value="BLOB">BLOB</option>
+                            <option value="BOOLEAN">BOOLEAN</option>
+                          </select>
+                          
+                          <label class="flex items-center space-x-1">
+                            <input
+                              type="checkbox"
+                              checked={newColumn.notNull}
+                              onChange={(e) => setNewColumn({ ...newColumn, notNull: (e.target as HTMLInputElement).checked })}
+                              class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                            />
+                            <span class="text-xs text-gray-700">NN</span>
+                          </label>
+                          
+                          <label class="flex items-center space-x-1">
+                            <input
+                              type="checkbox"
+                              checked={newColumn.foreignKey?.enabled}
+                              onChange={(e) => setNewColumn({ 
+                                ...newColumn, 
+                                foreignKey: { 
+                                  ...newColumn.foreignKey, 
+                                  enabled: (e.target as HTMLInputElement).checked,
+                                  column: (e.target as HTMLInputElement).checked ? 'id' : ''
+                                } 
+                              })}
+                              class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                            />
+                            <span class="text-xs text-gray-700">FK</span>
+                          </label>
+                          
+                          <button
+                            type="submit"
+                            class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                          >
+                            Add
+                          </button>
+                        </div>
+                        
+                        {/* Foreign Key Settings */}
+                        {newColumn.foreignKey?.enabled && (
+                          <div class="flex space-x-2 mt-2">
+                            <select
+                              value={newColumn.foreignKey?.table || ''}
+                              onChange={(e) => setNewColumn({ 
+                                ...newColumn, 
+                                foreignKey: { 
+                                  ...newColumn.foreignKey, 
+                                  table: (e.target as HTMLSelectElement).value 
+                                } 
+                              })}
+                              class="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                            >
+                              <option value="">Select table...</option>
+                              {tables.map(table => (
+                                <option key={table.name} value={table.name}>{table.name}</option>
+                              ))}
+                            </select>
+                            <input
+                              type="text"
+                              value={newColumn.foreignKey?.column || ''}
+                              onChange={(e) => setNewColumn({ 
+                                ...newColumn, 
+                                foreignKey: { 
+                                  ...newColumn.foreignKey, 
+                                  column: (e.target as HTMLInputElement).value 
+                                } 
+                              })}
+                              placeholder="id"
+                              class="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                            />
+                          </div>
+                        )}
+                      </form>
+                    </div>
+                  </div>
+                )}
+
+                {/* Column Modification Modal */}
+                {modifyingColumn && (
+                  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                      <h4 class="text-lg font-medium text-gray-900 mb-4">Modify Column: {modifyingColumn.name}</h4>
+                      
+                      <div class="space-y-4">
+                        <div>
+                          <label class="block text-sm font-medium text-gray-700">Type</label>
+                          <select
+                            value={modifyingColumn.type}
+                            onChange={(e) => setModifyingColumn({ 
+                              ...modifyingColumn, 
+                              type: (e.target as HTMLSelectElement).value 
+                            })}
+                            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                          >
+                            <option value="TEXT">TEXT</option>
+                            <option value="INTEGER">INTEGER</option>
+                            <option value="REAL">REAL</option>
+                            <option value="BLOB">BLOB</option>
+                            <option value="BOOLEAN">BOOLEAN</option>
+                          </select>
+                        </div>
+                        
+                        <div>
+                          <label class="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              checked={modifyingColumn.notNull}
+                              onChange={(e) => setModifyingColumn({ 
+                                ...modifyingColumn, 
+                                notNull: (e.target as HTMLInputElement).checked 
+                              })}
+                              class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                            />
+                            <span class="text-sm text-gray-700">NOT NULL</span>
+                          </label>
+                        </div>
+                        
+                        <div>
+                          <label class="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              checked={modifyingColumn.foreignKey.enabled}
+                              onChange={(e) => setModifyingColumn({ 
+                                ...modifyingColumn, 
+                                foreignKey: { 
+                                  ...modifyingColumn.foreignKey, 
+                                  enabled: (e.target as HTMLInputElement).checked,
+                                  column: (e.target as HTMLInputElement).checked ? 'id' : ''
+                                } 
+                              })}
+                              class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                            />
+                            <span class="text-sm text-gray-700">Foreign Key</span>
+                          </label>
+                        </div>
+                        
+                        {modifyingColumn.foreignKey.enabled && (
+                          <div class="space-y-2">
+                            <select
+                              value={modifyingColumn.foreignKey.table}
+                              onChange={(e) => setModifyingColumn({ 
+                                ...modifyingColumn, 
+                                foreignKey: { 
+                                  ...modifyingColumn.foreignKey, 
+                                  table: (e.target as HTMLSelectElement).value 
+                                } 
+                              })}
+                              class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            >
+                              <option value="">Select table...</option>
+                              {tables.map(table => (
+                                <option key={table.name} value={table.name}>{table.name}</option>
+                              ))}
+                            </select>
+                            <input
+                              type="text"
+                              value={modifyingColumn.foreignKey.column}
+                              onChange={(e) => setModifyingColumn({ 
+                                ...modifyingColumn, 
+                                foreignKey: { 
+                                  ...modifyingColumn.foreignKey, 
+                                  column: (e.target as HTMLInputElement).value 
+                                } 
+                              })}
+                              placeholder="id"
+                              class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            />
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div class="mt-6 flex space-x-3">
+                        <button
+                          onClick={() => {
+                            const changes: any = {}
+                            if (modifyingColumn.type !== tableColumns.find(c => c.name === modifyingColumn.name)?.type) {
+                              changes.type = modifyingColumn.type
+                            }
+                            const currentNotNull = tableColumns.find(c => c.name === modifyingColumn.name)?.notnull === 1
+                            if (modifyingColumn.notNull !== currentNotNull) {
+                              changes.notNull = modifyingColumn.notNull
+                            }
+                            if (modifyingColumn.foreignKey.enabled && modifyingColumn.foreignKey.table && modifyingColumn.foreignKey.column) {
+                              changes.foreignKey = { table: modifyingColumn.foreignKey.table, column: modifyingColumn.foreignKey.column }
+                            } else if (!modifyingColumn.foreignKey.enabled) {
+                              changes.foreignKey = null
+                            }
+                            handleModifyColumn(modifyingColumn.name, changes)
+                          }}
+                          class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        >
+                          Apply Changes
+                        </button>
+                        <button
+                          onClick={() => setModifyingColumn(null)}
+                          class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Validation Warning Modal */}
+                {validationWarning && (
+                  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div class="bg-white rounded-lg p-6 max-w-lg w-full mx-4">
+                      <div class="flex items-center mb-4">
+                        <div class="flex-shrink-0">
+                          <svg class="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                          </svg>
+                        </div>
+                        <div class="ml-3">
+                          <h3 class="text-lg font-medium text-gray-900">Validation Warning</h3>
+                        </div>
+                      </div>
+                      
+                      <div class="mb-4">
+                        <p class="text-sm text-gray-700 mb-3">
+                          The following issues were found with your changes:
+                        </p>
+                        <div class="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                          <ul class="list-disc list-inside space-y-1">
+                            {validationWarning.errors.map((error, idx) => (
+                              <li key={idx} class="text-sm text-yellow-800">{error}</li>
+                            ))}
+                          </ul>
+                          {validationWarning.conflictingRows > 0 && (
+                            <p class="text-sm text-yellow-800 mt-2 font-medium">
+                              {validationWarning.conflictingRows} rows will be affected.
+                            </p>
+                          )}
+                        </div>
+                        <p class="text-sm text-gray-600 mt-3">
+                          Proceeding may result in data loss or corruption. Are you sure you want to continue?
+                        </p>
+                      </div>
+                      
+                      <div class="flex space-x-3">
+                        <button
+                          onClick={validationWarning.onConfirm}
+                          class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                        >
+                          Proceed Anyway
+                        </button>
+                        <button
+                          onClick={() => setValidationWarning(null)}
+                          class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Confirmation Modal */}
+                {confirmationModal && (
+                  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                      <div class="flex items-center mb-4">
+                        <div class="flex-shrink-0">
+                          {confirmationModal.variant === 'danger' ? (
+                            <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                            </svg>
+                          ) : (
+                            <svg class="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          )}
+                        </div>
+                        <div class="ml-3">
+                          <h3 class="text-lg font-medium text-gray-900">{confirmationModal.title}</h3>
+                        </div>
+                      </div>
+                      
+                      <div class="mb-6">
+                        <p class="text-sm text-gray-700">{confirmationModal.message}</p>
+                      </div>
+                      
+                      <div class="flex space-x-3">
+                        <button
+                          onClick={confirmationModal.onConfirm}
+                          class={`inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                            confirmationModal.variant === 'danger' 
+                              ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500' 
+                              : 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500'
+                          }`}
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          onClick={() => setConfirmationModal(null)}
+                          class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Record Edit Modal */}
+                {editingRecord && (
+                  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+                      <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-medium text-gray-900">Edit Record</h3>
+                        <button
+                          onClick={() => setEditingRecord(null)}
+                          class="text-gray-400 hover:text-gray-600"
+                        >
+                          <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                      
+                      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        {tableColumns.map(col => {
+                          if (['id', 'created_at', 'updated_at'].includes(col.name)) {
+                            return (
+                              <div key={col.name} class="sm:col-span-2">
+                                <label class="block text-sm font-medium text-gray-500">{col.name} (read-only)</label>
+                                <div class="mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-sm text-gray-500">
+                                  {col.name.includes('_at') && editingRecord.data[col.name] 
+                                    ? new Date(editingRecord.data[col.name]).toLocaleString()
+                                    : editingRecord.data[col.name] || '-'
+                                  }
+                                </div>
+                              </div>
+                            )
+                          }
+
+                          const fkInfo = getForeignKeyForColumn(col.name)
+                          
+                          return (
+                            <div key={col.name}>
+                              <label class="block text-sm font-medium text-gray-700">
+                                {col.name}
+                                {col.notnull ? <span class="text-red-500 ml-1">*</span> : null}
+                                {fkInfo && <span class="text-green-600 ml-1 text-xs">FK → {fkInfo.table}.{fkInfo.to}</span>}
+                              </label>
+                              {fkInfo ? (
+                                <div class="relative">
+                                  <input
+                                    type="text"
+                                    value={editingRecord.data[col.name] || ''}
+                                    onInput={(e) => {
+                                      const newValue = (e.target as HTMLInputElement).value
+                                      setEditingRecord({
+                                        ...editingRecord,
+                                        data: { ...editingRecord.data, [col.name]: newValue }
+                                      })
+                                      
+                                      // FK validation
+                                      if (newValue.trim()) {
+                                        validateForeignKey(newValue, fkInfo)
+                                      }
+                                    }}
+                                    class={`mt-1 block w-full border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${
+                                      editingRecord.data[col.name] && fkValidation[`${fkInfo.table}-${editingRecord.data[col.name]}`]
+                                        ? fkValidation[`${fkInfo.table}-${editingRecord.data[col.name]}`].isValid
+                                          ? 'border-green-300 bg-green-50'
+                                          : 'border-red-300 bg-red-50'
+                                        : 'border-gray-300'
+                                    }`}
+                                    placeholder={`Enter ${fkInfo.table} ID`}
+                                    required={col.notnull === 1}
+                                  />
+                                  {editingRecord.data[col.name] && fkValidation[`${fkInfo.table}-${editingRecord.data[col.name]}`] && (
+                                    <div class={`absolute left-0 top-full mt-1 text-xs px-2 py-1 rounded ${
+                                      fkValidation[`${fkInfo.table}-${editingRecord.data[col.name]}`].isValid
+                                        ? 'text-green-700 bg-green-100'
+                                        : 'text-red-700 bg-red-100'
+                                    }`}>
+                                      {fkValidation[`${fkInfo.table}-${editingRecord.data[col.name]}`].isChecking
+                                        ? 'Checking...'
+                                        : fkValidation[`${fkInfo.table}-${editingRecord.data[col.name]}`].displayName
+                                      }
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <input
+                                  type={col.type === 'INTEGER' || col.type === 'REAL' ? 'number' : 'text'}
+                                  value={editingRecord.data[col.name] || ''}
+                                  onInput={(e) => setEditingRecord({
+                                    ...editingRecord,
+                                    data: { ...editingRecord.data, [col.name]: (e.target as HTMLInputElement).value }
+                                  })}
+                                  class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                  required={col.notnull === 1}
+                                />
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                      
+                      <div class="mt-6 flex space-x-3">
+                        <button
+                          onClick={handleRecordSave}
+                          class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        >
+                          Save Changes
+                        </button>
+                        <button
+                          onClick={() => setEditingRecord(null)}
+                          class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {showCreateForm && (
                   <div class="mb-6 p-4 border border-gray-200 rounded-lg">
@@ -699,13 +1463,113 @@ export function DatabasePage() {
                         {tableData.map((row, idx) => (
                           <tr key={row.id || idx} data-record-id={row.id}>
                             {tableColumns.map(col => (
-                              <td key={col.name} class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
-                                {col.name.includes('_at') && row[col.name] ? (
+                              <td 
+                                key={col.name} 
+                                class={`px-3 py-2 whitespace-nowrap text-sm text-gray-900 select-text ${
+                                  !['id', 'created_at', 'updated_at'].includes(col.name) && tables.find(t => t.name === selectedTable)?.type === 'user'
+                                    ? 'cursor-pointer hover:bg-gray-50' 
+                                    : ''
+                                }`}
+                                onClick={(e) => {
+                                  const cellKey = `${row.id}-${col.name}`
+                                  
+                                  // Skip if not editable
+                                  if (['id', 'created_at', 'updated_at'].includes(col.name) || tables.find(t => t.name === selectedTable)?.type !== 'user') {
+                                    return
+                                  }
+                                  
+                                  const current = clickCount[cellKey]
+                                  
+                                  if (current) {
+                                    // This is a second click within the timeout period
+                                    clearTimeout(current.timeout)
+                                    setClickCount(prev => {
+                                      const newState = { ...prev }
+                                      delete newState[cellKey]
+                                      return newState
+                                    })
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    handleCellDoubleClick(row.id, col.name, row[col.name])
+                                  } else {
+                                    // This is the first click
+                                    const timeout = setTimeout(() => {
+                                      setClickCount(prev => {
+                                        const newState = { ...prev }
+                                        delete newState[cellKey]
+                                        return newState
+                                      })
+                                    }, 400) // 400ms window for double-click
+                                    
+                                    setClickCount(prev => ({
+                                      ...prev,
+                                      [cellKey]: { count: 1, timeout }
+                                    }))
+                                  }
+                                }}
+                                title={!['id', 'created_at', 'updated_at'].includes(col.name) && tables.find(t => t.name === selectedTable)?.type === 'user' ? 'Double-click to edit' : ''}
+                              >
+                                {editingCell?.rowId === row.id && editingCell?.columnName === col.name ? (
+                                  <div class="relative">
+                                    <input
+                                      type={col.type === 'INTEGER' || col.type === 'REAL' ? 'number' : 'text'}
+                                      value={editingCell.value || ''}
+                                      onInput={(e) => {
+                                        const newValue = (e.target as HTMLInputElement).value
+                                        setEditingCell({ ...editingCell, value: newValue })
+                                        
+                                        // FK validation for foreign key columns
+                                        const fkInfo = getForeignKeyForColumn(col.name)
+                                        if (fkInfo && newValue.trim()) {
+                                          validateForeignKey(newValue, fkInfo)
+                                        }
+                                      }}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleCellSave(row.id, col.name, editingCell.value)
+                                        if (e.key === 'Escape') handleCellCancel()
+                                      }}
+                                      onBlur={() => handleCellSave(row.id, col.name, editingCell.value)}
+                                      class={`w-full px-2 py-1 border rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+                                        getForeignKeyForColumn(col.name) && editingCell.value && fkValidation[`${getForeignKeyForColumn(col.name)?.table}-${editingCell.value}`]
+                                          ? fkValidation[`${getForeignKeyForColumn(col.name)?.table}-${editingCell.value}`].isValid
+                                            ? 'border-green-300 bg-green-50'
+                                            : 'border-red-300 bg-red-50'
+                                          : 'border-indigo-300'
+                                      }`}
+                                      autoFocus
+                                      ref={(input) => {
+                                        if (input) {
+                                          input.focus()
+                                          input.select()
+                                        }
+                                      }}
+                                    />
+                                    {getForeignKeyForColumn(col.name) && editingCell.value && fkValidation[`${getForeignKeyForColumn(col.name)?.table}-${editingCell.value}`] && (
+                                      <div class={`absolute left-0 -bottom-6 text-xs px-2 py-1 rounded ${
+                                        fkValidation[`${getForeignKeyForColumn(col.name)?.table}-${editingCell.value}`].isValid
+                                          ? 'text-green-700 bg-green-100'
+                                          : 'text-red-700 bg-red-100'
+                                      }`}>
+                                        {fkValidation[`${getForeignKeyForColumn(col.name)?.table}-${editingCell.value}`].isChecking
+                                          ? 'Checking...'
+                                          : fkValidation[`${getForeignKeyForColumn(col.name)?.table}-${editingCell.value}`].displayName
+                                        }
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : col.name.includes('_at') && row[col.name] ? (
                                   new Date(row[col.name]).toLocaleString()
                                 ) : col.name === 'id' || col.name.endsWith('_id') ? (
                                   row[col.name] && row[col.name].length > 8 ? (
                                     <button
-                                      onClick={(e) => handleIdClick(e, row[col.name], idx, col.name)}
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleIdClick(e, row[col.name], idx, col.name)
+                                      }}
+                                      onDoubleClick={(e) => {
+                                        e.preventDefault()
+                                        e.stopPropagation()
+                                      }}
                                       class="text-blue-600 hover:text-blue-800 cursor-pointer underline decoration-dotted relative"
                                       title="Click to copy • Cmd+Click to jump to record"
                                     >
@@ -726,12 +1590,25 @@ export function DatabasePage() {
                             ))}
                             <td class="px-3 py-2 whitespace-nowrap text-right text-sm font-medium">
                               {tables.find(t => t.name === selectedTable)?.type === 'user' && (
-                                <button
-                                  onClick={() => handleDeleteRecord(row.id)}
-                                  class="text-red-600 hover:text-red-900"
-                                >
-                                  Delete
-                                </button>
+                                <div class="flex space-x-2">
+                                  <button
+                                    onClick={() => {
+                                      const record = tableData.find(r => r.id === row.id)
+                                      if (record) {
+                                        setEditingRecord({ id: row.id, data: { ...record } })
+                                      }
+                                    }}
+                                    class="text-indigo-600 hover:text-indigo-900"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteRecord(row.id)}
+                                    class="text-red-600 hover:text-red-900"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
                               )}
                             </td>
                           </tr>

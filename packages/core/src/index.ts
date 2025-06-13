@@ -21,58 +21,29 @@ app.route('/api/data', data)
 app.route('/api/docs', docs)
 app.route('/auth', auth)
 
-// Since we're using Workers Assets, static files are served automatically
-// We only need to handle SPA routing for non-existent routes
-
-// SPA routes - serve the main page and let client-side routing handle it
-app.get('/database', async (c) => {
-  return c.html(await getIndexHtml())
-})
-
-app.get('/storage', async (c) => {
-  return c.html(await getIndexHtml())
-})
-
-app.get('/auth-page', async (c) => {
-  return c.html(await getIndexHtml())
-})
-
-app.get('/settings', async (c) => {
-  return c.html(await getIndexHtml())
-})
-
-// Root path
-app.get('/', async (c) => {
-  return c.html(await getIndexHtml())
-})
-
-// Catch-all route for SPA fallback
+// Catch-all route for SPA fallback - serve index.html for non-API routes
 app.get('*', async (c) => {
-  // Check if the request is for an API endpoint
-  if (c.req.path.startsWith('/api/')) {
+  // Don't handle API routes
+  if (c.req.path.startsWith('/api/') || c.req.path.startsWith('/auth/')) {
     return c.json({ error: 'Not Found' }, 404)
   }
   
-  // For all other routes, serve the SPA
-  return c.html(await getIndexHtml())
-})
-
-// Helper function to get index.html content
-async function getIndexHtml(): Promise<string> {
-  return `<!DOCTYPE html>
+  // For SPA routes, return the index.html content directly
+  // This avoids fetch loops and uses the Workers Assets directly
+  return c.html(`<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Viveforge Dashboard</title>
-    <script type="module" crossorigin src="/assets/index-BTtGELXr.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-s_zEFhkd.css">
+    <script type="module" crossorigin src="/assets/index-BF2I8kk7.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-Dca88DWk.css">
   </head>
   <body>
     <div id="app"></div>
   </body>
-</html>`
-}
+</html>`)
+})
 
 export default app

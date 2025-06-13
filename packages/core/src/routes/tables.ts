@@ -50,7 +50,8 @@ tables.get('/:tableName/schema', async (c) => {
   try {
     const tableName = c.req.param('tableName')
     const columns = await tm.getTableColumns(tableName)
-    return c.json({ tableName, columns })
+    const foreignKeys = await tm.getForeignKeys(tableName)
+    return c.json({ tableName, columns, foreignKeys })
   } catch (error) {
     console.error('Error fetching table schema:', error)
     return c.json({ error: 'Failed to fetch table schema' }, 500)
@@ -156,6 +157,35 @@ tables.post('/:tableName/data', async (c) => {
   }
 })
 
+// Update record in table
+tables.put('/:tableName/data/:id', async (c) => {
+  const tm = c.get('tableManager') as TableManager
+  if (!tm) {
+    return c.json({ error: 'Database not available' }, 500)
+  }
+
+  try {
+    const tableName = c.req.param('tableName')
+    const id = c.req.param('id')
+    const data = await c.req.json()
+    
+    // Check if table is system table
+    if (['admins', 'sessions', '_cf_KV'].includes(tableName)) {
+      return c.json({ error: 'Cannot modify system table' }, 403)
+    }
+    
+    // Use TableManager to ensure foreign key constraints are enabled
+    await tm.updateRecord(tableName, id, data)
+    
+    return c.json({ success: true })
+  } catch (error) {
+    console.error('Error updating record:', error)
+    return c.json({ 
+      error: error instanceof Error ? error.message : 'Failed to update record' 
+    }, 400)
+  }
+})
+
 // Delete record from table
 tables.delete('/:tableName/data/:id', async (c) => {
   const tm = c.get('tableManager') as TableManager
@@ -175,6 +205,147 @@ tables.delete('/:tableName/data/:id', async (c) => {
     console.error('Error deleting record:', error)
     return c.json({ 
       error: error instanceof Error ? error.message : 'Failed to delete record' 
+    }, 400)
+  }
+})
+
+// Add column to table
+const addColumnSchema = z.object({
+  name: z.string().regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/, 'Invalid column name'),
+  type: z.enum(['TEXT', 'INTEGER', 'REAL', 'BLOB', 'BOOLEAN']),
+  constraints: z.string().optional(),
+  foreignKey: z.object({
+    table: z.string(),
+    column: z.string()
+  }).optional()
+})
+
+tables.post('/:tableName/columns', zValidator('json', addColumnSchema), async (c) => {
+  const tm = c.get('tableManager') as TableManager
+  if (!tm) {
+    return c.json({ error: 'Database not available' }, 500)
+  }
+
+  try {
+    const tableName = c.req.param('tableName')
+    const column = c.req.valid('json')
+    
+    await tm.addColumn(tableName, column)
+    return c.json({ success: true, column: column.name }, 201)
+  } catch (error) {
+    console.error('Error adding column:', error)
+    return c.json({ 
+      error: error instanceof Error ? error.message : 'Failed to add column' 
+    }, 400)
+  }
+})
+
+// Rename column
+const renameColumnSchema = z.object({
+  oldName: z.string(),
+  newName: z.string().regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/, 'Invalid column name')
+})
+
+tables.put('/:tableName/columns/:columnName', zValidator('json', renameColumnSchema), async (c) => {
+  const tm = c.get('tableManager') as TableManager
+  if (!tm) {
+    return c.json({ error: 'Database not available' }, 500)
+  }
+
+  try {
+    const tableName = c.req.param('tableName')
+    const { oldName, newName } = c.req.valid('json')
+    
+    await tm.renameColumn(tableName, oldName, newName)
+    return c.json({ success: true, oldName, newName })
+  } catch (error) {
+    console.error('Error renaming column:', error)
+    return c.json({ 
+      error: error instanceof Error ? error.message : 'Failed to rename column' 
+    }, 400)
+  }
+})
+
+// Drop column
+tables.delete('/:tableName/columns/:columnName', async (c) => {
+  const tm = c.get('tableManager') as TableManager
+  if (!tm) {
+    return c.json({ error: 'Database not available' }, 500)
+  }
+
+  try {
+    const tableName = c.req.param('tableName')
+    const columnName = c.req.param('columnName')
+    
+    // Prevent dropping system columns
+    if (['id', 'created_at', 'updated_at'].includes(columnName)) {
+      return c.json({ error: 'Cannot drop system column' }, 403)
+    }
+    
+    await tm.dropColumn(tableName, columnName)
+    return c.json({ success: true, column: columnName })
+  } catch (error) {
+    console.error('Error dropping column:', error)
+    return c.json({ 
+      error: error instanceof Error ? error.message : 'Failed to drop column' 
+    }, 400)
+  }
+})
+
+// Modify column constraints/type
+const modifyColumnSchema = z.object({
+  type: z.enum(['TEXT', 'INTEGER', 'REAL', 'BLOB', 'BOOLEAN']).optional(),
+  notNull: z.boolean().optional(),
+  foreignKey: z.object({
+    table: z.string(),
+    column: z.string()
+  }).nullable().optional()
+})
+
+tables.patch('/:tableName/columns/:columnName', zValidator('json', modifyColumnSchema), async (c) => {
+  const tm = c.get('tableManager') as TableManager
+  if (!tm) {
+    return c.json({ error: 'Database not available' }, 500)
+  }
+
+  try {
+    const tableName = c.req.param('tableName')
+    const columnName = c.req.param('columnName')
+    const changes = c.req.valid('json')
+    
+    // Prevent modifying system columns
+    if (['id', 'created_at', 'updated_at'].includes(columnName)) {
+      return c.json({ error: 'Cannot modify system column' }, 403)
+    }
+    
+    await tm.modifyColumn(tableName, columnName, changes)
+    return c.json({ success: true, column: columnName, changes })
+  } catch (error) {
+    console.error('Error modifying column:', error)
+    return c.json({ 
+      error: error instanceof Error ? error.message : 'Failed to modify column' 
+    }, 400)
+  }
+})
+
+// Validate column changes before applying
+tables.post('/:tableName/columns/:columnName/validate', zValidator('json', modifyColumnSchema), async (c) => {
+  const tm = c.get('tableManager') as TableManager
+  if (!tm) {
+    return c.json({ error: 'Database not available' }, 500)
+  }
+
+  try {
+    const tableName = c.req.param('tableName')
+    const columnName = c.req.param('columnName')
+    const changes = c.req.valid('json')
+    
+    const validation = await tm.validateColumnChanges(tableName, columnName, changes)
+    return c.json(validation)
+  } catch (error) {
+    console.error('Error validating column changes:', error)
+    return c.json({ 
+      error: error instanceof Error ? error.message : 'Failed to validate column changes' 
     }, 400)
   }
 })
