@@ -131,15 +131,6 @@ export function DatabasePage() {
 
   const loadTableData = async () => {
     if (!selectedTable) return
-    
-    // Skip data loading for system tables
-    const selectedTableInfo = tables.find(t => t.name === selectedTable)
-    if (selectedTableInfo?.type === 'system') {
-      setTableData([])
-      setLoading(false)
-      return
-    }
-    
     try {
       setLoading(true)
       const result = await api.getTableData(selectedTable)
@@ -1476,16 +1467,6 @@ export function DatabasePage() {
 
                 {loading ? (
                   <div class="text-center py-4 text-sm text-gray-500">Loading data...</div>
-                ) : tables.find(t => t.name === selectedTable)?.type === 'system' ? (
-                  <div class="text-center py-8">
-                    <div class="mx-auto h-12 w-12 text-gray-400">
-                      <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.623 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
-                      </svg>
-                    </div>
-                    <h3 class="mt-2 text-sm font-medium text-gray-900">System Table</h3>
-                    <p class="mt-1 text-sm text-gray-500">Data from system tables is protected and not displayed for security reasons.</p>
-                  </div>
                 ) : tableData.length === 0 ? (
                   <div class="text-center py-8">
                     <p class="text-sm text-gray-500">No data in this table</p>

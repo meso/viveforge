@@ -29,9 +29,8 @@ data.use('/:tableName/*', async (c, next) => {
       return c.json({ error: `Table '${tableName}' not found` }, 404)
     }
     
-    if (table.type === 'system') {
-      return c.json({ error: `Cannot access system table '${tableName}'` }, 403)
-    }
+    // Allow read access to system tables for display purposes
+    // (Write operations are still protected in individual endpoints)
     
     c.set('tableInfo', table)
     await next()
