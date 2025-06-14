@@ -14,7 +14,7 @@ enabled = true
 [[d1_databases]]
 binding = "DB"
 database_name = "viveforge-db"
-database_id = "e8855c8b-a012-4609-8680-25dd03646254"
+database_id = "889a7128-6ea0-4ac2-a838-b2f07299e9ba"
 
 # R2 Storage bindings
 [[r2_buckets]]

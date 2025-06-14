@@ -17,10 +17,10 @@
     "jsxImportSource": "preact",
     "baseUrl": ".",
     "paths": {
-      "@ourforge/core": ["packages/core/src"],
-      "@ourforge/dashboard": ["packages/dashboard/src"],
-      "@ourforge/sdk": ["packages/sdk/src"],
-      "@ourforge/cli": ["packages/cli/src"]
+      "@viveforge/core": ["packages/core/src"],
+      "@viveforge/dashboard": ["packages/dashboard/src"],
+      "@viveforge/sdk": ["packages/sdk/src"],
+      "@viveforge/cli": ["packages/cli/src"]
     }
   },
   "exclude": ["node_modules", "dist", "build", ".wrangler"]

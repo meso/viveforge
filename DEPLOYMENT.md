@@ -75,7 +75,7 @@ wrangler secret put SECRET_NAME
 ### 4. R2ストレージの有効化
 ```bash
 # R2バケットを作成
-wrangler r2 bucket create ourforge-storage
+wrangler r2 bucket create viveforge-storage
 
 # wrangler.tomlのR2セクションをアンコメント
 ```
@@ -172,4 +172,4 @@ wrangler deploy --verbose
 
 ## 💬 サポート
 
-問題が発生した場合は、[Issues](https://github.com/meso/ourforge/issues)でお知らせください。
+問題が発生した場合は、[Issues](https://github.com/meso/viveforge/issues)でお知らせください。
