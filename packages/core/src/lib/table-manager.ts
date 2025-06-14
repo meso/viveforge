@@ -2,7 +2,7 @@
 import { SchemaSnapshotManager } from './schema-snapshot'
 
 // System tables that cannot be modified by users
-const SYSTEM_TABLES = ['admins', 'sessions', 'schema_snapshots', 'schema_snapshot_counter'] as const
+export const SYSTEM_TABLES = ['admins', 'sessions', 'schema_snapshots', 'schema_snapshot_counter', 'd1_migrations'] as const
 type SystemTable = typeof SYSTEM_TABLES[number]
 
 export interface TableInfo {

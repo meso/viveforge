@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { zValidator } from '@hono/zod-validator'
-import { TableManager } from '../lib/table-manager'
+import { TableManager, SYSTEM_TABLES } from '../lib/table-manager'
 import type { Env, Variables } from '../types'
 
 export const tables = new Hono<{ Bindings: Env; Variables: Variables }>()
@@ -141,7 +141,7 @@ tables.post('/:tableName/data', async (c) => {
     const data = await c.req.json()
     
     // Check if table is system table
-    if (['admins', 'sessions', '_cf_KV'].includes(tableName)) {
+    if (SYSTEM_TABLES.includes(tableName as any) || tableName === '_cf_KV') {
       return c.json({ error: 'Cannot modify system table' }, 403)
     }
     
@@ -170,7 +170,7 @@ tables.put('/:tableName/data/:id', async (c) => {
     const data = await c.req.json()
     
     // Check if table is system table
-    if (['admins', 'sessions', '_cf_KV'].includes(tableName)) {
+    if (SYSTEM_TABLES.includes(tableName as any) || tableName === '_cf_KV') {
       return c.json({ error: 'Cannot modify system table' }, 403)
     }
     
