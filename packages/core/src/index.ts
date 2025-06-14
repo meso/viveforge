@@ -7,7 +7,6 @@ import { tables } from './routes/tables'
 import { data } from './routes/data'
 import { docs } from './routes/docs'
 import { snapshots } from './routes/snapshots'
-import { timeTravel } from './routes/time-travel'
 import type { Env, Variables } from './types'
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>()
@@ -21,7 +20,6 @@ app.route('/api/tables', tables)
 app.route('/api/data', data)
 app.route('/api/docs', docs)
 app.route('/api/snapshots', snapshots)
-app.route('/api/time-travel', timeTravel)
 app.route('/auth', auth)
 
 // Catch-all route for SPA fallback - serve index.html for non-API routes
@@ -39,8 +37,8 @@ app.get('*', async (c) => {
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Viveforge Dashboard</title>
-    <script type="module" crossorigin src="/assets/index-DgtnZ8yn.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-lzS80WsN.css">
+    <script type="module" crossorigin src="/assets/index-C_XW7IIS.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DwhiVdDn.css">
   </head>
   <body>
     <div id="app"></div>

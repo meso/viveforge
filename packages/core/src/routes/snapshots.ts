@@ -82,14 +82,46 @@ snapshots.post('/', async (c) => {
 snapshots.post('/:id/restore', async (c) => {
   try {
     const id = c.req.param('id')
+    
     const tableManager = c.get('tableManager')
+    if (!tableManager) {
+      throw new Error('TableManager not available')
+    }
     
     await tableManager.restoreSnapshot(id)
     
     return c.json({ success: true, message: 'Snapshot restored successfully' })
   } catch (error) {
-    console.error('Failed to restore snapshot:', error)
-    return c.json({ error: error instanceof Error ? error.message : 'Failed to restore snapshot' }, 500)
+    
+    const errorMessage = error instanceof Error ? error.message : String(error) || 'Failed to restore snapshot'
+    const errorResponse = { 
+      error: errorMessage,
+      type: error?.constructor?.name || typeof error,
+      details: error instanceof Error ? error.stack : undefined,
+      originalError: error instanceof Error ? {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      } : String(error)
+    }
+    
+    console.error('Error response being sent:', errorResponse)
+    return c.json(errorResponse, 500)
+  }
+})
+
+// Delete snapshot
+snapshots.delete('/:id', async (c) => {
+  try {
+    const id = c.req.param('id')
+    const tableManager = c.get('tableManager')
+    
+    await tableManager.deleteSnapshot(id)
+    
+    return c.json({ success: true, message: 'Snapshot deleted successfully' })
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to delete snapshot'
+    return c.json({ error: errorMessage }, 500)
   }
 })
 

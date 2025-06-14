@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'preact/hooks'
+import { useState, useEffect, useRef } from 'preact/hooks'
 import { api, type TableInfo, type ForeignKeyInfo } from '../lib/api'
 import { SchemaHistory } from '../components/SchemaHistory'
 
@@ -6,6 +6,14 @@ import { SchemaHistory } from '../components/SchemaHistory'
 const truncateId = (id: string | null): string => {
   if (!id) return '-'
   return id.length > 8 ? `${id.substring(0, 4)}...` : id
+}
+
+// System tables that should not be available for FK references
+const SYSTEM_TABLES = ['admins', 'sessions', 'schema_snapshots', 'schema_snapshot_counter', 'd1_migrations']
+
+// Filter out system tables for FK references
+const getUserTables = (tables: TableInfo[]): TableInfo[] => {
+  return tables.filter(table => !SYSTEM_TABLES.includes(table.name))
 }
 
 // Copy to clipboard utility
@@ -55,6 +63,8 @@ export function DatabasePage() {
   const [editingRecord, setEditingRecord] = useState<{ id: string; data: Record<string, any> } | null>(null)
   const [clickCount, setClickCount] = useState<{[key: string]: { count: number; timeout: number }}>({})
   const [fkValidation, setFkValidation] = useState<{[key: string]: { isValid: boolean; isChecking: boolean; displayName?: string }}>({})
+  const editInputRef = useRef<HTMLInputElement | null>(null)
+  const hasInitializedFocus = useRef(false)
   const [showSchemaHistory, setShowSchemaHistory] = useState(false)
 
   // Format date from SQLite DATETIME to user timezone
@@ -483,6 +493,7 @@ export function DatabasePage() {
       }
     } else {
       // Inline editing for simple fields
+      hasInitializedFocus.current = false // Reset focus flag
       setEditingCell({ rowId, columnName, value: currentValue })
     }
   }
@@ -701,7 +712,7 @@ export function DatabasePage() {
                         class="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                       >
                         <option value="">Select table...</option>
-                        {tables.map(table => (
+                        {getUserTables(tables).map(table => (
                           <option key={table.name} value={table.name}>{table.name}</option>
                         ))}
                       </select>
@@ -1041,7 +1052,7 @@ export function DatabasePage() {
                               class="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                             >
                               <option value="">Select table...</option>
-                              {tables.map(table => (
+                              {getUserTables(tables).map(table => (
                                 <option key={table.name} value={table.name}>{table.name}</option>
                               ))}
                             </select>
@@ -1138,7 +1149,7 @@ export function DatabasePage() {
                               class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                             >
                               <option value="">Select table...</option>
-                              {tables.map(table => (
+                              {getUserTables(tables).map(table => (
                                 <option key={table.name} value={table.name}>{table.name}</option>
                               ))}
                             </select>
@@ -1553,7 +1564,7 @@ export function DatabasePage() {
                                         }
                                       }}
                                       onKeyDown={(e) => {
-                                        if (e.key === 'Enter') handleCellSave(row.id, col.name, editingCell.value)
+                                        if (e.key === 'Enter' && !e.isComposing) handleCellSave(row.id, col.name, editingCell.value)
                                         if (e.key === 'Escape') handleCellCancel()
                                       }}
                                       onBlur={() => handleCellSave(row.id, col.name, editingCell.value)}
@@ -1564,11 +1575,16 @@ export function DatabasePage() {
                                             : 'border-red-300 bg-red-50'
                                           : 'border-indigo-300'
                                       }`}
-                                      autoFocus
                                       ref={(input) => {
-                                        if (input) {
-                                          input.focus()
-                                          input.select()
+                                        editInputRef.current = input
+                                        if (input && !hasInitializedFocus.current) {
+                                          hasInitializedFocus.current = true
+                                          setTimeout(() => {
+                                            input.focus()
+                                            // カーソルを末尾に移動（全選択はしない）
+                                            const length = input.value.length
+                                            input.setSelectionRange(length, length)
+                                          }, 0)
                                         }
                                       }}
                                     />

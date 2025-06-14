@@ -36,6 +36,14 @@ export class TableManager {
     }
   }
 
+  private async disableForeignKeys(): Promise<void> {
+    try {
+      await this.db.prepare('PRAGMA foreign_keys = OFF').run()
+    } catch (error) {
+      console.warn('Failed to disable foreign keys:', error)
+    }
+  }
+
   // Get all tables with their types
   async getTables(): Promise<TableInfo[]> {
     await this.enableForeignKeys()
@@ -822,6 +830,18 @@ export class TableManager {
   }
   
   async restoreSnapshot(id: string) {
-    return this.snapshotManager.restoreSnapshot(id)
+    // Disable foreign keys during restore to prevent constraint errors
+    await this.disableForeignKeys()
+    try {
+      const result = await this.snapshotManager.restoreSnapshot(id)
+      return result
+    } finally {
+      // Always re-enable foreign keys after restore
+      await this.enableForeignKeys()
+    }
+  }
+  
+  async deleteSnapshot(id: string) {
+    return await this.snapshotManager.deleteSnapshot(id)
   }
 }

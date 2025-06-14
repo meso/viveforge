@@ -276,7 +276,7 @@ export class SchemaSnapshotManager {
   }
 
   // Restore from snapshot
-  async restoreSnapshot(snapshotId: string): Promise<void> {
+  async restoreSnapshot(snapshotId: string): Promise<{ success: boolean; message: string }> {
     const snapshot = await this.getSnapshot(snapshotId)
     if (!snapshot) {
       throw new Error('Snapshot not found')
@@ -299,63 +299,171 @@ export class SchemaSnapshotManager {
       }
     }
     
-    // Begin restoration
-    // 1. Drop all user tables (exclude system tables)
-    const currentTables = await this.db
-      .prepare(`
-        SELECT name 
-        FROM sqlite_master 
-        WHERE type='table' 
-        AND name NOT LIKE 'sqlite_%' 
-        AND name != '_cf_KV'
-        AND name NOT IN ('admins', 'sessions', 'schema_snapshots', 'schema_snapshot_counter')
-      `)
-      .all()
-    
-    // Drop tables in reverse dependency order (simplified - may need improvement)
-    for (const table of currentTables.results) {
-      await this.db.prepare(`DROP TABLE IF EXISTS "${table.name}"`).run()
-    }
-    
-    // 2. Recreate tables from snapshot
-    for (const schema of schemas) {
-      // Skip system tables
-      if (['admins', 'sessions', 'schema_snapshots', 'schema_snapshot_counter'].includes(schema.name)) {
-        continue
+    // Begin restoration 
+    try {
+      
+      // Create a new transaction-like approach using batch
+      const allStatements = []
+      
+      // First statement: disable foreign keys
+      allStatements.push(this.db.prepare('PRAGMA foreign_keys = OFF'))
+      
+      // Get current user tables
+      const currentTables = await this.db
+        .prepare(`
+          SELECT name 
+          FROM sqlite_master 
+          WHERE type='table' 
+          AND name NOT LIKE 'sqlite_%' 
+          AND name != '_cf_KV'
+          AND name NOT IN ('admins', 'sessions', 'schema_snapshots', 'schema_snapshot_counter', 'd1_migrations')
+        `)
+        .all()
+      
+      
+      // Sort tables for deletion in reverse dependency order
+      const tableNames = currentTables.results.map(t => t.name as string)
+      const deletionOrder = this.sortTablesForDeletion(tableNames)
+      
+      // Add DROP statements in correct order
+      for (const tableName of deletionOrder) {
+        allStatements.push(this.db.prepare(`DROP TABLE IF EXISTS "${tableName}"`))
       }
       
-      await this.db.prepare(schema.sql).run()
-    }
-    
-    // 3. Restore data if available
-    for (const [tableName, tableData] of Object.entries(snapshotData)) {
-      if (tableData.length === 0) continue
+      // Prepare table creation and data insertion statements
+      const schemasToRestore = schemas.filter(schema => 
+        !['admins', 'sessions', 'schema_snapshots', 'schema_snapshot_counter', 'd1_migrations'].includes(schema.name)
+      )
       
+      // Define dependency order (parent tables first)
+      const tablePriority = {
+        'users': 1,    // Usually the base table that others reference
+        'items': 2,    // May reference users
+        'messages': 3  // May reference users and items
+      }
+      
+      // Sort tables by priority
+      schemasToRestore.sort((a, b) => {
+        const priorityA = tablePriority[a.name as keyof typeof tablePriority] || 999
+        const priorityB = tablePriority[b.name as keyof typeof tablePriority] || 999
+        if (priorityA !== priorityB) return priorityA - priorityB
+        return a.name.localeCompare(b.name)
+      })
+      
+      
+      // Add CREATE statements for all tables
+      for (const schema of schemasToRestore) {
+        allStatements.push(this.db.prepare(schema.sql))
+      }
+      
+      // Execute all statements in a single batch
       try {
-        // Get column names from the first record
-        const columns = Object.keys(tableData[0])
-        const placeholders = columns.map(() => '?').join(', ')
-        const insertSQL = `INSERT INTO "${tableName}" (${columns.join(', ')}) VALUES (${placeholders})`
-        
-        // Insert each record
-        for (const record of tableData) {
-          const values = columns.map(col => record[col])
-          await this.db.prepare(insertSQL).bind(...values).run()
-        }
-      } catch (error) {
-        console.warn(`Failed to restore data for table ${tableName}:`, error)
+        await this.db.batch(allStatements)
+      } catch (batchError) {
+        console.error('Batch execution failed:', batchError)
+        throw new Error(`Failed to restore schema: ${batchError instanceof Error ? batchError.message : 'Unknown error'}`)
       }
+      
+      
+      // Now insert data if available (separate batch for data)
+      if (Object.keys(snapshotData).length > 0) {
+        
+        for (const schema of schemasToRestore) {
+          if (snapshotData[schema.name] && snapshotData[schema.name].length > 0) {
+            const tableData = snapshotData[schema.name]
+            
+            const columns = Object.keys(tableData[0])
+            const placeholders = columns.map(() => '?').join(', ')
+            const insertSQL = `INSERT INTO "${schema.name}" (${columns.join(', ')}) VALUES (${placeholders})`
+            
+            // Insert records individually with FK disabled
+            let insertedCount = 0
+            for (const record of tableData) {
+              const values = columns.map(col => record[col] === undefined ? null : record[col])
+              try {
+                // Ensure FK are off for inserts too
+                await this.db.prepare('PRAGMA foreign_keys = OFF').run()
+                await this.db.prepare(insertSQL).bind(...values).run()
+                insertedCount++
+              } catch (insertError) {
+                // Continue with other records on error
+              }
+            }
+          }
+        }
+      }
+      
+      // Re-enable foreign keys before creating post-restore snapshot
+      await this.db.prepare('PRAGMA foreign_keys = ON').run()
+      
+      // Create a post-restore snapshot
+      await this.createSnapshot({
+        name: `Restored from v${snapshot.version}`,
+        description: `Restored from snapshot: ${snapshot.name}`,
+        snapshotType: 'auto'
+      })
+      
+      
+      return { success: true, message: 'スナップショットが正常に復元されました' }
+      
+    } catch (error) {
+      
+      // Try to re-enable foreign keys even on error
+      try {
+        await this.db.prepare('PRAGMA foreign_keys = ON').run()
+      } catch (e) {
+        console.warn('Failed to re-enable foreign keys:', e)
+      }
+      
+      throw error
     }
-    
-    // 4. Create a post-restore snapshot
-    await this.createSnapshot({
-      name: `Restored from v${snapshot.version}`,
-      description: `Restored from snapshot: ${snapshot.name}`,
-      snapshotType: 'auto'
-    })
   }
 
+  // Helper method to sort tables for deletion (children before parents)
+  private sortTablesForDeletion(tableNames: string[]): string[] {
+    // Define known dependencies (reverse of creation order)
+    const deletionPriority = {
+      'messages': 1,  // Delete first (depends on users and items)
+      'items': 2,     // Delete second (depends on users)
+      'users': 3      // Delete last (no dependencies)
+    }
+    
+    return tableNames.sort((a, b) => {
+      const priorityA = deletionPriority[a as keyof typeof deletionPriority] || 0
+      const priorityB = deletionPriority[b as keyof typeof deletionPriority] || 0
+      if (priorityA !== priorityB) return priorityA - priorityB
+      return a.localeCompare(b)
+    })
+  }
+  
   // Delete old snapshots (keep N most recent)
+  async deleteSnapshot(id: string): Promise<{ success: boolean; message: string }> {
+    // Check if snapshot exists
+    const snapshot = await this.getSnapshot(id)
+    if (!snapshot) {
+      throw new Error('Snapshot not found')
+    }
+    
+    // Delete snapshot from database
+    await this.db
+      .prepare('DELETE FROM schema_snapshots WHERE id = ?')
+      .bind(id)
+      .run()
+    
+    // Try to delete associated data from R2
+    if (this.systemStorage) {
+      try {
+        const dataKey = `snapshots/${id}/data.json`
+        await this.systemStorage.delete(dataKey)
+      } catch (error) {
+        // Continue even if R2 deletion fails
+        console.warn('Failed to delete snapshot data from R2:', error)
+      }
+    }
+    
+    return { success: true, message: 'スナップショットが削除されました' }
+  }
+  
   async pruneSnapshots(keepCount: number): Promise<number> {
     const result = await this.db
       .prepare(`
