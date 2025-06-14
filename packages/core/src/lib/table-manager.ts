@@ -213,8 +213,20 @@ export class TableManager {
       .prepare(`SELECT COUNT(*) as total FROM "${tableName}"`)
       .first()
 
+    // Check if table has created_at column for ordering
+    const columns = await this.getTableColumns(tableName)
+    const hasCreatedAt = columns.some(col => col.name === 'created_at')
+    
+    let orderClause = ''
+    if (hasCreatedAt) {
+      orderClause = 'ORDER BY created_at DESC'
+    } else {
+      // For tables without created_at, use ROWID if available
+      orderClause = 'ORDER BY ROWID'
+    }
+
     const dataResult = await this.db
-      .prepare(`SELECT * FROM "${tableName}" ORDER BY created_at DESC LIMIT ? OFFSET ?`)
+      .prepare(`SELECT * FROM "${tableName}" ${orderClause} LIMIT ? OFFSET ?`)
       .bind(limit, offset)
       .all()
 
@@ -229,12 +241,19 @@ export class TableManager {
     tableName: string, 
     limit = 100, 
     offset = 0, 
-    sortBy = 'created_at', 
+    sortBy?: string, 
     sortOrder: 'ASC' | 'DESC' = 'DESC'
   ): Promise<{ data: any[], total: number }> {
     const countResult = await this.db
       .prepare(`SELECT COUNT(*) as total FROM "${tableName}"`)
       .first()
+
+    // Determine sortBy if not provided
+    if (!sortBy) {
+      const columns = await this.getTableColumns(tableName)
+      const hasCreatedAt = columns.some(col => col.name === 'created_at')
+      sortBy = hasCreatedAt ? 'created_at' : 'ROWID'
+    }
 
     const dataResult = await this.db
       .prepare(`SELECT * FROM "${tableName}" ORDER BY "${sortBy}" ${sortOrder} LIMIT ? OFFSET ?`)

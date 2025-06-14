@@ -49,14 +49,15 @@ data.get('/:tableName', async (c) => {
     const page = Math.max(1, Number(c.req.query('page') || '1'))
     const limit = Math.min(100, Math.max(1, Number(c.req.query('limit') || '20')))
     const offset = (page - 1) * limit
-    const sortBy = c.req.query('sortBy') || 'created_at'
-    const sortOrder = c.req.query('sortOrder') === 'asc' ? 'ASC' : 'DESC'
-    
-    // Get table columns to validate sortBy field
+    // Get table columns to determine default sort field
     const columns = await tm.getTableColumns(tableName)
     const validColumns = columns.map(col => col.name)
+    const hasCreatedAt = columns.some(col => col.name === 'created_at')
     
-    if (!validColumns.includes(sortBy)) {
+    const sortBy = c.req.query('sortBy') || (hasCreatedAt ? 'created_at' : validColumns[0] || 'ROWID')
+    const sortOrder = c.req.query('sortOrder') === 'asc' ? 'ASC' : 'DESC'
+    
+    if (sortBy !== 'ROWID' && !validColumns.includes(sortBy)) {
       return c.json({ 
         error: `Invalid sort field '${sortBy}'. Valid fields: ${validColumns.join(', ')}` 
       }, 400)
