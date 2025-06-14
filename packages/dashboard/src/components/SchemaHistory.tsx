@@ -109,9 +109,17 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
 
   // Convert UTC datetime string to local datetime-local format for HTML input
   const toLocalDateTimeString = (utcDateString: string) => {
-    const date = new Date(utcDateString + 'Z') // Interpret as UTC
-    const localDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000))
-    return localDate.toISOString().slice(0, 16)
+    // UTC文字列をブラウザのローカルタイムゾーンで解釈
+    const date = new Date(utcDateString)
+    
+    // datetime-local input用のフォーマットに変換（YYYY-MM-DDTHH:MM）
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    
+    return `${year}-${month}-${day}T${hours}:${minutes}`
   }
 
   return (

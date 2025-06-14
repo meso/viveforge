@@ -61,7 +61,7 @@ timeTravel.get('/points', async (c) => {
     const points = []
     
     // Generate hourly points for the last 24 hours
-    for (let i = 0; i < 24; i++) {
+    for (let i = 1; i <= 24; i++) {
       points.push({
         timestamp: new Date(now - i * 60 * 60 * 1000).toISOString(),
         type: 'hourly',
