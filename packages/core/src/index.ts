@@ -7,6 +7,8 @@ import { auth } from './routes/auth'
 import { tables } from './routes/tables'
 import { data } from './routes/data'
 import { docs } from './routes/docs'
+import { snapshots } from './routes/snapshots'
+import { timeTravel } from './routes/time-travel'
 import type { Env, Variables } from './types'
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>()
@@ -19,6 +21,8 @@ app.route('/api', api)
 app.route('/api/tables', tables)
 app.route('/api/data', data)
 app.route('/api/docs', docs)
+app.route('/api/snapshots', snapshots)
+app.route('/api/time-travel', timeTravel)
 app.route('/auth', auth)
 
 // Catch-all route for SPA fallback - serve index.html for non-API routes

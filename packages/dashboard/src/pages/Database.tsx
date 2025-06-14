@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'preact/hooks'
 import { api, type TableInfo, type ForeignKeyInfo } from '../lib/api'
+import { SchemaHistory } from '../components/SchemaHistory'
 
 // Utility function to truncate IDs
 const truncateId = (id: string | null): string => {
@@ -54,6 +55,23 @@ export function DatabasePage() {
   const [editingRecord, setEditingRecord] = useState<{ id: string; data: Record<string, any> } | null>(null)
   const [clickCount, setClickCount] = useState<{[key: string]: { count: number; timeout: number }}>({})
   const [fkValidation, setFkValidation] = useState<{[key: string]: { isValid: boolean; isChecking: boolean; displayName?: string }}>({})
+  const [showSchemaHistory, setShowSchemaHistory] = useState(false)
+
+  // Format date from SQLite DATETIME to user timezone
+  const formatDateTime = (dateString: string) => {
+    if (!dateString) return '-'
+    const utcDate = new Date(dateString + 'Z') // Add 'Z' to interpret as UTC
+    return utcDate.toLocaleString(undefined, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+      timeZoneName: 'short'
+    })
+  }
 
   useEffect(() => {
     loadTables()
@@ -534,7 +552,17 @@ export function DatabasePage() {
             Manage your D1 database tables and data
           </p>
         </div>
-        <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
+        <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none flex space-x-3">
+          <button
+            type="button"
+            onClick={() => setShowSchemaHistory(true)}
+            class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:w-auto"
+          >
+            <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            History
+          </button>
           <button
             type="button"
             onClick={() => setShowCreateTableForm(true)}
@@ -1289,7 +1317,7 @@ export function DatabasePage() {
                                 <label class="block text-sm font-medium text-gray-500">{col.name} (read-only)</label>
                                 <div class="mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-sm text-gray-500">
                                   {col.name.includes('_at') && editingRecord.data[col.name] 
-                                    ? new Date(editingRecord.data[col.name]).toLocaleString()
+                                    ? formatDateTime(editingRecord.data[col.name])
                                     : editingRecord.data[col.name] || '-'
                                   }
                                 </div>
@@ -1558,7 +1586,7 @@ export function DatabasePage() {
                                     )}
                                   </div>
                                 ) : col.name.includes('_at') && row[col.name] ? (
-                                  new Date(row[col.name]).toLocaleString()
+                                  formatDateTime(row[col.name])
                                 ) : col.name === 'id' || col.name.endsWith('_id') ? (
                                   row[col.name] && row[col.name].length > 8 ? (
                                     <button
@@ -1644,6 +1672,20 @@ export function DatabasePage() {
           )}
         </div>
       </div>
+      
+      {/* Schema History Modal */}
+      {showSchemaHistory && (
+        <SchemaHistory 
+          onClose={() => setShowSchemaHistory(false)}
+          onRestore={() => {
+            loadTables()
+            if (selectedTable) {
+              loadTableData()
+              loadTableSchema()
+            }
+          }}
+        />
+      )}
     </div>
   )
 }

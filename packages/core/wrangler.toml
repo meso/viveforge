@@ -1,6 +1,7 @@
 name = "viveforge-core"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
 
 # Workers Assets for dashboard
 assets = { directory = "../dashboard/dist" }
@@ -15,10 +16,14 @@ binding = "DB"
 database_name = "viveforge-db"
 database_id = "e8855c8b-a012-4609-8680-25dd03646254"
 
-# R2 Storage binding (will be created later)
-# [[r2_buckets]]
-# binding = "STORAGE"
-# bucket_name = "viveforge-storage"
+# R2 Storage bindings
+[[r2_buckets]]
+binding = "SYSTEM_STORAGE"
+bucket_name = "viveforge-system"
+
+[[r2_buckets]]
+binding = "USER_STORAGE"
+bucket_name = "viveforge-storage"
 
 # KV Namespace for sessions (will be created on first deploy)
 # [[kv_namespaces]]

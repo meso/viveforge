@@ -36,6 +36,33 @@ export interface ApiResponse<T> {
   error?: string
 }
 
+export interface SchemaSnapshot {
+  id: string
+  version: number
+  name?: string
+  description?: string
+  fullSchema: string
+  tablesJson: string
+  schemaHash: string
+  createdAt: string
+  createdBy?: string
+  snapshotType: 'manual' | 'auto' | 'pre_change'
+  d1BookmarkId?: string
+}
+
+export interface TimeTravelInfo {
+  available: boolean
+  maxDays: number
+  plan: 'free' | 'paid'
+  earliestAvailable: string
+}
+
+export interface RestorePoint {
+  timestamp: string
+  type: 'hourly' | 'daily'
+  available: boolean
+}
+
 // API client functions
 export const api = {
   // Health check
@@ -241,6 +268,89 @@ export const api = {
     if (!response.ok) {
       const error = await response.json()
       throw new Error(error.error || 'Failed to update record')
+    }
+    return response.json()
+  },
+  
+  // Schema snapshots
+  async getSnapshots(limit = 20, offset = 0): Promise<{ snapshots: SchemaSnapshot[]; total: number }> {
+    const response = await fetch(`${API_BASE}/api/snapshots?limit=${limit}&offset=${offset}`)
+    if (!response.ok) {
+      throw new Error('Failed to fetch snapshots')
+    }
+    return response.json()
+  },
+  
+  async getSnapshot(id: string): Promise<SchemaSnapshot> {
+    const response = await fetch(`${API_BASE}/api/snapshots/${id}`)
+    if (!response.ok) {
+      throw new Error('Failed to fetch snapshot')
+    }
+    return response.json()
+  },
+  
+  async createSnapshot(data: { name?: string; description?: string }): Promise<{ success: boolean; id: string }> {
+    const response = await fetch(`${API_BASE}/api/snapshots`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to create snapshot')
+    }
+    return response.json()
+  },
+  
+  async restoreSnapshot(id: string): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${API_BASE}/api/snapshots/${id}/restore`, {
+      method: 'POST',
+    })
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to restore snapshot')
+    }
+    return response.json()
+  },
+  
+  async compareSnapshots(id1: string, id2: string): Promise<any> {
+    const response = await fetch(`${API_BASE}/api/snapshots/compare/${id1}/${id2}`)
+    if (!response.ok) {
+      throw new Error('Failed to compare snapshots')
+    }
+    return response.json()
+  },
+  
+  // Time Travel
+  async getTimeTravelInfo(): Promise<TimeTravelInfo> {
+    const response = await fetch(`${API_BASE}/api/time-travel/info`)
+    if (!response.ok) {
+      throw new Error('Failed to get Time Travel info')
+    }
+    return response.json()
+  },
+  
+  async getRestorePoints(): Promise<{ points: RestorePoint[]; maxDays: number }> {
+    const response = await fetch(`${API_BASE}/api/time-travel/points`)
+    if (!response.ok) {
+      throw new Error('Failed to get restore points')
+    }
+    return response.json()
+  },
+  
+  async restoreTimeTravel(data: { timestamp?: string; bookmark?: string }): Promise<any> {
+    const response = await fetch(`${API_BASE}/api/time-travel/restore`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to restore via Time Travel')
     }
     return response.json()
   },

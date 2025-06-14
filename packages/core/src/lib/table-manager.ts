@@ -1,7 +1,8 @@
 // D1Database type from Cloudflare Workers
+import { SchemaSnapshotManager } from './schema-snapshot'
 
 // System tables that cannot be modified by users
-const SYSTEM_TABLES = ['admins', 'sessions'] as const
+const SYSTEM_TABLES = ['admins', 'sessions', 'schema_snapshots', 'schema_snapshot_counter'] as const
 type SystemTable = typeof SYSTEM_TABLES[number]
 
 export interface TableInfo {
@@ -21,7 +22,11 @@ export interface ColumnInfo {
 }
 
 export class TableManager {
-  constructor(private db: any) {} // D1Database type
+  private snapshotManager: SchemaSnapshotManager
+  
+  constructor(private db: any, systemStorage?: any) { // D1Database, R2Bucket types
+    this.snapshotManager = new SchemaSnapshotManager(db, systemStorage)
+  }
 
   private async enableForeignKeys(): Promise<void> {
     try {
@@ -95,6 +100,14 @@ export class TableManager {
   // Create a new user table
   async createTable(tableName: string, columns: { name: string; type: string; constraints?: string; foreignKey?: { table: string; column: string } }[]): Promise<void> {
     await this.enableForeignKeys()
+    
+    // Create pre-change snapshot if schema will change
+    if (await this.snapshotManager.hasSchemaChanged()) {
+      await this.snapshotManager.createSnapshot({
+        description: `Before creating table: ${tableName}`,
+        snapshotType: 'pre_change'
+      })
+    }
     // Validate table name
     if (SYSTEM_TABLES.includes(tableName as SystemTable)) {
       throw new Error(`Cannot create system table: ${tableName}`)
@@ -126,6 +139,12 @@ export class TableManager {
 
     console.log('Creating table with SQL:', sql)
     await this.db.prepare(sql).run()
+    
+    // Create post-change snapshot
+    await this.snapshotManager.createSnapshot({
+      description: `Created table: ${tableName}`,
+      snapshotType: 'auto'
+    })
   }
 
   // Drop a user table
@@ -134,8 +153,20 @@ export class TableManager {
     if (SYSTEM_TABLES.includes(tableName as SystemTable)) {
       throw new Error(`Cannot drop system table: ${tableName}`)
     }
+    
+    // Create pre-change snapshot
+    await this.snapshotManager.createSnapshot({
+      description: `Before dropping table: ${tableName}`,
+      snapshotType: 'pre_change'
+    })
 
     await this.db.prepare(`DROP TABLE IF EXISTS ${tableName}`).run()
+    
+    // Create post-change snapshot
+    await this.snapshotManager.createSnapshot({
+      description: `Dropped table: ${tableName}`,
+      snapshotType: 'auto'
+    })
   }
 
   // Create a record in a table
@@ -308,6 +339,12 @@ export class TableManager {
       alterSQL += ` ${column.constraints}`
     }
 
+    // Create pre-change snapshot
+    await this.snapshotManager.createSnapshot({
+      description: `Before adding column ${column.name} to ${tableName}`,
+      snapshotType: 'pre_change'
+    })
+    
     console.log('Adding column with SQL:', alterSQL)
     await this.db.prepare(alterSQL).run()
 
@@ -315,6 +352,12 @@ export class TableManager {
     if (column.foreignKey) {
       await this.addForeignKeyByRecreatingTable(tableName, column.name, column.foreignKey)
     }
+    
+    // Create post-change snapshot
+    await this.snapshotManager.createSnapshot({
+      description: `Added column ${column.name} to ${tableName}`,
+      snapshotType: 'auto'
+    })
   }
 
   // Helper method to add foreign key by recreating table (SQLite limitation)
@@ -378,10 +421,22 @@ export class TableManager {
       throw new Error(`Cannot modify system table: ${tableName}`)
     }
 
+    // Create pre-change snapshot
+    await this.snapshotManager.createSnapshot({
+      description: `Before renaming column ${oldName} to ${newName} in ${tableName}`,
+      snapshotType: 'pre_change'
+    })
+    
     // SQLite 3.25.0+ supports ALTER TABLE RENAME COLUMN
     const sql = `ALTER TABLE ${tableName} RENAME COLUMN ${oldName} TO ${newName}`
     console.log('Renaming column with SQL:', sql)
     await this.db.prepare(sql).run()
+    
+    // Create post-change snapshot
+    await this.snapshotManager.createSnapshot({
+      description: `Renamed column ${oldName} to ${newName} in ${tableName}`,
+      snapshotType: 'auto'
+    })
   }
 
   // Drop column (requires table recreation in SQLite)
@@ -392,10 +447,22 @@ export class TableManager {
       throw new Error(`Cannot modify system table: ${tableName}`)
     }
 
+    // Create pre-change snapshot
+    await this.snapshotManager.createSnapshot({
+      description: `Before dropping column ${columnName} from ${tableName}`,
+      snapshotType: 'pre_change'
+    })
+    
     // SQLite 3.35.0+ supports ALTER TABLE DROP COLUMN
     const sql = `ALTER TABLE ${tableName} DROP COLUMN ${columnName}`
     console.log('Dropping column with SQL:', sql)
     await this.db.prepare(sql).run()
+    
+    // Create post-change snapshot
+    await this.snapshotManager.createSnapshot({
+      description: `Dropped column ${columnName} from ${tableName}`,
+      snapshotType: 'auto'
+    })
   }
 
   // Add foreign key constraint to existing column (requires table recreation)
@@ -571,6 +638,12 @@ export class TableManager {
     console.log('Modified SQL:', modifiedSQL)
     console.log('Temp table name:', tempTableName)
     
+    // Create pre-change snapshot
+    await this.snapshotManager.createSnapshot({
+      description: `Before modifying column ${columnName} in ${tableName}`,
+      snapshotType: 'pre_change'
+    })
+    
     // Use batch operation for atomic transaction
     const statements = [
       this.db.prepare(modifiedSQL),
@@ -580,6 +653,12 @@ export class TableManager {
     ]
     
     await this.db.batch(statements)
+    
+    // Create post-change snapshot
+    await this.snapshotManager.createSnapshot({
+      description: `Modified column ${columnName} in ${tableName}`,
+      snapshotType: 'auto'
+    })
   }
 
   // Helper to modify CREATE TABLE statement for column changes
@@ -701,5 +780,29 @@ export class TableManager {
       .all()
 
     return result
+  }
+  
+  // Schema snapshot management
+  async createSnapshot(options: {
+    name?: string
+    description?: string
+    createdBy?: string
+  } = {}): Promise<string> {
+    return this.snapshotManager.createSnapshot({
+      ...options,
+      snapshotType: 'manual'
+    })
+  }
+  
+  async getSnapshots(limit = 20, offset = 0) {
+    return this.snapshotManager.getSnapshots(limit, offset)
+  }
+  
+  async getSnapshot(id: string) {
+    return this.snapshotManager.getSnapshot(id)
+  }
+  
+  async restoreSnapshot(id: string) {
+    return this.snapshotManager.restoreSnapshot(id)
   }
 }

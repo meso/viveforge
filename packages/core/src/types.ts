@@ -3,7 +3,8 @@ import { Database } from './lib/database'
 
 export interface Env {
   DB?: D1Database
-  STORAGE?: R2Bucket
+  SYSTEM_STORAGE?: R2Bucket  // システム用（スナップショット等）
+  USER_STORAGE?: R2Bucket    // ユーザー用
   SESSIONS?: KVNamespace
   ENVIRONMENT: 'development' | 'production'
   
