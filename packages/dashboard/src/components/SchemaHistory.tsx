@@ -1,44 +1,65 @@
 import { useState, useEffect } from 'preact/hooks'
-import { api, type SchemaSnapshot, type TimeTravelInfo, type RestorePoint } from '../lib/api'
+import { api, type SchemaSnapshot } from '../lib/api'
 
 interface SchemaHistoryProps {
   onClose: () => void
   onRestore?: () => void
 }
 
+// Spinner component
+function Spinner({ size = 'sm' }: { size?: 'sm' | 'md' }) {
+  const sizeClasses = size === 'sm' ? 'h-4 w-4' : 'h-6 w-6'
+  return (
+    <svg class={`animate-spin ${sizeClasses} text-white`} fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+      <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    </svg>
+  )
+}
+
 export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
-  const [activeTab, setActiveTab] = useState<'snapshots' | 'timetravel'>('snapshots')
   const [snapshots, setSnapshots] = useState<SchemaSnapshot[]>([])
   const [selectedSnapshot, setSelectedSnapshot] = useState<SchemaSnapshot | null>(null)
-  const [timeTravelInfo, setTimeTravelInfo] = useState<TimeTravelInfo | null>(null)
-  const [restorePoints, setRestorePoints] = useState<RestorePoint[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [newSnapshot, setNewSnapshot] = useState({ name: '', description: '' })
-  const [selectedDate, setSelectedDate] = useState<string>('')
-  const [confirmRestore, setConfirmRestore] = useState<{ type: 'snapshot' | 'timetravel'; id?: string; timestamp?: string } | null>(null)
+  const [confirmRestore, setConfirmRestore] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [isCreating, setIsCreating] = useState(false)
+  const [isRestoring, setIsRestoring] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     loadData()
-  }, [activeTab])
+  }, [])
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (openMenuId) {
+        const target = event.target as Element
+        // Don't close if clicking inside the menu or on menu buttons
+        if (!target.closest('[data-menu-container]') && !target.closest('[data-menu-button]')) {
+          setOpenMenuId(null)
+        }
+      }
+    }
+    
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [openMenuId])
 
   const loadData = async () => {
     try {
       setLoading(true)
       setError(null)
       
-      if (activeTab === 'snapshots') {
-        const result = await api.getSnapshots()
-        setSnapshots(result.snapshots)
-      } else {
-        const [info, points] = await Promise.all([
-          api.getTimeTravelInfo(),
-          api.getRestorePoints()
-        ])
-        setTimeTravelInfo(info)
-        setRestorePoints(points.points)
-      }
+      const result = await api.getSnapshots()
+      setSnapshots(result.snapshots)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data')
     } finally {
@@ -50,12 +71,15 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
     e.preventDefault()
     try {
       setError(null)
+      setIsCreating(true)
       await api.createSnapshot(newSnapshot)
       setShowCreateForm(false)
       setNewSnapshot({ name: '', description: '' })
       await loadData()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create snapshot')
+    } finally {
+      setIsCreating(false)
     }
   }
 
@@ -64,18 +88,34 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
     
     try {
       setError(null)
-      if (confirmRestore.type === 'snapshot' && confirmRestore.id) {
-        await api.restoreSnapshot(confirmRestore.id)
-      } else if (confirmRestore.type === 'timetravel' && confirmRestore.timestamp) {
-        await api.restoreTimeTravel({ timestamp: confirmRestore.timestamp })
-      }
-      
+      setIsRestoring(true)
+      await api.restoreSnapshot(confirmRestore)
       setConfirmRestore(null)
       if (onRestore) onRestore()
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to restore')
       setConfirmRestore(null)
+    } finally {
+      setIsRestoring(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!confirmDelete) return
+    
+    try {
+      setError(null)
+      setIsDeleting(true)
+      await api.deleteSnapshot(confirmDelete)
+      setConfirmDelete(null)
+      setOpenMenuId(null)
+      await loadData()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete snapshot')
+      setConfirmDelete(null)
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -107,27 +147,13 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
     return 'Just now'
   }
 
-  // Convert UTC datetime string to local datetime-local format for HTML input
-  const toLocalDateTimeString = (utcDateString: string) => {
-    // UTC文字列をブラウザのローカルタイムゾーンで解釈
-    const date = new Date(utcDateString)
-    
-    // datetime-local input用のフォーマットに変換（YYYY-MM-DDTHH:MM）
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    const hours = String(date.getHours()).padStart(2, '0')
-    const minutes = String(date.getMinutes()).padStart(2, '0')
-    
-    return `${year}-${month}-${day}T${hours}:${minutes}`
-  }
 
   return (
     <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div class="bg-white rounded-lg w-full max-w-6xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div class="px-6 py-4 border-b flex items-center justify-between">
-          <h2 class="text-xl font-semibold text-gray-900">Schema History & Recovery</h2>
+          <h2 class="text-xl font-semibold text-gray-900">Schema Snapshots</h2>
           <button
             onClick={onClose}
             class="text-gray-400 hover:text-gray-600"
@@ -138,38 +164,6 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
           </button>
         </div>
 
-        {/* Tabs */}
-        <div class="border-b px-6">
-          <nav class="-mb-px flex space-x-8">
-            <button
-              onClick={() => setActiveTab('snapshots')}
-              class={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'snapshots'
-                  ? 'border-indigo-500 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Snapshots
-            </button>
-            <button
-              onClick={() => setActiveTab('timetravel')}
-              class={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'timetravel'
-                  ? 'border-indigo-500 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Time Travel
-              {timeTravelInfo && (
-                <span class={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  timeTravelInfo.plan === 'paid' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                }`}>
-                  {timeTravelInfo.maxDays} days
-                </span>
-              )}
-            </button>
-          </nav>
-        </div>
 
         {/* Error Display */}
         {error && (
@@ -178,13 +172,42 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
           </div>
         )}
 
+        {/* Time Travel Info Box */}
+        <div class="mx-6 mt-4 bg-blue-50 border border-blue-200 rounded-md p-4">
+          <div class="flex">
+            <div class="flex-shrink-0">
+              <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+              </svg>
+            </div>
+            <div class="ml-3">
+              <h3 class="text-sm font-medium text-blue-800">
+                💡 CloudflareのTime Travel機能について
+              </h3>
+              <p class="mt-1 text-sm text-blue-700">
+                Cloudflareの管理画面から、D1データベースを過去の任意の時点（無料プランで7日間、有料プランで30日間）に復元できるTime Travel機能が利用可能です。
+                詳しくは
+                <a 
+                  href="https://developers.cloudflare.com/d1/reference/time-travel/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  class="font-medium underline hover:no-underline"
+                >
+                  Cloudflare D1 Time Travelドキュメント
+                </a>
+                をご確認ください。
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Content */}
         <div class="flex-1 overflow-auto p-6">
           {loading ? (
             <div class="text-center py-8">
               <div class="text-gray-500">Loading...</div>
             </div>
-          ) : activeTab === 'snapshots' ? (
+          ) : (
             <div>
               {/* Create Snapshot Button */}
               {!showCreateForm && (
@@ -230,9 +253,15 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
                       <div class="flex space-x-3">
                         <button
                           type="submit"
-                          class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                          disabled={isCreating}
+                          class={`inline-flex justify-center items-center space-x-2 py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
+                            isCreating 
+                              ? 'bg-indigo-400 cursor-not-allowed' 
+                              : 'bg-indigo-600 hover:bg-indigo-700'
+                          }`}
                         >
-                          Create
+                          {isCreating && <Spinner size="sm" />}
+                          <span>{isCreating ? 'Creating...' : 'Create'}</span>
                         </button>
                         <button
                           type="button"
@@ -288,105 +317,60 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
                             <span>{getRelativeTime(snapshot.createdAt)}</span>
                           </div>
                         </div>
-                        <div class="ml-4">
+                        <div class="ml-4 flex items-center space-x-2">
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
-                              setConfirmRestore({ type: 'snapshot', id: snapshot.id })
+                              setConfirmRestore(snapshot.id)
                             }}
                             class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                           >
                             Restore
                           </button>
+                          
+                          <div class="relative">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setOpenMenuId(openMenuId === snapshot.id ? null : snapshot.id)
+                              }}
+                              data-menu-button="true"
+                              class="inline-flex items-center p-1.5 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 rounded-md"
+                            >
+                              <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                              </svg>
+                            </button>
+                            
+                            {/* Dropdown Menu */}
+                            {openMenuId === snapshot.id && (
+                              <div class="absolute right-0 top-full mt-1 w-32 bg-white rounded-md shadow-lg border border-gray-200 z-10" data-menu-container="true">
+                                <div class="py-1">
+                                  <button
+                                    onClick={(e) => {
+                                      e.preventDefault()
+                                      e.stopPropagation()
+                                      setOpenMenuId(null)
+                                      setConfirmDelete(snapshot.id)
+                                    }}
+                                    class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 focus:outline-none"
+                                  >
+                                    <div class="flex items-center space-x-2">
+                                      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                      </svg>
+                                      <span>Delete</span>
+                                    </div>
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
                   ))
                 )}
-              </div>
-            </div>
-          ) : (
-            <div>
-              {/* Time Travel Info */}
-              {timeTravelInfo && (
-                <div class="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div class="flex">
-                    <div class="flex-shrink-0">
-                      <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
-                      </svg>
-                    </div>
-                    <div class="ml-3">
-                      <h3 class="text-sm font-medium text-blue-800">
-                        Time Travel - {timeTravelInfo.plan === 'paid' ? 'Paid Plan' : 'Free Plan'}
-                      </h3>
-                      <div class="mt-2 text-sm text-blue-700">
-                        <p>You can restore your database to any point within the last {timeTravelInfo.maxDays} days.</p>
-                        {timeTravelInfo.plan === 'free' && (
-                          <p class="mt-1">Upgrade to a paid plan to extend history to 30 days.</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Date/Time Selector */}
-              <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                  Select a point in time to restore
-                </label>
-                <input
-                  type="datetime-local"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate((e.target as HTMLInputElement).value)}
-                  max={toLocalDateTimeString(new Date().toISOString())}
-                  min={timeTravelInfo ? toLocalDateTimeString(timeTravelInfo.earliestAvailable) : undefined}
-                  class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                />
-                <p class="mt-1 text-xs text-gray-500">
-                  Select any time between {timeTravelInfo && formatDate(timeTravelInfo.earliestAvailable)} and now
-                </p>
-              </div>
-
-              {/* Quick Restore Points */}
-              <div class="mb-6">
-                <h3 class="text-sm font-medium text-gray-700 mb-3">Quick Restore Points</h3>
-                <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                  {restorePoints.slice(0, 8).map((point, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setSelectedDate(toLocalDateTimeString(point.timestamp))}
-                      class="relative rounded-lg border border-gray-300 bg-white px-4 py-3 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                    >
-                      <div class="text-sm font-medium text-gray-900">
-                        {point.type === 'hourly' ? `${idx + 1} hour${idx > 0 ? 's' : ''} ago` : `${idx} days ago`}
-                      </div>
-                      <div class="text-xs text-gray-500 mt-1">
-                        {new Date(point.timestamp).toLocaleTimeString()}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Restore Button */}
-              <div class="flex justify-end">
-                <button
-                  onClick={() => {
-                    if (selectedDate) {
-                      setConfirmRestore({ type: 'timetravel', timestamp: new Date(selectedDate).toISOString() })
-                    }
-                  }}
-                  disabled={!selectedDate}
-                  class={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
-                    selectedDate
-                      ? 'bg-indigo-600 hover:bg-indigo-700'
-                      : 'bg-gray-300 cursor-not-allowed'
-                  }`}
-                >
-                  Restore to Selected Time
-                </button>
               </div>
             </div>
           )}
@@ -409,9 +393,7 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
               
               <div class="mb-6">
                 <p class="text-sm text-gray-700">
-                  {confirmRestore.type === 'snapshot'
-                    ? 'This will restore your database schema to the selected snapshot. All current tables and data will be replaced.'
-                    : `This will restore your entire database to ${formatDate(confirmRestore.timestamp || '')}.`}
+                  This will restore your database schema to the selected snapshot. All current tables and data will be replaced.
                 </p>
                 <p class="text-sm text-red-600 mt-2 font-medium">
                   This action cannot be undone. Make sure you have a backup of your current data.
@@ -421,13 +403,24 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
               <div class="flex space-x-3">
                 <button
                   onClick={handleRestore}
-                  class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                  disabled={isRestoring}
+                  class={`inline-flex justify-center items-center space-x-2 py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
+                    isRestoring 
+                      ? 'bg-red-400 cursor-not-allowed' 
+                      : 'bg-red-600 hover:bg-red-700'
+                  }`}
                 >
-                  Restore
+                  {isRestoring && <Spinner size="sm" />}
+                  <span>{isRestoring ? 'Restoring...' : 'Restore'}</span>
                 </button>
                 <button
                   onClick={() => setConfirmRestore(null)}
-                  class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  disabled={isRestoring}
+                  class={`inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
+                    isRestoring 
+                      ? 'text-gray-400 bg-gray-100 cursor-not-allowed' 
+                      : 'text-gray-700 bg-white hover:bg-gray-50'
+                  }`}
                 >
                   Cancel
                 </button>
@@ -435,6 +428,57 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
             </div>
           </div>
         )}
+
+        {/* Delete Confirmation Modal */}
+        {confirmDelete && (
+          <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+              <div class="flex items-center mb-4">
+                <div class="flex-shrink-0">
+                  <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <div class="ml-3">
+                  <h3 class="text-lg font-medium text-gray-900">Delete Snapshot</h3>
+                </div>
+              </div>
+              
+              <div class="mb-6">
+                <p class="text-sm text-gray-700">
+                  Are you sure you want to delete this snapshot? This action cannot be undone.
+                </p>
+              </div>
+              
+              <div class="flex space-x-3">
+                <button
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  class={`inline-flex justify-center items-center space-x-2 py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
+                    isDeleting 
+                      ? 'bg-red-400 cursor-not-allowed' 
+                      : 'bg-red-600 hover:bg-red-700'
+                  }`}
+                >
+                  {isDeleting && <Spinner size="sm" />}
+                  <span>{isDeleting ? 'Deleting...' : 'Delete'}</span>
+                </button>
+                <button
+                  onClick={() => setConfirmDelete(null)}
+                  disabled={isDeleting}
+                  class={`inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
+                    isDeleting 
+                      ? 'text-gray-400 bg-gray-100 cursor-not-allowed' 
+                      : 'text-gray-700 bg-white hover:bg-gray-50'
+                  }`}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   )

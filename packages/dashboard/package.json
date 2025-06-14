@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && npm run copy-assets",
+    "copy-assets": "cp -r dist/* ../core/assets/ && node scripts/update-assets.js",
+    "deploy": "npm run build && cd ../core && npm run deploy",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },

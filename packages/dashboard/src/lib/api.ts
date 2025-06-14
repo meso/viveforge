@@ -50,18 +50,6 @@ export interface SchemaSnapshot {
   d1BookmarkId?: string
 }
 
-export interface TimeTravelInfo {
-  available: boolean
-  maxDays: number
-  plan: 'free' | 'paid'
-  earliestAvailable: string
-}
-
-export interface RestorePoint {
-  timestamp: string
-  type: 'hourly' | 'daily'
-  available: boolean
-}
 
 // API client functions
 export const api = {
@@ -307,11 +295,32 @@ export const api = {
   async restoreSnapshot(id: string): Promise<{ success: boolean; message: string }> {
     const response = await fetch(`${API_BASE}/api/snapshots/${id}/restore`, {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
     })
+    
     if (!response.ok) {
-      const error = await response.json()
+      const error = await response.json().catch(() => ({ error: 'Failed to restore snapshot' }))
       throw new Error(error.error || 'Failed to restore snapshot')
     }
+    
+    return response.json()
+  },
+  
+  async deleteSnapshot(id: string): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${API_BASE}/api/snapshots/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to delete snapshot' }))
+      throw new Error(error.error || 'Failed to delete snapshot')
+    }
+    
     return response.json()
   },
   
@@ -319,38 +328,6 @@ export const api = {
     const response = await fetch(`${API_BASE}/api/snapshots/compare/${id1}/${id2}`)
     if (!response.ok) {
       throw new Error('Failed to compare snapshots')
-    }
-    return response.json()
-  },
-  
-  // Time Travel
-  async getTimeTravelInfo(): Promise<TimeTravelInfo> {
-    const response = await fetch(`${API_BASE}/api/time-travel/info`)
-    if (!response.ok) {
-      throw new Error('Failed to get Time Travel info')
-    }
-    return response.json()
-  },
-  
-  async getRestorePoints(): Promise<{ points: RestorePoint[]; maxDays: number }> {
-    const response = await fetch(`${API_BASE}/api/time-travel/points`)
-    if (!response.ok) {
-      throw new Error('Failed to get restore points')
-    }
-    return response.json()
-  },
-  
-  async restoreTimeTravel(data: { timestamp?: string; bookmark?: string }): Promise<any> {
-    const response = await fetch(`${API_BASE}/api/time-travel/restore`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    })
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.error || 'Failed to restore via Time Travel')
     }
     return response.json()
   },
