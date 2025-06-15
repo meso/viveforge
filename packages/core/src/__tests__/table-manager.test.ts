@@ -238,6 +238,231 @@ describe('TableManager', () => {
       await expect(tableManager.createIndex(indexName, testTableName, columns))
         .rejects.toThrow('already exists')
     })
+
+    // Additional detailed tests for pre-refactoring validation
+    describe('Index Creation - Detailed Validation', () => {
+      it('should validate required parameters', async () => {
+        await expect(tableManager.createIndex('', testTableName, ['title']))
+          .rejects.toThrow('Index name, table name, and columns are required')
+          
+        await expect(tableManager.createIndex('idx_test', '', ['title']))
+          .rejects.toThrow('Index name, table name, and columns are required')
+          
+        await expect(tableManager.createIndex('idx_test', testTableName, []))
+          .rejects.toThrow('Index name, table name, and columns are required')
+      })
+
+      it('should accept valid index name formats', async () => {
+        await expect(tableManager.createIndex('idx_valid', testTableName, ['title']))
+          .resolves.not.toThrow()
+          
+        await expect(tableManager.createIndex('IDX_VALID2', testTableName, ['category']))
+          .resolves.not.toThrow()
+          
+        await expect(tableManager.createIndex('_idx_valid3', testTableName, ['title']))
+          .resolves.not.toThrow()
+      })
+
+      it('should reject invalid index name formats', async () => {
+        await expect(tableManager.createIndex('123invalid', testTableName, ['title']))
+          .rejects.toThrow('Invalid index name format')
+          
+        await expect(tableManager.createIndex('idx-invalid', testTableName, ['title']))
+          .rejects.toThrow('Invalid index name format')
+          
+        await expect(tableManager.createIndex('idx invalid', testTableName, ['title']))
+          .rejects.toThrow('Invalid index name format')
+      })
+
+      it('should create multi-column indexes', async () => {
+        await expect(tableManager.createIndex('idx_multi', testTableName, ['title', 'category']))
+          .resolves.not.toThrow()
+      })
+
+      it('should create unique indexes with proper option', async () => {
+        await expect(tableManager.createIndex('idx_unique_detailed', testTableName, ['title'], { unique: true }))
+          .resolves.not.toThrow()
+      })
+    })
+
+    describe('Index Retrieval - Detailed Validation', () => {
+      beforeEach(async () => {
+        // Create test indexes
+        await tableManager.createIndex('idx_title', testTableName, ['title'])
+        await tableManager.createIndex('idx_category', testTableName, ['category'])
+        await tableManager.createIndex('idx_unique_multi', testTableName, ['title', 'category'], { unique: true })
+      })
+
+      it('should return correct index metadata structure', async () => {
+        const indexes = await tableManager.getTableIndexes(testTableName)
+        
+        indexes.forEach(index => {
+          expect(index).toHaveProperty('name')
+          expect(index).toHaveProperty('tableName')
+          expect(index).toHaveProperty('columns')
+          expect(index).toHaveProperty('unique')
+          expect(index).toHaveProperty('sql')
+          expect(typeof index.name).toBe('string')
+          expect(typeof index.tableName).toBe('string')
+          expect(Array.isArray(index.columns)).toBe(true)
+          expect(typeof index.unique).toBe('boolean')
+          expect(typeof index.sql).toBe('string')
+        })
+      })
+
+      it('should return indexes specific to the requested table', async () => {
+        const indexes = await tableManager.getTableIndexes(testTableName)
+        
+        indexes.forEach(index => {
+          expect(index.tableName).toBe(testTableName)
+        })
+      })
+
+      it('should filter out system-generated indexes', async () => {
+        const indexes = await tableManager.getTableIndexes(testTableName)
+        
+        indexes.forEach(index => {
+          expect(index.name).not.toMatch(/^sqlite_autoindex_/)
+        })
+      })
+
+      it('should include columns in correct order for multi-column indexes', async () => {
+        const indexes = await tableManager.getTableIndexes(testTableName)
+        const multiColIndex = indexes.find(idx => idx.columns.length > 1)
+        
+        if (multiColIndex) {
+          expect(multiColIndex.columns).toEqual(['title', 'category'])
+        }
+      })
+    })
+
+    describe('Index Deletion - Detailed Validation', () => {
+      beforeEach(async () => {
+        await tableManager.createIndex('idx_to_delete', testTableName, ['title'])
+        await tableManager.createIndex('idx_to_keep', testTableName, ['category'])
+      })
+
+      it('should validate index name parameter', async () => {
+        await expect(tableManager.dropIndex(''))
+          .rejects.toThrow('Index name is required')
+      })
+
+      it('should reject dropping non-existent indexes', async () => {
+        await expect(tableManager.dropIndex('non_existent_index'))
+          .rejects.toThrow('Index "non_existent_index" not found')
+      })
+
+      it('should prevent dropping system-generated indexes', async () => {
+        await expect(tableManager.dropIndex('sqlite_autoindex_test_table_1'))
+          .rejects.toThrow() // Either "not found" or "cannot drop" is acceptable in mock
+      })
+
+      it('should successfully drop existing user indexes', async () => {
+        await expect(tableManager.dropIndex('idx_to_delete'))
+          .resolves.not.toThrow()
+          
+        // Verify it's gone
+        const indexes = await tableManager.getTableIndexes(testTableName)
+        expect(indexes.find(idx => idx.name === 'idx_to_delete')).toBeUndefined()
+      })
+    })
+
+    describe('All User Indexes - Detailed Validation', () => {
+      beforeEach(async () => {
+        // Create indexes across different tables
+        await tableManager.createIndex('idx_test1_title', testTableName, ['title'])
+        await tableManager.createIndex('idx_test1_category', testTableName, ['category'])
+      })
+
+      it('should return all user-created indexes across tables', async () => {
+        const indexes = await tableManager.getAllUserIndexes()
+        
+        expect(Array.isArray(indexes)).toBe(true)
+        // Should include our test indexes
+        const testIndexes = indexes.filter(idx => idx.tableName === testTableName)
+        expect(testIndexes.length).toBeGreaterThan(0)
+      })
+
+      it('should include proper metadata for all indexes', async () => {
+        const indexes = await tableManager.getAllUserIndexes()
+        
+        indexes.forEach(index => {
+          expect(index).toHaveProperty('name')
+          expect(index).toHaveProperty('tableName')
+          expect(index).toHaveProperty('columns')
+          expect(index).toHaveProperty('unique')
+          expect(index).toHaveProperty('sql')
+        })
+      })
+
+      it('should exclude system-generated indexes', async () => {
+        const indexes = await tableManager.getAllUserIndexes()
+        
+        indexes.forEach(index => {
+          expect(index.name).not.toMatch(/^sqlite_autoindex_/)
+        })
+      })
+    })
+
+    describe('Index Operations Integration', () => {
+      it('should handle complete index lifecycle', async () => {
+        const indexName = 'idx_lifecycle_test'
+        
+        // Create
+        await expect(tableManager.createIndex(indexName, testTableName, ['title'], { unique: true }))
+          .resolves.not.toThrow()
+          
+        // Verify exists in table indexes
+        const tableIndexes = await tableManager.getTableIndexes(testTableName)
+        const createdIndex = tableIndexes.find(idx => idx.name === indexName)
+        expect(createdIndex).toBeDefined()
+        expect(createdIndex?.unique).toBe(true)
+        expect(createdIndex?.columns).toEqual(['title'])
+        
+        // Verify exists in all indexes
+        const allIndexes = await tableManager.getAllUserIndexes()
+        expect(allIndexes.some(idx => idx.name === indexName)).toBe(true)
+        
+        // Delete
+        await expect(tableManager.dropIndex(indexName))
+          .resolves.not.toThrow()
+          
+        // Verify removed
+        const updatedTableIndexes = await tableManager.getTableIndexes(testTableName)
+        expect(updatedTableIndexes.find(idx => idx.name === indexName)).toBeUndefined()
+      })
+
+      it('should handle multiple indexes on same table', async () => {
+        const indexes = [
+          { name: 'idx_multi_1', columns: ['title'] },
+          { name: 'idx_multi_2', columns: ['category'] },
+          { name: 'idx_multi_3', columns: ['title', 'category'], unique: true }
+        ]
+        
+        // Create all indexes
+        for (const index of indexes) {
+          await expect(tableManager.createIndex(
+            index.name, 
+            testTableName, 
+            index.columns, 
+            { unique: index.unique }
+          )).resolves.not.toThrow()
+        }
+        
+        // Verify all exist
+        const tableIndexes = await tableManager.getTableIndexes(testTableName)
+        expect(tableIndexes.length).toBeGreaterThanOrEqual(3)
+        
+        // Check that all our created indexes are found
+        for (const expectedIndex of indexes) {
+          const found = tableIndexes.find(idx => idx.name === expectedIndex.name)
+          expect(found).toBeDefined()
+          // In mock environment, just verify basic properties exist
+          expect(found?.columns).toBeDefined()
+          expect(found?.unique).toBe(!!expectedIndex.unique)
+        }
+      })
+    })
   })
 
   describe('Snapshot Operations', () => {
