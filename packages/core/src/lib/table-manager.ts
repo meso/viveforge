@@ -2,6 +2,7 @@ import { SchemaSnapshotManager } from './schema-snapshot'
 import { SchemaManager } from './schema-manager'
 import { DataManager } from './data-manager'
 import { IndexManager } from './index-manager'
+import { ErrorHandler } from './error-handler'
 import type { ColumnDefinition, ColumnInfo } from './schema-manager'
 import type { IndexInfo } from './index-manager'
 import type { 
@@ -31,12 +32,14 @@ export class TableManager {
   private schemaManager: SchemaManager
   private dataManager: DataManager
   private indexManager: IndexManager
+  private errorHandler: ErrorHandler
   
   constructor(
     private db: D1Database, 
     private systemStorage?: R2Bucket, 
     private executionCtx?: ExecutionContext
   ) {
+    this.errorHandler = ErrorHandler.getInstance()
     this.snapshotManager = new SchemaSnapshotManager(db, systemStorage)
     this.schemaManager = new SchemaManager(db, this.snapshotManager, this.createAsyncSnapshot.bind(this))
     this.dataManager = new DataManager(db)
@@ -44,19 +47,27 @@ export class TableManager {
   }
 
   private async enableForeignKeys(): Promise<void> {
-    try {
-      await this.db.prepare('PRAGMA foreign_keys = ON').run()
-    } catch (error) {
-      console.warn('Failed to enable foreign keys:', error)
-    }
+    return this.errorHandler.handleOperation(
+      async () => {
+        await this.db.prepare('PRAGMA foreign_keys = ON').run()
+      },
+      { operationName: 'enableForeignKeys' }
+    ).catch((error) => {
+      // Log warning but don't throw - this is non-critical
+      this.errorHandler.handleStorageWarning('enableForeignKeys', error)
+    })
   }
 
   private async disableForeignKeys(): Promise<void> {
-    try {
-      await this.db.prepare('PRAGMA foreign_keys = OFF').run()
-    } catch (error) {
-      console.warn('Failed to disable foreign keys:', error)
-    }
+    return this.errorHandler.handleOperation(
+      async () => {
+        await this.db.prepare('PRAGMA foreign_keys = OFF').run()
+      },
+      { operationName: 'disableForeignKeys' }
+    ).catch((error) => {
+      // Log warning but don't throw - this is non-critical
+      this.errorHandler.handleStorageWarning('disableForeignKeys', error)
+    })
   }
 
   // Get all tables with their types
@@ -80,7 +91,7 @@ export class TableManager {
           .first()
         rowCount = countResult?.count as number || 0
       } catch (e) {
-        console.warn(`Could not get row count for table ${name}:`, e)
+        this.errorHandler.handleStorageWarning(`getRowCountFor${name}`, e)
       }
       
       tables.push({
@@ -118,13 +129,13 @@ export class TableManager {
     if (this.executionCtx && this.executionCtx.waitUntil) {
       this.executionCtx.waitUntil(
         this.snapshotManager.createSnapshot(options).catch((error: any) => {
-          console.warn('Failed to create async snapshot:', error)
+          this.errorHandler.handleStorageWarning('createAsyncSnapshot', error)
         })
       )
     } else {
       // Fallback for when executionCtx is not available
       this.snapshotManager.createSnapshot(options).catch((error: any) => {
-        console.warn('Failed to create fallback snapshot:', error)
+        this.errorHandler.handleStorageWarning('createFallbackSnapshot', error)
       })
     }
   }
@@ -193,14 +204,9 @@ export class TableManager {
   ): Promise<void> {
     await this.enableForeignKeys()
     
-    // Validate table name
-    if (SYSTEM_TABLES.includes(tableName as SystemTable)) {
-      throw new Error(`Cannot modify system table: ${tableName}`)
-    }
-
-    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(column.name)) {
-      throw new Error('Invalid column name. Use only letters, numbers, and underscores.')
-    }
+    // Validate table name and column name
+    this.errorHandler.validateSystemTable(tableName)
+    this.errorHandler.validateNameFormat(column.name, 'column')
 
     // Build ALTER TABLE statement
     let alterSQL = `ALTER TABLE ${tableName} ADD COLUMN ${column.name} ${column.type}`
@@ -236,7 +242,7 @@ export class TableManager {
       .first()
     
     if (!tableInfo) {
-      throw new Error(`Table ${tableName} not found`)
+      this.errorHandler.handleNotFound('Table', tableName)
     }
 
     // Create temp table with new foreign key
@@ -280,9 +286,7 @@ export class TableManager {
   async renameColumn(tableName: string, oldName: string, newName: string): Promise<void> {
     await this.enableForeignKeys()
     
-    if (SYSTEM_TABLES.includes(tableName as SystemTable)) {
-      throw new Error(`Cannot modify system table: ${tableName}`)
-    }
+    this.errorHandler.validateSystemTable(tableName)
 
     // Create pre-change snapshot asynchronously
     this.createAsyncSnapshot({
@@ -300,9 +304,7 @@ export class TableManager {
   async dropColumn(tableName: string, columnName: string): Promise<void> {
     await this.enableForeignKeys()
     
-    if (SYSTEM_TABLES.includes(tableName as SystemTable)) {
-      throw new Error(`Cannot modify system table: ${tableName}`)
-    }
+    this.errorHandler.validateSystemTable(tableName)
 
     // Create pre-change snapshot asynchronously
     this.createAsyncSnapshot({
@@ -324,9 +326,7 @@ export class TableManager {
   ): Promise<void> {
     await this.enableForeignKeys()
     
-    if (SYSTEM_TABLES.includes(tableName as SystemTable)) {
-      throw new Error(`Cannot modify system table: ${tableName}`)
-    }
+    this.errorHandler.validateSystemTable(tableName)
 
     // In SQLite, we need to recreate the table to add foreign key constraints
     await this.addForeignKeyByRecreatingTable(tableName, columnName, foreignKey)
@@ -447,14 +447,12 @@ export class TableManager {
   ): Promise<void> {
     await this.enableForeignKeys()
     
-    if (SYSTEM_TABLES.includes(tableName as SystemTable)) {
-      throw new Error(`Cannot modify system table: ${tableName}`)
-    }
+    this.errorHandler.validateSystemTable(tableName)
 
     // Validate changes before proceeding
     const validation = await this.validateColumnChanges(tableName, columnName, changes)
     if (!validation.valid) {
-      throw new Error(`Validation failed: ${validation.errors.join('; ')}`)
+      this.errorHandler.handleValidationErrors(validation.errors)
     }
 
     // Get current table schema
@@ -464,7 +462,7 @@ export class TableManager {
       .first()
     
     if (!tableInfo) {
-      throw new Error(`Table ${tableName} not found`)
+      this.errorHandler.handleNotFound('Table', tableName)
     }
 
     // Get current column info
@@ -472,7 +470,7 @@ export class TableManager {
     const currentColumn = columns.find(col => col.name === columnName)
     
     if (!currentColumn) {
-      throw new Error(`Column ${columnName} not found in table ${tableName}`)
+      this.errorHandler.handleNotFound('Column', `${columnName} in table ${tableName}`)
     }
 
     // Create temp table with modifications
@@ -609,13 +607,19 @@ export class TableManager {
     
     // Only allow SELECT for now
     if (!normalizedSQL.startsWith('SELECT')) {
-      throw new Error('Only SELECT queries are allowed in the SQL editor')
+      this.errorHandler.handleUnsafeSQL(sql)
     }
 
     // Prevent modification of system tables
     for (const systemTable of SYSTEM_TABLES) {
       if (normalizedSQL.includes(systemTable.toUpperCase())) {
-        throw new Error(`Cannot query system table: ${systemTable}`)
+        this.errorHandler.throwError({
+          code: 'SYSTEM_TABLE_QUERY' as any,
+          message: `Cannot query system table: ${systemTable}`,
+          userMessage: `Querying system table "${systemTable}" is not allowed for security reasons.`,
+          context: { tableName: systemTable, operation: 'sql_query' },
+          suggestions: ['Query only user-created tables', 'Use the specific table operations instead']
+        })
       }
     }
 
