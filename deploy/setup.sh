@@ -28,7 +28,8 @@ if [ $? -eq 0 ]; then
     
     # Update wrangler.toml with the new database ID
     sed -i.bak "s/database_id = \".*\"/database_id = \"$DB_ID\"/" wrangler.toml
-    rm wrangler.toml.bak
+    sed -i.bak "s/REPLACE_WITH_ACTUAL_DATABASE_ID/$DB_ID/" wrangler.toml
+    rm -f wrangler.toml.bak
     
     echo "✅ Database created with ID: $DB_ID"
 else
@@ -36,7 +37,55 @@ else
 fi
 
 echo "🔧 Running database migrations..."
-wrangler d1 execute viveforge-db --file=migrations/0001_initial.sql --remote
+# Run all migrations in order
+for migration_file in migrations/*.sql; do
+    if [ -f "$migration_file" ]; then
+        echo "  Running $(basename "$migration_file")..."
+        wrangler d1 execute viveforge-db --file="$migration_file" --remote
+    fi
+done
+
+echo "☁️ Creating R2 buckets..."
+# Check if R2 is enabled by trying to list buckets
+R2_CHECK=$(wrangler r2 bucket list 2>&1)
+if echo "$R2_CHECK" | grep -q "must purchase R2"; then
+    echo "  ⚠️ R2 is not enabled in your Cloudflare account."
+    echo "  📋 To enable R2:"
+    echo "     1. Go to https://dash.cloudflare.com/[account-id]/r2"
+    echo "     2. Click 'Purchase R2' and enable it (Free tier available)"
+    echo "     3. Re-run this setup script"
+    echo "  ⏭️ Skipping R2 bucket creation for now..."
+    echo ""
+    echo "  ℹ️ Note: Viveforge will work without R2, but some features will be disabled:"
+    echo "     - Schema snapshots storage"
+    echo "     - File upload functionality"
+    R2_ENABLED=false
+else
+    # Create R2 buckets for storage
+    echo "  Creating viveforge-system bucket..."
+    wrangler r2 bucket create viveforge-system 2>/dev/null || echo "    Bucket might already exist, continuing..."
+
+    echo "  Creating viveforge-storage bucket..."
+    wrangler r2 bucket create viveforge-storage 2>/dev/null || echo "    Bucket might already exist, continuing..."
+    R2_ENABLED=true
+fi
+
+echo "🗂️ Creating KV namespace for sessions..."
+KV_OUTPUT=$(wrangler kv:namespace create "SESSIONS" 2>/dev/null)
+if [ $? -eq 0 ]; then
+    # Extract KV namespace ID from output
+    KV_ID=$(echo "$KV_OUTPUT" | grep "id" | sed 's/.*id = "\([^"]*\)".*/\1/')
+    
+    # Update wrangler.toml with the new KV namespace ID
+    if [ ! -z "$KV_ID" ]; then
+        # Update KV namespace configuration
+        sed -i.bak "s/REPLACE_WITH_ACTUAL_KV_ID/$KV_ID/" wrangler.toml
+        rm -f wrangler.toml.bak
+        echo "  ✅ KV namespace created with ID: $KV_ID"
+    fi
+else
+    echo "  ⚠️ KV namespace might already exist, continuing..."
+fi
 
 echo "🏗️ Building dashboard..."
 cd ../dashboard
@@ -45,6 +94,16 @@ npm run build
 
 echo "🚀 Deploying to Cloudflare..."
 cd ../core
+
+# Update wrangler.toml to comment out R2 bindings if R2 is not enabled
+if [ "$R2_ENABLED" = false ]; then
+    echo "  Disabling R2 bindings in wrangler.toml..."
+    sed -i.bak '/\[\[r2_buckets\]\]/,/bucket_name = "viveforge-/ {
+        s/^/# /
+    }' wrangler.toml
+    rm -f wrangler.toml.bak
+fi
+
 wrangler deploy
 
 echo ""

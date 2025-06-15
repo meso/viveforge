@@ -15,15 +15,19 @@ binding = "DB"
 database_name = "viveforge-db"
 database_id = "REPLACE_WITH_ACTUAL_DATABASE_ID"
 
-# R2 Storage binding (optional, can be enabled later)
-# [[r2_buckets]]
-# binding = "STORAGE"
-# bucket_name = "viveforge-storage"
+# R2 Storage bindings
+[[r2_buckets]]
+binding = "SYSTEM_STORAGE"
+bucket_name = "viveforge-system"
 
-# KV Namespace for sessions (optional, can be enabled later)
-# [[kv_namespaces]]
-# binding = "SESSIONS"
-# id = "YOUR_KV_NAMESPACE_ID"
+[[r2_buckets]]
+binding = "USER_STORAGE"
+bucket_name = "viveforge-storage"
+
+# KV Namespace for sessions (will be auto-configured during setup)
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "REPLACE_WITH_ACTUAL_KV_ID"
 
 [env.production]
 vars = { ENVIRONMENT = "production" }

@@ -40,6 +40,7 @@ export class TableManager {
     private executionCtx?: ExecutionContext
   ) {
     this.errorHandler = ErrorHandler.getInstance()
+    // Only initialize snapshotManager if R2 is available
     this.snapshotManager = new SchemaSnapshotManager(db, systemStorage)
     this.schemaManager = new SchemaManager(db, this.snapshotManager, this.createAsyncSnapshot.bind(this))
     this.dataManager = new DataManager(db)

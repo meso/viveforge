@@ -29,6 +29,11 @@ Viveforgeは、Cloudflare上で動作する、AIを活用してコードを書�
 
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/meso/viveforge)
 
+**⚠️ デプロイ前の準備**
+1. Cloudflareアカウントを作成
+2. **R2ストレージを有効化**（オプション、無料枠あり）
+   - [Cloudflare Dashboard](https://dash.cloudflare.com) → R2 Object Storage → Purchase R2
+
 または、以下のコマンドで手動デプロイ：
 
 ```bash
@@ -46,6 +51,12 @@ wrangler login
 chmod +x deploy/setup.sh
 ./deploy/setup.sh
 ```
+
+**📋 R2について**
+- R2を有効化しない場合でも基本機能は動作します
+- R2なしの場合、以下の機能が制限されます：
+  - スキーマスナップショットのファイル保存
+  - 将来的なファイルアップロード機能
 
 詳細なデプロイ手順は [DEPLOYMENT.md](./DEPLOYMENT.md) をご覧ください。
 
