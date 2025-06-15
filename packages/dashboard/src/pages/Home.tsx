@@ -53,9 +53,10 @@ export function HomePage() {
         />
         <DashboardCard
           title="Storage"
-          description="R2 object storage (coming soon)"
+          description="R2 object storage for files"
           href="/storage"
-          stats="Not configured"
+          stats="Ready"
+          status="connected"
         />
       </div>
 
@@ -69,6 +70,9 @@ export function HomePage() {
               </a>
               <a href="/database" class="text-indigo-600 hover:text-indigo-500 block">
                 Browse database →
+              </a>
+              <a href="/storage" class="text-indigo-600 hover:text-indigo-500 block">
+                Upload files →
               </a>
               <a href="/api/health" target="_blank" class="text-indigo-600 hover:text-indigo-500 block">
                 View API health →
@@ -98,6 +102,14 @@ export function HomePage() {
               <div class="flex justify-between">
                 <code class="text-gray-600">GET /api/tables/:name/data</code>
                 <span class="text-green-600">Get table data</span>
+              </div>
+              <div class="flex justify-between">
+                <code class="text-gray-600">GET /api/storage</code>
+                <span class="text-green-600">List files</span>
+              </div>
+              <div class="flex justify-between">
+                <code class="text-gray-600">POST /api/storage/upload</code>
+                <span class="text-green-600">Upload file</span>
               </div>
             </div>
           </div>
