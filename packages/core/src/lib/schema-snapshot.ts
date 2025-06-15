@@ -460,12 +460,6 @@ export class SchemaSnapshotManager {
       // Re-enable foreign keys before creating post-restore snapshot
       await this.db.prepare('PRAGMA foreign_keys = ON').run()
       
-      // Create a post-restore snapshot
-      await this.createSnapshot({
-        name: `Restored from v${snapshot.version}`,
-        description: `Restored from snapshot: ${snapshot.name}`,
-        snapshotType: 'auto'
-      })
       
       
       return { success: true, message: 'スナップショットが正常に復元されました' }

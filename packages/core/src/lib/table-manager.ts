@@ -158,12 +158,6 @@ export class TableManager {
 
     console.log('Creating table with SQL:', sql)
     await this.db.prepare(sql).run()
-    
-    // Create post-change snapshot
-    await this.snapshotManager.createSnapshot({
-      description: `Created table: ${tableName}`,
-      snapshotType: 'auto'
-    })
   }
 
   // Drop a user table
@@ -180,12 +174,6 @@ export class TableManager {
     })
 
     await this.db.prepare(`DROP TABLE IF EXISTS ${tableName}`).run()
-    
-    // Create post-change snapshot
-    await this.snapshotManager.createSnapshot({
-      description: `Dropped table: ${tableName}`,
-      snapshotType: 'auto'
-    })
   }
 
   // Create a record in a table
@@ -390,12 +378,6 @@ export class TableManager {
     if (column.foreignKey) {
       await this.addForeignKeyByRecreatingTable(tableName, column.name, column.foreignKey)
     }
-    
-    // Create post-change snapshot
-    await this.snapshotManager.createSnapshot({
-      description: `Added column ${column.name} to ${tableName}`,
-      snapshotType: 'auto'
-    })
   }
 
   // Helper method to add foreign key by recreating table (SQLite limitation)
@@ -469,12 +451,6 @@ export class TableManager {
     const sql = `ALTER TABLE ${tableName} RENAME COLUMN ${oldName} TO ${newName}`
     console.log('Renaming column with SQL:', sql)
     await this.db.prepare(sql).run()
-    
-    // Create post-change snapshot
-    await this.snapshotManager.createSnapshot({
-      description: `Renamed column ${oldName} to ${newName} in ${tableName}`,
-      snapshotType: 'auto'
-    })
   }
 
   // Drop column (requires table recreation in SQLite)
@@ -495,12 +471,6 @@ export class TableManager {
     const sql = `ALTER TABLE ${tableName} DROP COLUMN ${columnName}`
     console.log('Dropping column with SQL:', sql)
     await this.db.prepare(sql).run()
-    
-    // Create post-change snapshot
-    await this.snapshotManager.createSnapshot({
-      description: `Dropped column ${columnName} from ${tableName}`,
-      snapshotType: 'auto'
-    })
   }
 
   // Add foreign key constraint to existing column (requires table recreation)
@@ -691,12 +661,6 @@ export class TableManager {
     ]
     
     await this.db.batch(statements)
-    
-    // Create post-change snapshot
-    await this.snapshotManager.createSnapshot({
-      description: `Modified column ${columnName} in ${tableName}`,
-      snapshotType: 'auto'
-    })
   }
 
   // Helper to modify CREATE TABLE statement for column changes
@@ -825,10 +789,11 @@ export class TableManager {
     name?: string
     description?: string
     createdBy?: string
+    snapshotType?: 'manual' | 'auto' | 'pre_change'
   } = {}): Promise<string> {
     return this.snapshotManager.createSnapshot({
-      ...options,
-      snapshotType: 'manual'
+      snapshotType: 'manual',
+      ...options
     })
   }
   
@@ -935,8 +900,8 @@ export class TableManager {
     await this.createSnapshot({
       name: `Before creating index ${indexName}`,
       description: `Auto-snapshot before creating index ${indexName} on table ${tableName}`,
-      snapshotType: 'auto'
-    } as any)
+      snapshotType: 'pre_change'
+    })
 
     try {
       const uniqueClause = options.unique ? 'UNIQUE ' : ''
@@ -975,8 +940,8 @@ export class TableManager {
     await this.createSnapshot({
       name: `Before dropping index ${indexName}`,
       description: `Auto-snapshot before dropping index ${indexName} from table ${targetIndex.tableName}`,
-      snapshotType: 'auto'
-    } as any)
+      snapshotType: 'pre_change'
+    })
 
     try {
       await this.db.prepare(`DROP INDEX ${indexName}`).run()
