@@ -1,5 +1,7 @@
 // D1Database type from Cloudflare Workers
 import { SchemaSnapshotManager } from './schema-snapshot'
+import { SchemaManager } from './schema-manager'
+import type { ColumnDefinition, ColumnInfo } from './schema-manager'
 
 // System tables that cannot be modified by users
 export const SYSTEM_TABLES = ['admins', 'sessions', 'schema_snapshots', 'schema_snapshot_counter', 'd1_migrations'] as const
@@ -12,14 +14,6 @@ export interface TableInfo {
   rowCount?: number
 }
 
-export interface ColumnInfo {
-  cid: number
-  name: string
-  type: string
-  notnull: number
-  dflt_value: any
-  pk: number
-}
 
 export interface IndexInfo {
   name: string
@@ -31,9 +25,11 @@ export interface IndexInfo {
 
 export class TableManager {
   private snapshotManager: SchemaSnapshotManager
+  private schemaManager: SchemaManager
   
   constructor(private db: any, systemStorage?: any, private executionCtx?: any) { // D1Database, R2Bucket types, ExecutionContext
     this.snapshotManager = new SchemaSnapshotManager(db, systemStorage)
+    this.schemaManager = new SchemaManager(db, this.snapshotManager, this.createAsyncSnapshot.bind(this))
   }
 
   private async enableForeignKeys(): Promise<void> {
@@ -93,24 +89,12 @@ export class TableManager {
 
   // Get columns for a specific table
   async getTableColumns(tableName: string): Promise<ColumnInfo[]> {
-    const result = await this.db
-      .prepare(`PRAGMA table_info("${tableName}")`)
-      .all()
-
-    return result.results as ColumnInfo[]
+    return this.schemaManager.getTableColumns(tableName)
   }
 
   // Get foreign key constraints for a specific table
   async getForeignKeys(tableName: string): Promise<{ from: string; table: string; to: string }[]> {
-    const result = await this.db
-      .prepare(`PRAGMA foreign_key_list("${tableName}")`)
-      .all()
-
-    return result.results.map((fk: any) => ({
-      from: fk.from,
-      table: fk.table,
-      to: fk.to
-    }))
+    return this.schemaManager.getForeignKeys(tableName)
   }
 
   // Helper method to create async snapshots
@@ -135,61 +119,13 @@ export class TableManager {
   }
 
   // Create a new user table
-  async createTable(tableName: string, columns: { name: string; type: string; constraints?: string; foreignKey?: { table: string; column: string } }[]): Promise<void> {
-    await this.enableForeignKeys()
-    
-    // Create pre-change snapshot asynchronously
-    this.createAsyncSnapshot({
-      description: `Before creating table: ${tableName}`,
-      snapshotType: 'pre_change'
-    })
-    // Validate table name
-    if (SYSTEM_TABLES.includes(tableName as SystemTable)) {
-      throw new Error(`Cannot create system table: ${tableName}`)
-    }
-
-    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
-      throw new Error('Invalid table name. Use only letters, numbers, and underscores.')
-    }
-
-    // Build CREATE TABLE statement
-    const columnDefs = columns.map(col => {
-      let def = `${col.name} ${col.type}`
-      if (col.constraints) def += ` ${col.constraints}`
-      return def
-    }).join(', ')
-
-    // Build foreign key constraints
-    const foreignKeys = columns
-      .filter(col => col.foreignKey)
-      .map(col => `FOREIGN KEY (${col.name}) REFERENCES ${col.foreignKey!.table}(${col.foreignKey!.column})`)
-      .join(', ')
-
-    const sql = `CREATE TABLE ${tableName} (
-      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-      ${columnDefs},
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP${foreignKeys ? `, ${foreignKeys}` : ''}
-    )`
-
-    console.log('Creating table with SQL:', sql)
-    await this.db.prepare(sql).run()
+  async createTable(tableName: string, columns: ColumnDefinition[]): Promise<void> {
+    return this.schemaManager.createTable(tableName, columns)
   }
 
   // Drop a user table
   async dropTable(tableName: string): Promise<void> {
-    // Prevent dropping system tables
-    if (SYSTEM_TABLES.includes(tableName as SystemTable)) {
-      throw new Error(`Cannot drop system table: ${tableName}`)
-    }
-    
-    // Create pre-change snapshot asynchronously
-    this.createAsyncSnapshot({
-      description: `Before dropping table: ${tableName}`,
-      snapshotType: 'pre_change'
-    })
-
-    await this.db.prepare(`DROP TABLE IF EXISTS ${tableName}`).run()
+    return this.schemaManager.dropTable(tableName)
   }
 
   // Create a record in a table
@@ -822,6 +758,12 @@ export class TableManager {
   }
   
   async restoreSnapshot(id: string) {
+    // Create pre-change snapshot before restore
+    this.createAsyncSnapshot({
+      description: `Before restoring snapshot ${id}`,
+      snapshotType: 'pre_change'
+    })
+
     // Disable foreign keys during restore to prevent constraint errors
     await this.disableForeignKeys()
     try {
