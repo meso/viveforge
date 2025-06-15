@@ -31,6 +31,14 @@ export interface ForeignKeyInfo {
   to: string
 }
 
+export interface IndexInfo {
+  name: string
+  tableName: string
+  columns: string[]
+  unique: boolean
+  sql: string
+}
+
 export interface ApiResponse<T> {
   data?: T
   error?: string
@@ -328,6 +336,54 @@ export const api = {
     const response = await fetch(`${API_BASE}/api/snapshots/compare/${id1}/${id2}`)
     if (!response.ok) {
       throw new Error('Failed to compare snapshots')
+    }
+    return response.json()
+  },
+
+  // Index management
+  async getTableIndexes(tableName: string): Promise<{ indexes: IndexInfo[] }> {
+    const response = await fetch(`${API_BASE}/api/tables/${tableName}/indexes`)
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to fetch table indexes')
+    }
+    return response.json()
+  },
+
+  async getAllIndexes(): Promise<{ indexes: IndexInfo[] }> {
+    const response = await fetch(`${API_BASE}/api/tables/indexes`)
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to fetch all indexes')
+    }
+    return response.json()
+  },
+
+  async createIndex(
+    tableName: string, 
+    data: { name: string; columns: string[]; unique?: boolean }
+  ): Promise<{ success: boolean; index: IndexInfo }> {
+    const response = await fetch(`${API_BASE}/api/tables/${tableName}/indexes`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to create index')
+    }
+    return response.json()
+  },
+
+  async dropIndex(tableName: string, indexName: string): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${API_BASE}/api/tables/${tableName}/indexes/${indexName}`, {
+      method: 'DELETE',
+    })
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to drop index')
     }
     return response.json()
   },

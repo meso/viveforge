@@ -37,7 +37,7 @@ app.get('*', async (c) => {
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Viveforge Dashboard</title>
-    <script type="module" crossorigin src="/assets/index-C_XW7IIS.js"></script>
+    <script type="module" crossorigin src="/assets/index-aoXy9Slh.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-DwhiVdDn.css">
   </head>
   <body>

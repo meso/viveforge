@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'preact/hooks'
-import { api, type TableInfo, type ForeignKeyInfo } from '../lib/api'
+import { api, type TableInfo, type ForeignKeyInfo, type IndexInfo } from '../lib/api'
 import { SchemaHistory } from '../components/SchemaHistory'
 
 // Utility function to truncate IDs
@@ -14,6 +14,12 @@ const SYSTEM_TABLES = ['admins', 'sessions', 'schema_snapshots', 'schema_snapsho
 // Filter out system tables for FK references
 const getUserTables = (tables: TableInfo[]): TableInfo[] => {
   return tables.filter(table => !SYSTEM_TABLES.includes(table.name))
+}
+
+// Generate default index name
+const generateIndexName = (tableName: string, columns: string[]): string => {
+  const columnPart = columns.filter(col => col.trim() !== '').join('_')
+  return `idx_${tableName}_${columnPart}`.toLowerCase()
 }
 
 // Copy to clipboard utility
@@ -50,7 +56,11 @@ export function DatabasePage() {
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [showCreateTableForm, setShowCreateTableForm] = useState(false)
   const [newRecord, setNewRecord] = useState<Record<string, any>>({})
-  const [newTable, setNewTable] = useState({ name: '', columns: [{ name: '', type: 'TEXT', notNull: false, foreignKey: { enabled: false, table: '', column: '' } }] })
+  const [newTable, setNewTable] = useState({ 
+    name: '', 
+    columns: [{ name: '', type: 'TEXT', notNull: false, foreignKey: { enabled: false, table: '', column: '' } }],
+    indexes: [] as { name: string; columns: string[]; unique: boolean }[]
+  })
   const [openDropdownTable, setOpenDropdownTable] = useState<string | null>(null)
   const [copiedCell, setCopiedCell] = useState<string | null>(null)
   const [showSchemaEditor, setShowSchemaEditor] = useState(false)
@@ -66,6 +76,21 @@ export function DatabasePage() {
   const editInputRef = useRef<HTMLInputElement | null>(null)
   const hasInitializedFocus = useRef(false)
   const [showSchemaHistory, setShowSchemaHistory] = useState(false)
+  const [tableIndexes, setTableIndexes] = useState<IndexInfo[]>([])
+  const [showIndexManager, setShowIndexManager] = useState(false)
+  const [newIndex, setNewIndex] = useState({ 
+    name: '', 
+    columns: [''], 
+    unique: false 
+  })
+
+  // Update index name when columns change
+  useEffect(() => {
+    if (selectedTable && newIndex.columns.some(col => col.trim() !== '')) {
+      const defaultName = generateIndexName(selectedTable, newIndex.columns)
+      setNewIndex(prev => ({ ...prev, name: defaultName }))
+    }
+  }, [selectedTable, newIndex.columns])
 
   // Format date from SQLite DATETIME to user timezone
   const formatDateTime = (dateString: string) => {
@@ -126,6 +151,11 @@ export function DatabasePage() {
       const result = await api.getTableSchema(selectedTable)
       setTableColumns(result.columns)
       setTableForeignKeys(result.foreignKeys || [])
+      
+      // Load table indexes
+      const indexResult = await api.getTableIndexes(selectedTable)
+      setTableIndexes(indexResult.indexes)
+      
       // Initialize new record with empty values for each column
       const initialRecord: Record<string, any> = {}
       result.columns.forEach(col => {
@@ -253,9 +283,30 @@ export function DatabasePage() {
       
       console.log('Creating table:', newTable.name, 'with columns:', columnsToCreate)
       await api.createTable(newTable.name, columnsToCreate)
+      
+      // Create indexes if specified
+      for (const index of newTable.indexes) {
+        if (index.name && index.columns.length > 0 && index.columns.some(col => col.trim() !== '')) {
+          try {
+            await api.createIndex(newTable.name, {
+              name: index.name,
+              columns: index.columns.filter(col => col.trim() !== ''),
+              unique: index.unique
+            })
+          } catch (indexError) {
+            console.warn('Failed to create index:', indexError)
+            // Continue with other indexes
+          }
+        }
+      }
+      
       await loadTables()
       setShowCreateTableForm(false)
-      setNewTable({ name: '', columns: [{ name: '', type: 'TEXT', notNull: false, foreignKey: { enabled: false, table: '', column: '' } }] })
+      setNewTable({ 
+        name: '', 
+        columns: [{ name: '', type: 'TEXT', notNull: false, foreignKey: { enabled: false, table: '', column: '' } }],
+        indexes: []
+      })
       setError(null) // Clear any previous errors
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create table')
@@ -551,6 +602,53 @@ export function DatabasePage() {
     }
   }
 
+  // Index management functions
+  const handleCreateIndex = async (e: Event) => {
+    e.preventDefault()
+    if (!selectedTable) return
+
+    try {
+      const columnsToIndex = newIndex.columns.filter(col => col.trim() !== '')
+      if (columnsToIndex.length === 0) {
+        setError('At least one column is required for the index')
+        return
+      }
+
+      await api.createIndex(selectedTable, {
+        name: newIndex.name,
+        columns: columnsToIndex,
+        unique: newIndex.unique
+      })
+
+      await loadTableSchema()
+      setNewIndex({ name: '', columns: [''], unique: false })
+      setShowIndexManager(false)
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create index')
+    }
+  }
+
+  const handleDropIndex = async (indexName: string) => {
+    if (!selectedTable) return
+
+    setConfirmationModal({
+      title: 'Drop Index',
+      message: `Are you sure you want to drop the index "${indexName}"? This action cannot be undone.`,
+      variant: 'danger',
+      onConfirm: async () => {
+        setConfirmationModal(null)
+        try {
+          await api.dropIndex(selectedTable, indexName)
+          await loadTableSchema()
+          setError(null)
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to drop index')
+        }
+      }
+    })
+  }
+
   const userTables = tables.filter(t => t.type === 'user')
   const systemTables = tables.filter(t => t.type === 'system')
 
@@ -746,6 +844,124 @@ export function DatabasePage() {
                 Note: id, created_at, and updated_at columns will be added automatically
               </p>
             </div>
+
+            {/* Index Settings Section */}
+            <div class="mb-4">
+              <div class="flex items-center justify-between mb-2">
+                <label class="block text-sm font-medium text-gray-700">Indexes (Optional)</label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const defaultColumns = newTable.columns.filter(col => col.name.trim() !== '').map(col => col.name)
+                    const defaultName = newTable.name ? generateIndexName(newTable.name, defaultColumns.slice(0, 1)) : ''
+                    setNewTable({ 
+                      ...newTable, 
+                      indexes: [...newTable.indexes, { 
+                        name: defaultName, 
+                        columns: defaultColumns.slice(0, 1), 
+                        unique: false 
+                      }] 
+                    })
+                  }}
+                  class="text-sm text-indigo-600 hover:text-indigo-500"
+                >
+                  Add Index
+                </button>
+              </div>
+              
+              <div class="space-y-3">
+                {newTable.indexes.map((index, idx) => (
+                  <div key={idx} class="p-3 bg-gray-50 rounded-md">
+                    <div class="flex space-x-2 mb-2">
+                      <input
+                        type="text"
+                        value={index.name}
+                        onInput={(e) => {
+                          const newIndexes = [...newTable.indexes]
+                          newIndexes[idx].name = (e.target as HTMLInputElement).value
+                          setNewTable({ ...newTable, indexes: newIndexes })
+                        }}
+                        placeholder="index_name"
+                        class="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                      />
+                      <label class="flex items-center space-x-1">
+                        <input
+                          type="checkbox"
+                          checked={index.unique}
+                          onChange={(e) => {
+                            const newIndexes = [...newTable.indexes]
+                            newIndexes[idx].unique = (e.target as HTMLInputElement).checked
+                            setNewTable({ ...newTable, indexes: newIndexes })
+                          }}
+                          class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                        />
+                        <span class="text-xs text-gray-700">Unique</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newIndexes = newTable.indexes.filter((_, i) => i !== idx)
+                          setNewTable({ ...newTable, indexes: newIndexes })
+                        }}
+                        class="text-red-600 hover:text-red-900 text-sm"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    
+                    <div class="space-y-1">
+                      <label class="text-xs text-gray-700">Columns:</label>
+                      {index.columns.map((column, colIdx) => (
+                        <div key={colIdx} class="flex space-x-2">
+                          <select
+                            value={column}
+                            onChange={(e) => {
+                              const newIndexes = [...newTable.indexes]
+                              newIndexes[idx].columns[colIdx] = (e.target as HTMLSelectElement).value
+                              // Update index name when columns change
+                              if (newTable.name) {
+                                newIndexes[idx].name = generateIndexName(newTable.name, newIndexes[idx].columns.filter(c => c.trim() !== ''))
+                              }
+                              setNewTable({ ...newTable, indexes: newIndexes })
+                            }}
+                            class="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                          >
+                            <option value="">Select column...</option>
+                            {newTable.columns.filter(col => col.name.trim() !== '').map(col => (
+                              <option key={col.name} value={col.name}>{col.name}</option>
+                            ))}
+                          </select>
+                          {index.columns.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newIndexes = [...newTable.indexes]
+                                newIndexes[idx].columns = newIndexes[idx].columns.filter((_, i) => i !== colIdx)
+                                setNewTable({ ...newTable, indexes: newIndexes })
+                              }}
+                              class="text-red-600 hover:text-red-500 text-sm"
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newIndexes = [...newTable.indexes]
+                          newIndexes[idx].columns.push('')
+                          setNewTable({ ...newTable, indexes: newIndexes })
+                        }}
+                        class="text-xs text-indigo-600 hover:text-indigo-500"
+                      >
+                        Add Column
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
             
             <div class="flex space-x-3">
               <button
@@ -758,6 +974,11 @@ export function DatabasePage() {
                 type="button"
                 onClick={() => {
                   setShowCreateTableForm(false)
+                  setNewTable({ 
+                    name: '', 
+                    columns: [{ name: '', type: 'TEXT', notNull: false, foreignKey: { enabled: false, table: '', column: '' } }],
+                    indexes: []
+                  })
                   setError(null) // Clear error when canceling
                 }}
                 class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -1072,6 +1293,139 @@ export function DatabasePage() {
                           </div>
                         )}
                       </form>
+                    </div>
+
+                    {/* Index Management Section */}
+                    <div class="border-t pt-4">
+                      <div class="flex items-center justify-between mb-3">
+                        <h5 class="text-xs font-medium text-gray-700">Indexes</h5>
+                        <button
+                          type="button"
+                          onClick={() => setShowIndexManager(!showIndexManager)}
+                          class="text-xs text-indigo-600 hover:text-indigo-500"
+                        >
+                          {showIndexManager ? 'Hide' : 'Manage Indexes'}
+                        </button>
+                      </div>
+
+                      {/* Existing Indexes */}
+                      <div class="space-y-2 mb-3">
+                        {tableIndexes.map(index => (
+                          <div key={index.name} class="flex items-center justify-between p-2 bg-gray-50 rounded">
+                            <div class="flex-1">
+                              <div class="flex items-center space-x-2">
+                                <span class="text-sm font-medium text-gray-900">{index.name}</span>
+                                {index.unique && (
+                                  <span class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">UNIQUE</span>
+                                )}
+                              </div>
+                              <div class="text-xs text-gray-500">
+                                Columns: {index.columns.join(', ')}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleDropIndex(index.name)}
+                              class="text-xs text-red-600 hover:text-red-500"
+                            >
+                              Drop
+                            </button>
+                          </div>
+                        ))}
+                        {tableIndexes.length === 0 && (
+                          <p class="text-xs text-gray-500">No custom indexes</p>
+                        )}
+                      </div>
+
+                      {/* Create Index Form */}
+                      {showIndexManager && (
+                        <form onSubmit={handleCreateIndex} class="space-y-3 p-3 bg-blue-50 rounded-md">
+                          <h6 class="text-xs font-medium text-gray-700">Create New Index</h6>
+                          
+                          <div>
+                            <input
+                              type="text"
+                              value={newIndex.name}
+                              onInput={(e) => setNewIndex({ ...newIndex, name: (e.target as HTMLInputElement).value })}
+                              placeholder="index_name"
+                              pattern="[a-zA-Z_][a-zA-Z0-9_]*"
+                              class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                              required
+                            />
+                          </div>
+
+                          <div class="space-y-2">
+                            <label class="text-xs text-gray-700">Columns:</label>
+                            {newIndex.columns.map((column, idx) => (
+                              <div key={idx} class="flex space-x-2">
+                                <select
+                                  value={column}
+                                  onChange={(e) => {
+                                    const newColumns = [...newIndex.columns]
+                                    newColumns[idx] = (e.target as HTMLSelectElement).value
+                                    setNewIndex({ ...newIndex, columns: newColumns })
+                                  }}
+                                  class="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                >
+                                  <option value="">Select column...</option>
+                                  {tableColumns.map(col => (
+                                    <option key={col.name} value={col.name}>{col.name}</option>
+                                  ))}
+                                </select>
+                                {newIndex.columns.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newColumns = newIndex.columns.filter((_, i) => i !== idx)
+                                      setNewIndex({ ...newIndex, columns: newColumns })
+                                    }}
+                                    class="text-red-600 hover:text-red-500 text-sm"
+                                  >
+                                    Remove
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() => setNewIndex({ ...newIndex, columns: [...newIndex.columns, ''] })}
+                              class="text-xs text-indigo-600 hover:text-indigo-500"
+                            >
+                              Add Column
+                            </button>
+                          </div>
+
+                          <div>
+                            <label class="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                checked={newIndex.unique}
+                                onChange={(e) => setNewIndex({ ...newIndex, unique: (e.target as HTMLInputElement).checked })}
+                                class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                              />
+                              <span class="text-sm text-gray-700">Unique Index</span>
+                            </label>
+                          </div>
+
+                          <div class="flex space-x-2">
+                            <button
+                              type="submit"
+                              class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                            >
+                              Create Index
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowIndexManager(false)
+                                setNewIndex({ name: '', columns: [''], unique: false })
+                              }}
+                              class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
+                      )}
                     </div>
                   </div>
                 )}

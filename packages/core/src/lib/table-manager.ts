@@ -21,6 +21,14 @@ export interface ColumnInfo {
   pk: number
 }
 
+export interface IndexInfo {
+  name: string
+  tableName: string
+  columns: string[]
+  unique: boolean
+  sql: string
+}
+
 export class TableManager {
   private snapshotManager: SchemaSnapshotManager
   
@@ -109,12 +117,15 @@ export class TableManager {
   async createTable(tableName: string, columns: { name: string; type: string; constraints?: string; foreignKey?: { table: string; column: string } }[]): Promise<void> {
     await this.enableForeignKeys()
     
-    // Create pre-change snapshot if schema will change
-    if (await this.snapshotManager.hasSchemaChanged()) {
+    // Create pre-change snapshot 
+    try {
       await this.snapshotManager.createSnapshot({
         description: `Before creating table: ${tableName}`,
         snapshotType: 'pre_change'
       })
+    } catch (error) {
+      console.warn('Failed to create pre-change snapshot:', error)
+      // Continue with table creation
     }
     // Validate table name
     if (SYSTEM_TABLES.includes(tableName as SystemTable)) {
@@ -843,5 +854,189 @@ export class TableManager {
   
   async deleteSnapshot(id: string) {
     return await this.snapshotManager.deleteSnapshot(id)
+  }
+
+  // Index management methods
+  async getTableIndexes(tableName: string): Promise<IndexInfo[]> {
+    await this.enableForeignKeys()
+    
+    try {
+      // Get index list for the table
+      const indexListResult = await this.db
+        .prepare(`PRAGMA index_list("${tableName}")`)
+        .all()
+
+      const indexes: IndexInfo[] = []
+
+      for (const indexRow of indexListResult.results) {
+        const indexName = indexRow.name
+        
+        // Skip auto-generated indexes (those starting with sqlite_autoindex_)
+        if (indexName.startsWith('sqlite_autoindex_')) {
+          continue
+        }
+
+        // Get detailed info about this index
+        const indexInfoResult = await this.db
+          .prepare(`PRAGMA index_info("${indexName}")`)
+          .all()
+
+        const columns = indexInfoResult.results
+          .sort((a: any, b: any) => a.seqno - b.seqno)
+          .map((col: any) => col.name)
+
+        // Get the original SQL from sqlite_master
+        const sqlResult = await this.db
+          .prepare('SELECT sql FROM sqlite_master WHERE type = ? AND name = ?')
+          .bind('index', indexName)
+          .first()
+
+        indexes.push({
+          name: indexName,
+          tableName: tableName,
+          columns: columns,
+          unique: indexRow.unique === 1,
+          sql: sqlResult?.sql || ''
+        })
+      }
+
+      return indexes
+    } catch (error) {
+      console.error('Error getting table indexes:', error)
+      return []
+    }
+  }
+
+  async createIndex(
+    indexName: string,
+    tableName: string,
+    columns: string[],
+    options: { unique?: boolean } = {}
+  ): Promise<void> {
+    await this.enableForeignKeys()
+    
+    // Validate inputs
+    if (!indexName || !tableName || !columns || columns.length === 0) {
+      throw new Error('Index name, table name, and columns are required')
+    }
+
+    // Validate index name format
+    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(indexName)) {
+      throw new Error('Invalid index name format')
+    }
+
+    // Check if index already exists
+    const existingIndexes = await this.getTableIndexes(tableName)
+    if (existingIndexes.some(idx => idx.name === indexName)) {
+      throw new Error(`Index "${indexName}" already exists`)
+    }
+
+    // Create snapshot before index creation
+    await this.createSnapshot({
+      name: `Before creating index ${indexName}`,
+      description: `Auto-snapshot before creating index ${indexName} on table ${tableName}`,
+      snapshotType: 'auto'
+    } as any)
+
+    try {
+      const uniqueClause = options.unique ? 'UNIQUE ' : ''
+      const columnsList = columns.join(', ')
+      const sql = `CREATE ${uniqueClause}INDEX ${indexName} ON ${tableName} (${columnsList})`
+      
+      await this.db.prepare(sql).run()
+    } catch (error) {
+      console.error('Error creating index:', error)
+      throw new Error(`Failed to create index: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
+  async dropIndex(indexName: string): Promise<void> {
+    await this.enableForeignKeys()
+    
+    // Validate input
+    if (!indexName) {
+      throw new Error('Index name is required')
+    }
+
+    // Check if index exists and get its details
+    const allIndexes = await this.getAllUserIndexes()
+    const targetIndex = allIndexes.find(idx => idx.name === indexName)
+    
+    if (!targetIndex) {
+      throw new Error(`Index "${indexName}" not found`)
+    }
+
+    // Prevent dropping system indexes
+    if (indexName.startsWith('sqlite_autoindex_')) {
+      throw new Error('Cannot drop system-generated indexes')
+    }
+
+    // Create snapshot before index deletion
+    await this.createSnapshot({
+      name: `Before dropping index ${indexName}`,
+      description: `Auto-snapshot before dropping index ${indexName} from table ${targetIndex.tableName}`,
+      snapshotType: 'auto'
+    } as any)
+
+    try {
+      await this.db.prepare(`DROP INDEX ${indexName}`).run()
+    } catch (error) {
+      console.error('Error dropping index:', error)
+      throw new Error(`Failed to drop index: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
+  async getAllUserIndexes(): Promise<IndexInfo[]> {
+    await this.enableForeignKeys()
+    
+    try {
+      // Get all user-created indexes from sqlite_master
+      const result = await this.db
+        .prepare(`
+          SELECT name, tbl_name, sql 
+          FROM sqlite_master 
+          WHERE type = 'index' 
+          AND name NOT LIKE 'sqlite_autoindex_%'
+          AND sql IS NOT NULL
+          ORDER BY tbl_name, name
+        `)
+        .all()
+
+      const indexes: IndexInfo[] = []
+
+      for (const row of result.results) {
+        const indexName = row.name
+        const tableName = row.tbl_name
+
+        // Get detailed info about this index
+        const indexInfoResult = await this.db
+          .prepare(`PRAGMA index_info("${indexName}")`)
+          .all()
+
+        const columns = indexInfoResult.results
+          .sort((a: any, b: any) => a.seqno - b.seqno)
+          .map((col: any) => col.name)
+
+        // Check if index is unique by parsing SQL or using PRAGMA
+        const indexListResult = await this.db
+          .prepare(`PRAGMA index_list("${tableName}")`)
+          .all()
+
+        const indexDetails = indexListResult.results.find((idx: any) => idx.name === indexName)
+        
+        indexes.push({
+          name: indexName,
+          tableName: tableName,
+          columns: columns,
+          unique: indexDetails?.unique === 1,
+          sql: row.sql || ''
+        })
+      }
+
+      return indexes
+    } catch (error) {
+      console.error('Error getting all user indexes:', error)
+      return []
+    }
   }
 }

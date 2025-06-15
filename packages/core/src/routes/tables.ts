@@ -373,3 +373,87 @@ tables.post('/query', zValidator('json', executeSQLSchema), async (c) => {
     }, 400)
   }
 })
+
+// Index management endpoints
+
+// Get all indexes across all tables
+tables.get('/indexes', async (c) => {
+  try {
+    const tableManager = c.get('tableManager')
+    const indexes = await tableManager.getAllUserIndexes()
+    return c.json({ indexes })
+  } catch (error) {
+    console.error('Error getting all indexes:', error)
+    return c.json({ 
+      error: error instanceof Error ? error.message : 'Failed to get indexes' 
+    }, 500)
+  }
+})
+
+// Get indexes for a specific table
+tables.get('/:tableName/indexes', async (c) => {
+  try {
+    const tableName = c.req.param('tableName')
+    const tableManager = c.get('tableManager')
+    
+    const indexes = await tableManager.getTableIndexes(tableName)
+    return c.json({ indexes })
+  } catch (error) {
+    console.error('Error getting table indexes:', error)
+    return c.json({ 
+      error: error instanceof Error ? error.message : 'Failed to get table indexes' 
+    }, 500)
+  }
+})
+
+// Create index
+const createIndexSchema = z.object({
+  name: z.string().regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/, 'Invalid index name'),
+  columns: z.array(z.string()).min(1, 'At least one column is required'),
+  unique: z.boolean().optional().default(false)
+})
+
+tables.post('/:tableName/indexes', zValidator('json', createIndexSchema), async (c) => {
+  try {
+    const tableName = c.req.param('tableName')
+    const { name, columns, unique } = c.req.valid('json')
+    const tableManager = c.get('tableManager')
+    
+    await tableManager.createIndex(name, tableName, columns, { unique })
+    
+    // Get the created index info
+    const indexes = await tableManager.getTableIndexes(tableName)
+    const createdIndex = indexes.find(idx => idx.name === name)
+    
+    return c.json({ 
+      success: true, 
+      index: createdIndex,
+      message: `Index "${name}" created successfully` 
+    })
+  } catch (error) {
+    console.error('Error creating index:', error)
+    return c.json({ 
+      error: error instanceof Error ? error.message : 'Failed to create index' 
+    }, 400)
+  }
+})
+
+// Drop index
+tables.delete('/:tableName/indexes/:indexName', async (c) => {
+  try {
+    const indexName = c.req.param('indexName')
+    const tableManager = c.get('tableManager')
+    
+    await tableManager.dropIndex(indexName)
+    
+    return c.json({ 
+      success: true, 
+      message: `Index "${indexName}" dropped successfully` 
+    })
+  } catch (error) {
+    console.error('Error dropping index:', error)
+    return c.json({ 
+      error: error instanceof Error ? error.message : 'Failed to drop index' 
+    }, 400)
+  }
+})

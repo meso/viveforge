@@ -14,11 +14,20 @@ export interface SchemaSnapshot {
   d1BookmarkId?: string
 }
 
+export interface IndexInfo {
+  name: string
+  tableName: string
+  columns: string[]
+  unique: boolean
+  sql: string
+}
+
 export interface TableSchema {
   name: string
   sql: string
   columns: any[]
   foreignKeys: any[]
+  indexes: IndexInfo[]
 }
 
 export class SchemaSnapshotManager {
@@ -49,12 +58,51 @@ export class SchemaSnapshotManager {
       const foreignKeysResult = await this.db
         .prepare(`PRAGMA foreign_key_list("${table.name}")`)
         .all()
+
+      // Get indexes for this table
+      const indexesResult = await this.db
+        .prepare(`PRAGMA index_list("${table.name}")`)
+        .all()
+
+      const indexes: IndexInfo[] = []
+      for (const indexRow of indexesResult.results) {
+        const indexName = indexRow.name
+        
+        // Skip auto-generated indexes
+        if (indexName.startsWith('sqlite_autoindex_')) {
+          continue
+        }
+
+        // Get index details
+        const indexInfoResult = await this.db
+          .prepare(`PRAGMA index_info("${indexName}")`)
+          .all()
+
+        const columns = indexInfoResult.results
+          .sort((a: any, b: any) => a.seqno - b.seqno)
+          .map((col: any) => col.name)
+
+        // Get the original SQL from sqlite_master
+        const sqlResult = await this.db
+          .prepare('SELECT sql FROM sqlite_master WHERE type = ? AND name = ?')
+          .bind('index', indexName)
+          .first()
+
+        indexes.push({
+          name: indexName,
+          tableName: table.name as string,
+          columns: columns,
+          unique: indexRow.unique === 1,
+          sql: sqlResult?.sql || ''
+        })
+      }
       
       schemas.push({
         name: table.name as string,
         sql: table.sql as string,
         columns: columnsResult.results,
-        foreignKeys: foreignKeysResult.results
+        foreignKeys: foreignKeysResult.results,
+        indexes: indexes
       })
     }
     
@@ -387,6 +435,22 @@ export class SchemaSnapshotManager {
                 insertedCount++
               } catch (insertError) {
                 // Continue with other records on error
+              }
+            }
+          }
+        }
+      }
+
+      // Restore indexes
+      for (const schema of schemasToRestore) {
+        if (schema.indexes && schema.indexes.length > 0) {
+          for (const index of schema.indexes) {
+            if (index.sql) {
+              try {
+                await this.db.prepare(index.sql).run()
+              } catch (indexError) {
+                console.warn(`Failed to restore index ${index.name}:`, indexError)
+                // Continue with other indexes
               }
             }
           }
