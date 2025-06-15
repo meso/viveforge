@@ -386,7 +386,7 @@ curl "https://viveforge-core.mesongo.workers.dev/api/tables/users/search?column=
 
 - Authentication and authorization
 - Field-level permissions
-- Complex search with multiple conditions (POST-based)
+- **Complex search with multiple conditions**: POST-based search API with support for combining multiple column conditions using AND/OR logic (e.g., `name = 'John' AND age > 25`)
 - Bulk operations
 - Webhooks for data changes
 - Real-time subscriptions
