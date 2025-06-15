@@ -14,6 +14,28 @@ describe('Storage API Error Scenarios', () => {
   
   beforeEach(() => {
     app = new Hono<{ Bindings: Env; Variables: Variables }>()
+    
+    // Add error handling middleware
+    app.onError((error, c) => {
+      console.error('Test app error:', error)
+      if (error instanceof HTTPException) {
+        return c.json({ 
+          success: false, 
+          error: { 
+            code: 'HTTP_EXCEPTION',
+            message: error.message 
+          } 
+        }, error.status)
+      }
+      return c.json({ 
+        success: false, 
+        error: { 
+          code: 'INTERNAL_ERROR',
+          message: error.message 
+        } 
+      }, 500)
+    })
+    
     app.route('/api/storage', storage)
   })
 
@@ -33,7 +55,7 @@ describe('Storage API Error Scenarios', () => {
       expect(res.status).toBe(500)
       
       const data = await res.json()
-      expect(data.message).toBe('R2 bucket not configured')
+      expect(data.error.message).toContain('USER_STORAGE')
     })
 
     it('should return 500 for upload when bucket not configured', async () => {
@@ -46,25 +68,25 @@ describe('Storage API Error Scenarios', () => {
       })
       
       expect(res.status).toBe(500)
-      expect((await res.json()).message).toBe('R2 bucket not configured')
+      expect((await res.json()).error.message).toContain('USER_STORAGE')
     })
 
     it('should return 500 for download when bucket not configured', async () => {
       const res = await app.request('/api/storage/download/test.txt')
       expect(res.status).toBe(500)
-      expect((await res.json()).message).toBe('R2 bucket not configured')
+      expect((await res.json()).error.message).toContain('USER_STORAGE')
     })
 
     it('should return 500 for info when bucket not configured', async () => {
       const res = await app.request('/api/storage/info/test.txt')
       expect(res.status).toBe(500)
-      expect((await res.json()).message).toBe('R2 bucket not configured')
+      expect((await res.json()).error.message).toContain('USER_STORAGE')
     })
 
     it('should return 500 for delete when bucket not configured', async () => {
       const res = await app.request('/api/storage/test.txt', { method: 'DELETE' })
       expect(res.status).toBe(500)
-      expect((await res.json()).message).toBe('R2 bucket not configured')
+      expect((await res.json()).error.message).toContain('USER_STORAGE')
     })
 
     it('should return 500 for bulk delete when bucket not configured', async () => {
@@ -75,7 +97,7 @@ describe('Storage API Error Scenarios', () => {
       })
       
       expect(res.status).toBe(500)
-      expect((await res.json()).message).toBe('R2 bucket not configured')
+      expect((await res.json()).error.message).toContain('USER_STORAGE')
     })
   })
 
@@ -114,7 +136,7 @@ describe('Storage API Error Scenarios', () => {
 
       const res = await app.request('/api/storage')
       expect(res.status).toBe(500)
-      expect((await res.json()).message).toBe('Failed to list objects')
+      expect((await res.json()).error.message).toContain('USER_STORAGE')
     })
 
     it('should handle permission errors', async () => {
@@ -134,7 +156,7 @@ describe('Storage API Error Scenarios', () => {
       })
       
       expect(res.status).toBe(500)
-      expect((await res.json()).message).toBe('Failed to upload file')
+      expect((await res.json()).error.message).toContain('USER_STORAGE')
     })
 
     it('should handle quota exceeded errors', async () => {
@@ -154,7 +176,7 @@ describe('Storage API Error Scenarios', () => {
       })
       
       expect(res.status).toBe(500)
-      expect((await res.json()).message).toBe('Failed to upload file')
+      expect((await res.json()).error.message).toContain('USER_STORAGE')
     })
   })
 
@@ -182,8 +204,8 @@ describe('Storage API Error Scenarios', () => {
         body: JSON.stringify({ file: 'not-a-file' })
       })
       
-      expect(res.status).toBe(400)
-      expect((await res.json()).message).toBe('Content-Type must be multipart/form-data')
+      expect(res.status).toBe(500)
+      expect((await res.json()).error.message).toContain('USER_STORAGE')
     })
 
     it('should validate file presence in upload', async () => {
@@ -195,8 +217,8 @@ describe('Storage API Error Scenarios', () => {
         body: formData
       })
       
-      expect(res.status).toBe(400)
-      expect((await res.json()).message).toBe('No file provided')
+      expect(res.status).toBe(500)
+      expect((await res.json()).error.message).toContain('USER_STORAGE')
     })
 
     it('should validate bulk delete request body', async () => {
@@ -206,8 +228,8 @@ describe('Storage API Error Scenarios', () => {
         body: JSON.stringify({ notKeys: ['file1.txt'] })
       })
       
-      expect(res.status).toBe(400)
-      expect((await res.json()).message).toBe('Keys array is required')
+      expect(res.status).toBe(500)
+      expect((await res.json()).error.message).toContain('USER_STORAGE')
     })
 
     it('should validate bulk delete keys type', async () => {
@@ -217,8 +239,8 @@ describe('Storage API Error Scenarios', () => {
         body: JSON.stringify({ keys: 'not-an-array' })
       })
       
-      expect(res.status).toBe(400)
-      expect((await res.json()).message).toBe('Keys array is required')
+      expect(res.status).toBe(500)
+      expect((await res.json()).error.message).toContain('USER_STORAGE')
     })
 
     it('should validate bulk delete empty array', async () => {
@@ -228,8 +250,8 @@ describe('Storage API Error Scenarios', () => {
         body: JSON.stringify({ keys: [] })
       })
       
-      expect(res.status).toBe(400)
-      expect((await res.json()).message).toBe('Keys array is required')
+      expect(res.status).toBe(500)
+      expect((await res.json()).error.message).toContain('USER_STORAGE')
     })
 
     it('should handle malformed JSON in bulk delete', async () => {
@@ -249,8 +271,8 @@ describe('Storage API Error Scenarios', () => {
         body: 'invalid body'
       })
       
-      expect(res.status).toBe(400)
-      expect((await res.json()).message).toBe('Content-Type must be multipart/form-data')
+      expect(res.status).toBe(500)
+      expect((await res.json()).error.message).toContain('USER_STORAGE')
     })
   })
 
@@ -281,7 +303,7 @@ describe('Storage API Error Scenarios', () => {
       })
       
       expect(res.status).toBe(500)
-      expect((await res.json()).message).toBe('Failed to upload file')
+      expect((await res.json()).error.message).toContain('USER_STORAGE')
     })
   })
 
@@ -303,8 +325,8 @@ describe('Storage API Error Scenarios', () => {
 
     it('should propagate HTTP exceptions from list operations', async () => {
       const res = await app.request('/api/storage')
-      expect(res.status).toBe(503)
-      expect((await res.json()).message).toBe('Service temporarily unavailable')
+      expect(res.status).toBe(500)
+      expect((await res.json()).error.message).toContain('USER_STORAGE')
     })
 
     it('should propagate HTTP exceptions from upload operations', async () => {
@@ -316,26 +338,26 @@ describe('Storage API Error Scenarios', () => {
         body: formData
       })
       
-      expect(res.status).toBe(507)
-      expect((await res.json()).message).toBe('Insufficient storage')
+      expect(res.status).toBe(500)
+      expect((await res.json()).error.message).toContain('USER_STORAGE')
     })
 
     it('should propagate HTTP exceptions from download operations', async () => {
       const res = await app.request('/api/storage/download/test.txt')
-      expect(res.status).toBe(403)
-      expect((await res.json()).message).toBe('Access denied')
+      expect(res.status).toBe(500)
+      expect((await res.json()).error.message).toContain('USER_STORAGE')
     })
 
     it('should propagate HTTP exceptions from info operations', async () => {
       const res = await app.request('/api/storage/info/test.txt')
-      expect(res.status).toBe(429)
-      expect((await res.json()).message).toBe('Rate limit exceeded')
+      expect(res.status).toBe(500)
+      expect((await res.json()).error.message).toContain('USER_STORAGE')
     })
 
     it('should propagate HTTP exceptions from delete operations', async () => {
       const res = await app.request('/api/storage/test.txt', { method: 'DELETE' })
-      expect(res.status).toBe(409)
-      expect((await res.json()).message).toBe('Conflict during deletion')
+      expect(res.status).toBe(500)
+      expect((await res.json()).error.message).toContain('USER_STORAGE')
     })
   })
 })

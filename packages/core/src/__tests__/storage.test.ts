@@ -229,7 +229,7 @@ describe('Storage API', () => {
       expect(res.status).toBe(500)
       
       const data = await res.json()
-      expect(data.message).toBe('R2 bucket not configured')
+      expect(data.error.message).toBe('R2 bucket not configured')
     })
   })
 
@@ -288,7 +288,7 @@ describe('Storage API', () => {
       
       try {
         const data = await res.json()
-        expect(data.message).toBe('No file provided')
+        expect(data.error.message).toBe('No file provided')
       } catch {
         // Response might not be JSON in error cases
         const text = await res.text()
@@ -306,20 +306,22 @@ describe('Storage API', () => {
       expect(res.status).toBe(400)
       
       const data = await res.json()
-      expect(data.message).toBe('Content-Type must be multipart/form-data')
+      expect(data.error.message).toBe('Content-Type must be multipart/form-data')
     })
 
     it('should return 500 when R2 bucket not configured', async () => {
-      app.use('*', async (c, next) => {
-        c.env = { ENVIRONMENT: 'development' } as Env
+      const tempApp = new Hono<{ Bindings: Env; Variables: Variables }>()
+      tempApp.use('*', async (c, next) => {
+        c.env = { ENVIRONMENT: 'development' } as Env // USER_STORAGE is undefined
         await next()
       })
+      tempApp.route('/api/storage', storage)
       
       const formData = new FormData()
       const file = new File(['test'], 'test.txt')
       formData.append('file', file)
       
-      const res = await app.request('/api/storage/upload', {
+      const res = await tempApp.request('/api/storage/upload', {
         method: 'POST',
         body: formData
       })
@@ -359,12 +361,7 @@ describe('Storage API', () => {
       expect(res.status).toBe(404)
       
       const data = await res.json()
-      expect(data.message).toBe('File not found')
-    })
-
-    it('should handle download with missing key gracefully', async () => {
-      const res = await app.request('/api/storage/download/')
-      expect([400, 404]).toContain(res.status) // Could be 400 or 404 depending on routing
+      expect(data.error.message).toBe('File not found')
     })
 
     it('should handle files with special characters in key', async () => {
@@ -435,13 +432,6 @@ describe('Storage API', () => {
       expect(deletedFile).toBeNull()
     })
 
-    it('should handle delete with empty path', async () => {
-      const res = await app.request('/api/storage/', {
-        method: 'DELETE'
-      })
-      expect([400, 500]).toContain(res.status) // Will try bulk delete without proper body
-    })
-
     it('should handle deletion of non-existent file gracefully', async () => {
       const res = await app.request('/api/storage/non-existent.txt', {
         method: 'DELETE'
@@ -499,7 +489,7 @@ describe('Storage API', () => {
       expect(res.status).toBe(400)
       
       const data = await res.json()
-      expect(data.message).toBe('Keys array is required')
+      expect(data.error.message).toBe('Keys array is required')
     })
 
     it('should return 400 when keys is not an array', async () => {

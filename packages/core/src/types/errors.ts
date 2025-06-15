@@ -1,5 +1,5 @@
 /**
- * Unified error handling types for Viveforge
+ * Unified error handling types for Vibebase
  */
 
 export enum ErrorCode {
@@ -54,7 +54,7 @@ export interface ErrorDetails {
   suggestions?: string[] // Suggested solutions
 }
 
-export class ViveforgeError extends Error {
+export class VibebaseError extends Error {
   public readonly code: ErrorCode
   public readonly context?: ErrorDetails['context']
   public readonly userMessage?: string
@@ -62,7 +62,7 @@ export class ViveforgeError extends Error {
 
   constructor(details: ErrorDetails) {
     super(details.message)
-    this.name = 'ViveforgeError'
+    this.name = 'VibebaseError'
     this.code = details.code
     this.context = details.context
     this.userMessage = details.userMessage
@@ -81,20 +81,20 @@ export class ViveforgeError extends Error {
     }
   }
 
-  public static fromError(error: unknown, code: ErrorCode = ErrorCode.UNKNOWN_ERROR): ViveforgeError {
-    if (error instanceof ViveforgeError) {
+  public static fromError(error: unknown, code: ErrorCode = ErrorCode.UNKNOWN_ERROR): VibebaseError {
+    if (error instanceof VibebaseError) {
       return error
     }
 
     if (error instanceof Error) {
-      return new ViveforgeError({
+      return new VibebaseError({
         code,
         message: error.message,
         context: { originalError: error }
       })
     }
 
-    return new ViveforgeError({
+    return new VibebaseError({
       code,
       message: String(error),
       context: { originalError: error }
@@ -104,7 +104,7 @@ export class ViveforgeError extends Error {
 
 export interface ErrorResult {
   success: false
-  error: ViveforgeError
+  error: VibebaseError
 }
 
 export interface SuccessResult<T = any> {
@@ -115,8 +115,8 @@ export interface SuccessResult<T = any> {
 export type Result<T = any> = SuccessResult<T> | ErrorResult
 
 // Error factory functions for common error types
-export const createSystemTableError = (tableName: string): ViveforgeError =>
-  new ViveforgeError({
+export const createSystemTableError = (tableName: string): VibebaseError =>
+  new VibebaseError({
     code: ErrorCode.SYSTEM_TABLE_MODIFICATION,
     message: `Cannot modify system table: ${tableName}`,
     userMessage: `System table "${tableName}" cannot be modified for security reasons.`,
@@ -124,8 +124,8 @@ export const createSystemTableError = (tableName: string): ViveforgeError =>
     suggestions: ['Use a different table name', 'Only modify user-created tables']
   })
 
-export const createInvalidNameError = (name: string, type: 'table' | 'column' | 'index'): ViveforgeError =>
-  new ViveforgeError({
+export const createInvalidNameError = (name: string, type: 'table' | 'column' | 'index'): VibebaseError =>
+  new VibebaseError({
     code: ErrorCode.INVALID_NAME_FORMAT,
     message: `Invalid ${type} name format: ${name}`,
     userMessage: `The ${type} name "${name}" contains invalid characters.`,
@@ -137,8 +137,8 @@ export const createInvalidNameError = (name: string, type: 'table' | 'column' | 
     ]
   })
 
-export const createNotFoundError = (entityType: string, identifier: string): ViveforgeError =>
-  new ViveforgeError({
+export const createNotFoundError = (entityType: string, identifier: string): VibebaseError =>
+  new VibebaseError({
     code: ErrorCode.TABLE_NOT_FOUND, // Will be refined based on entity type
     message: `${entityType} not found: ${identifier}`,
     userMessage: `The ${entityType.toLowerCase()} "${identifier}" does not exist.`,
@@ -146,8 +146,8 @@ export const createNotFoundError = (entityType: string, identifier: string): Viv
     suggestions: ['Check the spelling', 'Verify the entity exists']
   })
 
-export const createDuplicateError = (entityType: string, name: string): ViveforgeError =>
-  new ViveforgeError({
+export const createDuplicateError = (entityType: string, name: string): VibebaseError =>
+  new VibebaseError({
     code: ErrorCode.DUPLICATE_ENTITY,
     message: `${entityType} "${name}" already exists`,
     userMessage: `A ${entityType.toLowerCase()} with the name "${name}" already exists.`,
@@ -155,8 +155,8 @@ export const createDuplicateError = (entityType: string, name: string): Viveforg
     suggestions: ['Use a different name', 'Delete the existing entity first']
   })
 
-export const createValidationError = (errors: string[]): ViveforgeError =>
-  new ViveforgeError({
+export const createValidationError = (errors: string[]): VibebaseError =>
+  new VibebaseError({
     code: ErrorCode.VALIDATION_FAILED,
     message: `Validation failed: ${errors.join('; ')}`,
     userMessage: 'The operation cannot be completed due to validation errors.',

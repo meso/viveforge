@@ -1,4 +1,4 @@
-// Test setup for Viveforge Core
+// Test setup for Vibebase Core
 import { beforeAll, beforeEach, afterEach, afterAll } from 'vitest'
 import type { D1Database, D1PreparedStatement, R2Bucket, ExecutionContext } from '../types/cloudflare'
 
@@ -27,6 +27,53 @@ export interface MockExecutionContext extends ExecutionContext {
 }
 
 // Create mock D1 database
+// Helper function to handle SELECT queries with WHERE clauses
+function handleSelectWithWhere(sql: string, tableData: any[], bindings?: any[]): { results: any[] } {
+  const normalizedSql = sql.trim().toUpperCase()
+  
+  // Simple WHERE parsing for search functionality
+  if (normalizedSql.includes('WHERE')) {
+    // Extract column, operator, and value from WHERE clause
+    const whereMatch = sql.match(/WHERE\s+["']?(\w+)["']?\s*([=<>!]+|IS NULL|IS NOT NULL)\s*(.+)?/i)
+    if (whereMatch) {
+      const [, column, operator, valueStr] = whereMatch
+      
+      let value = valueStr?.trim().replace(/['"`]/g, '') // Remove quotes
+      if (value === '?' && bindings && bindings.length > 0) {
+        // Use actual bound parameter
+        value = bindings[0]
+      }
+      
+      const filteredData = tableData.filter(record => {
+        const recordValue = record[column]
+        
+        switch (operator.toUpperCase()) {
+          case '=':
+            return recordValue === value
+          case '>':
+            return Number(recordValue) > Number(value)
+          case '<':
+            return Number(recordValue) < Number(value)
+          case '>=':
+            return Number(recordValue) >= Number(value)
+          case '<=':
+            return Number(recordValue) <= Number(value)
+          case 'IS NULL':
+            return recordValue === null || recordValue === undefined
+          case 'IS NOT NULL':
+            return recordValue !== null && recordValue !== undefined
+          default:
+            return false
+        }
+      })
+      
+      return { results: filteredData }
+    }
+  }
+  
+  return { results: tableData }
+}
+
 export function createMockD1Database(): MockD1Database {
   const tables = new Map<string, any[]>()
   const schemas = new Map<string, string>()
@@ -90,10 +137,12 @@ export function createMockD1Database(): MockD1Database {
         } else if (normalizedSql.startsWith('CREATE') && normalizedSql.includes('INDEX')) {
           const indexMatch = sql.match(/CREATE\s+(?:UNIQUE\s+)?INDEX\s+(\w+)/i)
           const tableMatch = sql.match(/ON\s+(\w+)/i)
-          if (indexMatch && tableMatch) {
+          const columnsMatch = sql.match(/\(([^)]+)\)/i)
+          if (indexMatch && tableMatch && columnsMatch) {
             const indexName = indexMatch[1]
             const tableName = tableMatch[1]
             const unique = sql.toUpperCase().includes('UNIQUE')
+            const columns = columnsMatch[1].split(',').map(col => col.trim())
             
             if (!tableIndexes.has(tableName)) {
               tableIndexes.set(tableName, [])
@@ -101,7 +150,8 @@ export function createMockD1Database(): MockD1Database {
             tableIndexes.get(tableName)!.push({
               name: indexName,
               unique: unique ? 1 : 0,
-              sql: sql
+              sql: sql,
+              columns: columns
             })
           }
         } else if (normalizedSql.startsWith('DROP INDEX')) {
@@ -141,8 +191,29 @@ export function createMockD1Database(): MockD1Database {
             // Regular table insert
             const tableName = getTableNameFromSql(sql)
             if (tableName && tables.has(tableName)) {
-              const record = { id: Math.random().toString(36) }
-              tables.get(tableName)!.push(record)
+              // Parse column names from INSERT statement
+              const columnsMatch = sql.match(/\(([^)]+)\)\s*VALUES/i)
+              if (columnsMatch) {
+                const columns = columnsMatch[1].split(',').map(col => col.trim().replace(/["`]/g, ''))
+                
+                // Create record with bound parameters
+                const record: any = { 
+                  id: Math.random().toString(36).substring(2, 18) // Generate random ID
+                }
+                
+                // Map parameters to columns
+                columns.forEach((column, index) => {
+                  if (bindings[index] !== undefined) {
+                    record[column] = bindings[index]
+                  }
+                })
+                
+                // Add timestamp fields if they don't exist
+                record.created_at = record.created_at || new Date().toISOString()
+                record.updated_at = record.updated_at || new Date().toISOString()
+                
+                tables.get(tableName)!.push(record)
+              }
             }
           }
         }
@@ -198,7 +269,11 @@ export function createMockD1Database(): MockD1Database {
               const index = indexes.find((idx: any) => idx.name === indexName)
               if (index) {
                 return {
-                  results: [{ seqno: 0, cid: 0, name: 'title' }] // Mock column info
+                  results: index.columns.map((col: string, i: number) => ({ 
+                    seqno: i, 
+                    cid: i, 
+                    name: col 
+                  }))
                 }
               }
             }
@@ -208,6 +283,22 @@ export function createMockD1Database(): MockD1Database {
           if (normalizedSql.includes('SCHEMA_SNAPSHOTS')) {
             return { results: [{ total: snapshots.size }] }
           }
+          
+          // Handle COUNT(*) for other tables
+          const tableMatch = sql.match(/FROM\s+["']?(\w+)["']?/i)
+          if (tableMatch) {
+            const tableName = tableMatch[1]
+            const tableData = tables.get(tableName) || []
+            
+            // Handle WHERE clauses in COUNT queries
+            if (normalizedSql.includes('WHERE')) {
+              const filtered = handleSelectWithWhere(sql, tableData, bindings)
+              return { results: [{ total: filtered.results.length, count: filtered.results.length }] }
+            }
+            
+            return { results: [{ total: tableData.length, count: tableData.length }] }
+          }
+          
           return { results: [{ count: 0 }] }
         } else if (normalizedSql.startsWith('SELECT') && normalizedSql.includes('FROM SCHEMA_SNAPSHOTS')) {
           const snapshotList = Array.from(snapshots.values())
@@ -215,6 +306,43 @@ export function createMockD1Database(): MockD1Database {
             snapshotList.sort((a, b) => b.version - a.version)
           }
           return { results: snapshotList }
+        } else if (normalizedSql.startsWith('SELECT')) {
+          // Handle general SELECT queries
+          const tableMatch = sql.match(/FROM\s+["']?(\w+)["']?/i)
+          if (tableMatch) {
+            const tableName = tableMatch[1]
+            let tableData = tables.get(tableName) || []
+            
+            // Handle WHERE clauses for search functionality
+            if (normalizedSql.includes('WHERE')) {
+              const filtered = handleSelectWithWhere(sql, tableData, bindings)
+              tableData = filtered.results
+            }
+            
+            // Handle LIMIT and OFFSET for pagination
+            let offset = 0
+            let limit = tableData.length
+            
+            const limitMatch = sql.match(/LIMIT\s+(\?|\d+)(?:\s+OFFSET\s+(\?|\d+))?/i)
+            if (limitMatch) {
+              let bindingIndex = 0
+              
+              // Count ? placeholders before LIMIT in WHERE clause to know binding offset
+              const beforeLimit = sql.substring(0, sql.toLowerCase().indexOf('limit'))
+              const questionMarksBeforeLimit = (beforeLimit.match(/\?/g) || []).length
+              bindingIndex = questionMarksBeforeLimit
+              
+              limit = limitMatch[1] === '?' ? (bindings?.[bindingIndex] || limit) : parseInt(limitMatch[1])
+              if (limitMatch[2]) {
+                offset = limitMatch[2] === '?' ? (bindings?.[bindingIndex + 1] || 0) : parseInt(limitMatch[2])
+              }
+            }
+            
+            // Apply pagination
+            const paginatedData = tableData.slice(offset, offset + limit)
+            
+            return { results: paginatedData }
+          }
         }
         
         return { results: [] }

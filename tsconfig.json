@@ -4,7 +4,6 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "lib": ["ES2022"],
-    "types": ["@cloudflare/workers-types"],
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -17,10 +16,10 @@
     "jsxImportSource": "preact",
     "baseUrl": ".",
     "paths": {
-      "@viveforge/core": ["packages/core/src"],
-      "@viveforge/dashboard": ["packages/dashboard/src"],
-      "@viveforge/sdk": ["packages/sdk/src"],
-      "@viveforge/cli": ["packages/cli/src"]
+      "@vibebase/core": ["packages/core/src"],
+      "@vibebase/dashboard": ["packages/dashboard/src"],
+      "@vibebase/sdk": ["packages/sdk/src"],
+      "@vibebase/cli": ["packages/cli/src"]
     }
   },
   "exclude": ["node_modules", "dist", "build", ".wrangler"]

@@ -23,11 +23,11 @@ class FailingR2Bucket {
     return null
   }
 
-  async put() {
+  async put(key: string, value: any) {
     if (this.shouldFail) throw new Error(this.failureMessage)
     return {
-      key: 'test.txt',
-      size: 100,
+      key: key,
+      size: value instanceof ArrayBuffer ? value.byteLength : (value ? value.length || 0 : 0),
       uploaded: new Date(),
       etag: 'test-etag'
     }
@@ -79,7 +79,7 @@ describe('Storage API Integration Tests', () => {
       expect(res.status).toBe(500)
       
       const data = await res.json()
-      expect(data.message).toBe('Failed to list objects')
+      expect(data.error.message).toBe('Failed to list objects')
     })
 
     it('should handle R2 upload failures gracefully', async () => {
@@ -97,7 +97,7 @@ describe('Storage API Integration Tests', () => {
       expect(res.status).toBe(500)
       
       const data = await res.json()
-      expect(data.message).toBe('Failed to upload file')
+      expect(data.error.message).toBe('Failed to upload file')
     })
 
     it('should handle R2 download failures gracefully', async () => {
@@ -107,7 +107,7 @@ describe('Storage API Integration Tests', () => {
       expect(res.status).toBe(500)
       
       const data = await res.json()
-      expect(data.message).toBe('Failed to download file')
+      expect(data.error.message).toBe('Failed to download file')
     })
 
     it('should handle R2 head failures gracefully', async () => {
@@ -117,7 +117,7 @@ describe('Storage API Integration Tests', () => {
       expect(res.status).toBe(500)
       
       const data = await res.json()
-      expect(data.message).toBe('Failed to get file info')
+      expect(data.error.message).toBe('Failed to get file info')
     })
 
     it('should handle R2 delete failures gracefully', async () => {
@@ -130,7 +130,7 @@ describe('Storage API Integration Tests', () => {
       expect(res.status).toBe(500)
       
       const data = await res.json()
-      expect(data.message).toBe('Failed to delete file')
+      expect(data.error.message).toBe('Failed to delete file')
     })
 
     it('should handle bulk delete failures gracefully', async () => {
@@ -145,7 +145,7 @@ describe('Storage API Integration Tests', () => {
       expect(res.status).toBe(500)
       
       const data = await res.json()
-      expect(data.message).toBe('Failed to delete files')
+      expect(data.error.message).toBe('Failed to delete files')
     })
   })
 
@@ -253,7 +253,7 @@ describe('Storage API Integration Tests', () => {
       })
       
       expect(res.status).toBe(400)
-      expect((await res.json()).message).toBe('Content-Type must be multipart/form-data')
+      expect((await res.json()).error.message).toBe('Content-Type must be multipart/form-data')
     })
   })
 

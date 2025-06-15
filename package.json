@@ -1,8 +1,8 @@
 {
-  "name": "viveforge",
+  "name": "vibebase",
   "private": true,
   "version": "0.1.0",
-  "description": "Personal BaaS for Vive Coders on Cloudflare",
+  "description": "Personal BaaS for Vibe Coders on Cloudflare",
   "type": "module",
   "scripts": {
     "dev": "pnpm -r --parallel dev",

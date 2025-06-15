@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Setting up Viveforge on Cloudflare..."
+echo "🚀 Setting up Vibebase on Cloudflare..."
 
 # Check if wrangler is installed
 if ! command -v wrangler &> /dev/null; then
@@ -21,7 +21,7 @@ cd packages/core
 npm install
 
 echo "🗄️ Creating D1 database..."
-DB_OUTPUT=$(wrangler d1 create viveforge-db 2>/dev/null)
+DB_OUTPUT=$(wrangler d1 create vibebase-db 2>/dev/null)
 if [ $? -eq 0 ]; then
     # Extract database ID from output
     DB_ID=$(echo "$DB_OUTPUT" | grep "database_id" | sed 's/.*database_id = "\([^"]*\)".*/\1/')
@@ -41,7 +41,7 @@ echo "🔧 Running database migrations..."
 for migration_file in migrations/*.sql; do
     if [ -f "$migration_file" ]; then
         echo "  Running $(basename "$migration_file")..."
-        wrangler d1 execute viveforge-db --file="$migration_file" --remote
+        wrangler d1 execute vibebase-db --file="$migration_file" --remote
     fi
 done
 
@@ -56,17 +56,17 @@ if echo "$R2_CHECK" | grep -q "must purchase R2"; then
     echo "     3. Re-run this setup script"
     echo "  ⏭️ Skipping R2 bucket creation for now..."
     echo ""
-    echo "  ℹ️ Note: Viveforge will work without R2, but some features will be disabled:"
+    echo "  ℹ️ Note: Vibebase will work without R2, but some features will be disabled:"
     echo "     - Schema snapshots storage"
     echo "     - File upload functionality"
     R2_ENABLED=false
 else
     # Create R2 buckets for storage
-    echo "  Creating viveforge-system bucket..."
-    wrangler r2 bucket create viveforge-system 2>/dev/null || echo "    Bucket might already exist, continuing..."
+    echo "  Creating vibebase-system bucket..."
+    wrangler r2 bucket create vibebase-system 2>/dev/null || echo "    Bucket might already exist, continuing..."
 
-    echo "  Creating viveforge-storage bucket..."
-    wrangler r2 bucket create viveforge-storage 2>/dev/null || echo "    Bucket might already exist, continuing..."
+    echo "  Creating vibebase-storage bucket..."
+    wrangler r2 bucket create vibebase-storage 2>/dev/null || echo "    Bucket might already exist, continuing..."
     R2_ENABLED=true
 fi
 
@@ -98,7 +98,7 @@ cd ../core
 # Update wrangler.toml to comment out R2 bindings if R2 is not enabled
 if [ "$R2_ENABLED" = false ]; then
     echo "  Disabling R2 bindings in wrangler.toml..."
-    sed -i.bak '/\[\[r2_buckets\]\]/,/bucket_name = "viveforge-/ {
+    sed -i.bak '/\[\[r2_buckets\]\]/,/bucket_name = "vibebase-/ {
         s/^/# /
     }' wrangler.toml
     rm -f wrangler.toml.bak
@@ -107,9 +107,9 @@ fi
 wrangler deploy
 
 echo ""
-echo "🎉 Viveforge has been successfully deployed!"
+echo "🎉 Vibebase has been successfully deployed!"
 echo ""
-echo "Your Viveforge instance is now available at:"
+echo "Your Vibebase instance is now available at:"
 DEPLOY_URL=$(wrangler deployments list --limit 1 2>/dev/null | grep "https://" | awk '{print $2}' | head -1)
 if [ ! -z "$DEPLOY_URL" ]; then
     echo "$DEPLOY_URL"

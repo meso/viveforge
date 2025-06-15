@@ -1,12 +1,12 @@
-# Viveforge 🔥
+# Vibebase 🎵
 
-> **Personal BaaS for Vive Coders** - Vive CoderのためのミニマムなBackend-as-a-Service on Cloudflare
+> **Personal BaaS for Vibe Coders** - Vibe CoderのためのミニマムなBackend-as-a-Service on Cloudflare
 
 ⚠️ **Work in Progress** - このプロジェクトは現在開発中です。基本機能は動作しますが、まだ実験的な段階にあります。本番環境での使用は推奨されません。
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/meso/viveforge)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/meso/vibebase)
 
-Viveforgeは、Cloudflare上で動作する、AIを活用してコードを書く開発者（Vive Coders）のためのパーソナルBaaSプラットフォームです。フロントエンドやモバイルアプリ開発が得意な開発者が、バックエンドインフラを簡単に構築・管理できることを目指しています。
+Vibebaseは、Cloudflare上で動作する、AIを活用してコードを書く開発者（Vibe Coders）のためのパーソナルBaaSプラットフォームです。フロントエンドやモバイルアプリ開発が得意な開発者が、バックエンドインフラを簡単に構築・管理できることを目指しています。
 
 ## ✨ 特徴
 
@@ -27,7 +27,7 @@ Viveforgeは、Cloudflare上で動作する、AIを活用してコードを書�
 
 ### ワンクリックデプロイ
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/meso/viveforge)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/meso/vibebase)
 
 **⚠️ デプロイ前の準備**
 1. Cloudflareアカウントを作成
@@ -38,8 +38,8 @@ Viveforgeは、Cloudflare上で動作する、AIを活用してコードを書�
 
 ```bash
 # 1. リポジトリをクローン
-git clone https://github.com/meso/viveforge.git
-cd viveforge
+git clone https://github.com/meso/vibebase.git
+cd vibebase
 
 # 2. Wrangler CLIをインストール
 npm install -g wrangler
@@ -91,7 +91,7 @@ chmod +x deploy/setup.sh
 ## 📁 プロジェクト構造
 
 ```
-viveforge/
+vibebase/
 ├── packages/
 │   ├── core/              # コアライブラリ（Hono + Workers）
 │   ├── dashboard/         # 管理ダッシュボード（Preact）
@@ -183,10 +183,10 @@ Elastic License 2.0 - 詳細は [LICENSE](LICENSE) ファイルをご覧くだ�
 
 ## 💬 サポート
 
-- 🐛 **バグ報告**: [Issues](https://github.com/meso/viveforge/issues)
-- 💡 **機能要望**: [Issues](https://github.com/meso/viveforge/issues)
-- 📖 **ドキュメント**: [Wiki](https://github.com/meso/viveforge/wiki)
+- 🐛 **バグ報告**: [Issues](https://github.com/meso/vibebase/issues)
+- 💡 **機能要望**: [Issues](https://github.com/meso/vibebase/issues)
+- 📖 **ドキュメント**: [Wiki](https://github.com/meso/vibebase/wiki)
 
 ---
 
-**Viveforge** - Made with ❤️ for Vive Coders who want to focus on building great experiences with AI.
+**Vibebase** - Made with ❤️ for Vive Coders who want to focus on building great experiences with AI.

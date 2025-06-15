@@ -1,5 +1,5 @@
 /**
- * Cloudflare Workers type definitions for Viveforge
+ * Cloudflare Workers type definitions for Vibebase
  * These provide proper typing for D1, R2, and ExecutionContext
  */
 

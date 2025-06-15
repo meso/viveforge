@@ -1,6 +1,6 @@
 # Deployment Guide
 
-Viveforgeを自分のCloudflareアカウントにデプロイする方法です。
+Vibebaseを自分のCloudflareアカウントにデプロイする方法です。
 
 ## 📋 前提条件
 
@@ -14,8 +14,8 @@ Viveforgeを自分のCloudflareアカウントにデプロイする方法です�
 
 ```bash
 # 1. リポジトリをクローン
-git clone https://github.com/meso/viveforge.git
-cd viveforge
+git clone https://github.com/meso/vibebase.git
+cd vibebase
 
 # 2. Wrangler CLIをインストール（まだの場合）
 npm install -g wrangler
@@ -40,12 +40,12 @@ cd packages/core
 npm install
 
 # 2. D1データベースを作成
-wrangler d1 create viveforge-db
+wrangler d1 create vibebase-db
 
 # 3. wrangler.tomlのdatabase_idを更新（上記コマンドの出力から）
 
 # 4. データベーススキーマを作成
-wrangler d1 execute viveforge-db --file=migrations/0001_initial.sql --remote
+wrangler d1 execute vibebase-db --file=migrations/0001_initial.sql --remote
 
 # 5. ダッシュボードをビルド
 cd ../dashboard
@@ -75,7 +75,7 @@ wrangler secret put SECRET_NAME
 ### 4. R2ストレージの有効化
 ```bash
 # R2バケットを作成
-wrangler r2 bucket create viveforge-storage
+wrangler r2 bucket create vibebase-storage
 
 # wrangler.tomlのR2セクションをアンコメント
 ```
@@ -172,4 +172,4 @@ wrangler deploy --verbose
 
 ## 💬 サポート
 
-問題が発生した場合は、[Issues](https://github.com/meso/viveforge/issues)でお知らせください。
+問題が発生した場合は、[Issues](https://github.com/meso/vibebase/issues)でお知らせください。

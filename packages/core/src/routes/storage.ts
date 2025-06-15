@@ -1,14 +1,30 @@
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { Env, Variables } from '../types'
+import { ErrorHandler } from '../lib/error-handler'
+import { ErrorCode } from '../types/errors'
 
 const storage = new Hono<{ Bindings: Env; Variables: Variables }>()
+
+// Helper function for consistent error responses
+const errorResponse = (c: any, status: number, code: string, message: string) => {
+  return c.json({ 
+    success: false, 
+    error: { code, message } 
+  }, status)
+}
 
 // ファイル一覧取得
 storage.get('/', async (c) => {
   const bucket = c.env.USER_STORAGE
   if (!bucket) {
-    throw new HTTPException(500, { message: 'R2 bucket not configured' })
+    return c.json({ 
+      success: false, 
+      error: { 
+        code: ErrorCode.STORAGE_OPERATION_FAILED,
+        message: 'R2 bucket not configured' 
+      } 
+    }, 500)
   }
 
   const { prefix, limit = 100, cursor } = c.req.query()
@@ -34,7 +50,7 @@ storage.get('/', async (c) => {
     })
   } catch (error) {
     console.error('Error listing objects:', error)
-    throw new HTTPException(500, { message: 'Failed to list objects' })
+    return errorResponse(c, 500, ErrorCode.STORAGE_OPERATION_FAILED, 'Failed to list objects')
   }
 })
 
@@ -42,19 +58,25 @@ storage.get('/', async (c) => {
 storage.post('/upload', async (c) => {
   const bucket = c.env.USER_STORAGE
   if (!bucket) {
-    throw new HTTPException(500, { message: 'R2 bucket not configured' })
+    return c.json({ 
+      success: false, 
+      error: { 
+        code: ErrorCode.STORAGE_OPERATION_FAILED,
+        message: 'R2 bucket not configured' 
+      } 
+    }, 500)
   }
 
   const contentType = c.req.header('content-type')
   if (!contentType || !contentType.includes('multipart/form-data')) {
-    throw new HTTPException(400, { message: 'Content-Type must be multipart/form-data' })
+    return errorResponse(c, 400, ErrorCode.VALIDATION_FAILED, 'Content-Type must be multipart/form-data')
   }
 
   try {
     const formData = await c.req.formData()
     const file = formData.get('file')
     if (!(file instanceof File)) {
-      throw new HTTPException(400, { message: 'No file provided' })
+      return errorResponse(c, 400, ErrorCode.VALIDATION_FAILED, 'No file provided')
     }
     const path = formData.get('path') as string || ''
 
@@ -79,8 +101,10 @@ storage.post('/upload', async (c) => {
     })
   } catch (error) {
     console.error('Error uploading file:', error)
-    if (error instanceof HTTPException) throw error
-    throw new HTTPException(500, { message: 'Failed to upload file' })
+    if (error instanceof HTTPException) {
+      return errorResponse(c, error.status, ErrorCode.STORAGE_OPERATION_FAILED, error.message)
+    }
+    return errorResponse(c, 500, ErrorCode.STORAGE_OPERATION_FAILED, 'Failed to upload file')
   }
 })
 
@@ -88,18 +112,24 @@ storage.post('/upload', async (c) => {
 storage.get('/download/:key{.*}', async (c) => {
   const bucket = c.env.USER_STORAGE
   if (!bucket) {
-    throw new HTTPException(500, { message: 'R2 bucket not configured' })
+    return c.json({ 
+      success: false, 
+      error: { 
+        code: ErrorCode.STORAGE_OPERATION_FAILED,
+        message: 'R2 bucket not configured' 
+      } 
+    }, 500)
   }
 
   const key = c.req.param('key')
-  if (!key) {
-    throw new HTTPException(400, { message: 'File key is required' })
+  if (!key || key.trim() === '') {
+    return errorResponse(c, 400, ErrorCode.VALIDATION_FAILED, 'File key is required')
   }
 
   try {
     const object = await bucket.get(key)
     if (!object) {
-      throw new HTTPException(404, { message: 'File not found' })
+      return errorResponse(c, 404, ErrorCode.RECORD_NOT_FOUND, 'File not found')
     }
 
     const headers = new Headers()
@@ -126,8 +156,10 @@ storage.get('/download/:key{.*}', async (c) => {
     return new Response(object.body, { headers })
   } catch (error) {
     console.error('Error downloading file:', error)
-    if (error instanceof HTTPException) throw error
-    throw new HTTPException(500, { message: 'Failed to download file' })
+    if (error instanceof HTTPException) {
+      return errorResponse(c, error.status, ErrorCode.STORAGE_OPERATION_FAILED, error.message)
+    }
+    return errorResponse(c, 500, ErrorCode.STORAGE_OPERATION_FAILED, 'Failed to download file')
   }
 })
 
@@ -135,18 +167,24 @@ storage.get('/download/:key{.*}', async (c) => {
 storage.get('/info/:key{.*}', async (c) => {
   const bucket = c.env.USER_STORAGE
   if (!bucket) {
-    throw new HTTPException(500, { message: 'R2 bucket not configured' })
+    return c.json({ 
+      success: false, 
+      error: { 
+        code: ErrorCode.STORAGE_OPERATION_FAILED,
+        message: 'R2 bucket not configured' 
+      } 
+    }, 500)
   }
 
   const key = c.req.param('key')
-  if (!key) {
-    throw new HTTPException(400, { message: 'File key is required' })
+  if (!key || key.trim() === '') {
+    return errorResponse(c, 400, ErrorCode.VALIDATION_FAILED, 'File key is required')
   }
 
   try {
     const object = await bucket.head(key)
     if (!object) {
-      throw new HTTPException(404, { message: 'File not found' })
+      return errorResponse(c, 404, ErrorCode.RECORD_NOT_FOUND, 'File not found')
     }
 
     return c.json({
@@ -160,8 +198,10 @@ storage.get('/info/:key{.*}', async (c) => {
     })
   } catch (error) {
     console.error('Error getting file info:', error)
-    if (error instanceof HTTPException) throw error
-    throw new HTTPException(500, { message: 'Failed to get file info' })
+    if (error instanceof HTTPException) {
+      return errorResponse(c, error.status, ErrorCode.STORAGE_OPERATION_FAILED, error.message)
+    }
+    return errorResponse(c, 500, ErrorCode.STORAGE_OPERATION_FAILED, 'Failed to get file info')
   }
 })
 
@@ -169,12 +209,18 @@ storage.get('/info/:key{.*}', async (c) => {
 storage.delete('/:key{.*}', async (c) => {
   const bucket = c.env.USER_STORAGE
   if (!bucket) {
-    throw new HTTPException(500, { message: 'R2 bucket not configured' })
+    return c.json({ 
+      success: false, 
+      error: { 
+        code: ErrorCode.STORAGE_OPERATION_FAILED,
+        message: 'R2 bucket not configured' 
+      } 
+    }, 500)
   }
 
   const key = c.req.param('key')
-  if (!key) {
-    throw new HTTPException(400, { message: 'File key is required' })
+  if (!key || key.trim() === '') {
+    return errorResponse(c, 400, ErrorCode.VALIDATION_FAILED, 'File key is required')
   }
 
   try {
@@ -182,7 +228,7 @@ storage.delete('/:key{.*}', async (c) => {
     return c.json({ success: true, message: 'File deleted successfully' })
   } catch (error) {
     console.error('Error deleting file:', error)
-    throw new HTTPException(500, { message: 'Failed to delete file' })
+    return errorResponse(c, 500, ErrorCode.STORAGE_OPERATION_FAILED, 'Failed to delete file')
   }
 })
 
@@ -190,12 +236,25 @@ storage.delete('/:key{.*}', async (c) => {
 storage.delete('/', async (c) => {
   const bucket = c.env.USER_STORAGE
   if (!bucket) {
-    throw new HTTPException(500, { message: 'R2 bucket not configured' })
+    return c.json({ 
+      success: false, 
+      error: { 
+        code: ErrorCode.STORAGE_OPERATION_FAILED,
+        message: 'R2 bucket not configured' 
+      } 
+    }, 500)
   }
 
-  const { keys } = await c.req.json() as { keys: string[] }
+  let keys: string[]
+  try {
+    const body = await c.req.json() as { keys: string[] }
+    keys = body.keys
+  } catch (error) {
+    return errorResponse(c, 400, ErrorCode.VALIDATION_FAILED, 'Invalid JSON in request body')
+  }
+  
   if (!keys || !Array.isArray(keys) || keys.length === 0) {
-    throw new HTTPException(400, { message: 'Keys array is required' })
+    return errorResponse(c, 400, ErrorCode.VALIDATION_FAILED, 'Keys array is required')
   }
 
   try {
@@ -207,7 +266,7 @@ storage.delete('/', async (c) => {
     })
   } catch (error) {
     console.error('Error deleting files:', error)
-    throw new HTTPException(500, { message: 'Failed to delete files' })
+    return errorResponse(c, 500, ErrorCode.STORAGE_OPERATION_FAILED, 'Failed to delete files')
   }
 })
 

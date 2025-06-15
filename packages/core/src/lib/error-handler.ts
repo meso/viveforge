@@ -1,12 +1,12 @@
-import { ViveforgeError, ErrorCode, ErrorDetails, createSystemTableError, createInvalidNameError, createNotFoundError, createDuplicateError, createValidationError } from '../types/errors'
+import { VibebaseError, ErrorCode, ErrorDetails, createSystemTableError, createInvalidNameError, createNotFoundError, createDuplicateError, createValidationError } from '../types/errors'
 
 /**
- * Centralized error handling manager for Viveforge
+ * Centralized error handling manager for Vibebase
  * Provides consistent error handling and logging across all managers
  */
 export class ErrorHandler {
   private static instance: ErrorHandler
-  private errorLogger?: (error: ViveforgeError) => void
+  private errorLogger?: (error: VibebaseError) => void
 
   private constructor() {}
 
@@ -17,15 +17,15 @@ export class ErrorHandler {
     return ErrorHandler.instance
   }
 
-  public setErrorLogger(logger: (error: ViveforgeError) => void): void {
+  public setErrorLogger(logger: (error: VibebaseError) => void): void {
     this.errorLogger = logger
   }
 
   /**
-   * Handle and throw a ViveforgeError with proper logging
+   * Handle and throw a VibebaseError with proper logging
    */
   public throwError(details: ErrorDetails): never {
-    const error = new ViveforgeError(details)
+    const error = new VibebaseError(details)
     this.logError(error)
     throw error
   }
@@ -45,19 +45,19 @@ export class ErrorHandler {
     try {
       return await operation()
     } catch (error) {
-      if (error instanceof ViveforgeError) {
+      if (error instanceof VibebaseError) {
         this.logError(error)
         throw error
       }
 
-      const viveforgeError = ViveforgeError.fromError(error, ErrorCode.DATABASE_OPERATION_FAILED)
-      viveforgeError.context = {
-        ...viveforgeError.context,
+      const vibebaseError = VibebaseError.fromError(error, ErrorCode.DATABASE_OPERATION_FAILED)
+      vibebaseError.context = {
+        ...vibebaseError.context,
         ...context
       }
       
-      this.logError(viveforgeError)
-      throw viveforgeError
+      this.logError(vibebaseError)
+      throw vibebaseError
     }
   }
 
@@ -160,7 +160,7 @@ export class ErrorHandler {
    * Handle storage operation failures with graceful degradation
    */
   public handleStorageWarning(operation: string, error: unknown): void {
-    const warning = ViveforgeError.fromError(error, ErrorCode.STORAGE_OPERATION_FAILED)
+    const warning = VibebaseError.fromError(error, ErrorCode.STORAGE_OPERATION_FAILED)
     warning.context = { operation, originalError: error }
     
     // Log warning but don't throw - allow graceful degradation
@@ -170,11 +170,11 @@ export class ErrorHandler {
   /**
    * Log error with proper formatting
    */
-  private logError(error: ViveforgeError): void {
+  private logError(error: VibebaseError): void {
     if (this.errorLogger) {
       this.errorLogger(error)
     } else {
-      console.error('[Viveforge Error]', {
+      console.error('[Vibebase Error]', {
         code: error.code,
         message: error.message,
         context: error.context,
@@ -187,8 +187,8 @@ export class ErrorHandler {
   /**
    * Log warning with proper formatting
    */
-  private logWarning(error: ViveforgeError): void {
-    console.warn('[Viveforge Warning]', {
+  private logWarning(error: VibebaseError): void {
+    console.warn('[Vibebase Warning]', {
       code: error.code,
       message: error.message,
       context: error.context
@@ -207,7 +207,7 @@ export class ErrorHandler {
       suggestions?: string[]
     }
   } {
-    if (error instanceof ViveforgeError) {
+    if (error instanceof VibebaseError) {
       return {
         success: false,
         error: {

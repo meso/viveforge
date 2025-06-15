@@ -1,8 +1,8 @@
-# Viveforge - Personal BaaS for Vive Coders on Cloudflare
+# Vibebase - Personal BaaS for Vibe Coders on Cloudflare
 
 ## 概要
 
-Viveforgeは、Cloudflare上で動作する、AIを活用してコードを書く開発者（Vive Coders）のためのパーソナルBackend-as-a-Service（BaaS）プラットフォームです。フロントエンドやモバイルアプリ開発が得意な開発者が、バックエンドインフラを簡単に構築・管理できることを目指しています。
+Vibebaseは、Cloudflare上で動作する、AIを活用してコードを書く開発者（Vibe Coders）のためのパーソナルBackend-as-a-Service（BaaS）プラットフォームです。フロントエンドやモバイルアプリ開発が得意な開発者が、バックエンドインフラを簡単に構築・管理できることを目指しています。
 
 ## プロジェクトの目的
 
@@ -13,7 +13,7 @@ Viveforgeは、Cloudflare上で動作する、AIを活用してコードを書�
 
 ## ターゲットユーザー
 
-- AIを活用して効率的にコードを書くVive Coders
+- AIを活用して効率的にコードを書くVibe Coders
 - フロントエンド・モバイルアプリ開発に集中したい開発者
 - バックエンドインフラの構築に時間をかけたくない開発者
 - Cloudflareのサービスをシンプルに活用したい開発者
@@ -87,7 +87,7 @@ Viveforgeは、Cloudflare上で動作する、AIを活用してコードを書�
 ## プロジェクト構造
 
 ```
-viveforge/
+vibebase/
 ├── packages/
 │   ├── core/              # コアライブラリ
 │   ├── dashboard/         # 管理ダッシュボード

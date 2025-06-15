@@ -1,8 +1,8 @@
-# Viveforge API Documentation
+# Vibebase API Documentation
 
 ## Dynamic CRUD API
 
-Viveforge automatically generates RESTful CRUD endpoints for all user-created tables. System tables (`admins`, `sessions`) are protected and cannot be accessed through this API.
+Vibebase automatically generates RESTful CRUD endpoints for all user-created tables. System tables (`admins`, `sessions`) are protected and cannot be accessed through this API.
 
 ### Base URL
 ```
@@ -29,7 +29,7 @@ Get all records from a table with pagination and sorting.
 
 **Example:**
 ```bash
-curl "https://viveforge-core.mesongo.workers.dev/api/data/users?page=1&limit=10&sortBy=name&sortOrder=asc"
+curl "https://vibebase.mesongo.workers.dev/api/data/users?page=1&limit=10&sortBy=name&sortOrder=asc"
 ```
 
 **Response:**
@@ -58,7 +58,7 @@ Retrieve a specific record by ID.
 
 **Example:**
 ```bash
-curl "https://viveforge-core.mesongo.workers.dev/api/data/users/95437d9618c32dbf7d349584498c2319"
+curl "https://vibebase.mesongo.workers.dev/api/data/users/95437d9618c32dbf7d349584498c2319"
 ```
 
 **Response:**
@@ -83,7 +83,7 @@ Create a new record in the table.
 
 **Example:**
 ```bash
-curl -X POST "https://viveforge-core.mesongo.workers.dev/api/data/users" \
+curl -X POST "https://vibebase.mesongo.workers.dev/api/data/users" \
   -H "Content-Type: application/json" \
   -d '{"email": "newuser@example.com", "name": "New User"}'
 ```
@@ -110,7 +110,7 @@ Update an existing record.
 
 **Example:**
 ```bash
-curl -X PUT "https://viveforge-core.mesongo.workers.dev/api/data/users/95437d9618c32dbf7d349584498c2319" \
+curl -X PUT "https://vibebase.mesongo.workers.dev/api/data/users/95437d9618c32dbf7d349584498c2319" \
   -H "Content-Type: application/json" \
   -d '{"name": "Updated Name"}'
 ```
@@ -137,7 +137,7 @@ Delete a record from the table.
 
 **Example:**
 ```bash
-curl -X DELETE "https://viveforge-core.mesongo.workers.dev/api/data/users/95437d9618c32dbf7d349584498c2319"
+curl -X DELETE "https://vibebase.mesongo.workers.dev/api/data/users/95437d9618c32dbf7d349584498c2319"
 ```
 
 **Response:**
@@ -229,17 +229,17 @@ For managing table schemas, use the Table Management API:
 
 ### List Tables
 ```bash
-curl "https://viveforge-core.mesongo.workers.dev/api/tables"
+curl "https://vibebase.mesongo.workers.dev/api/tables"
 ```
 
 ### Get Table Schema
 ```bash
-curl "https://viveforge-core.mesongo.workers.dev/api/tables/users/schema"
+curl "https://vibebase.mesongo.workers.dev/api/tables/users/schema"
 ```
 
 ### Create Table
 ```bash
-curl -X POST "https://viveforge-core.mesongo.workers.dev/api/tables" \
+curl -X POST "https://vibebase.mesongo.workers.dev/api/tables" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "products",
@@ -280,13 +280,13 @@ Search for records matching specific criteria.
 **Examples:**
 ```bash
 # Search for users with exact name match
-curl "https://viveforge-core.mesongo.workers.dev/api/tables/users/search?column=name&operator=eq&value=John"
+curl "https://vibebase.mesongo.workers.dev/api/tables/users/search?column=name&operator=eq&value=John"
 
 # Search for users older than 25
-curl "https://viveforge-core.mesongo.workers.dev/api/tables/users/search?column=age&operator=gt&value=25&limit=50&offset=0"
+curl "https://vibebase.mesongo.workers.dev/api/tables/users/search?column=age&operator=gt&value=25&limit=50&offset=0"
 
 # Search for users with null email
-curl "https://viveforge-core.mesongo.workers.dev/api/tables/users/search?column=email&operator=is_null"
+curl "https://vibebase.mesongo.workers.dev/api/tables/users/search?column=email&operator=is_null"
 ```
 
 **Success Response:**
