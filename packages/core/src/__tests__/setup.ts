@@ -117,7 +117,7 @@ export function createMockD1Database(): MockD1Database {
           }
         } else if (normalizedSql.startsWith('INSERT')) {
           // Handle snapshot creation
-          if (normalizedSql.includes('schema_snapshots')) {
+          if (normalizedSql.includes('SCHEMA_SNAPSHOTS')) {
             snapshotCounter++
             const snapshotId = bindings[0] || `snapshot-${snapshotCounter}`
             const snapshot = {
@@ -203,11 +203,11 @@ export function createMockD1Database(): MockD1Database {
           }
           return { results: [] }
         } else if (normalizedSql.startsWith('SELECT COUNT(*)')) {
-          if (normalizedSql.includes('schema_snapshots')) {
+          if (normalizedSql.includes('SCHEMA_SNAPSHOTS')) {
             return { results: [{ total: snapshots.size }] }
           }
           return { results: [{ count: 0 }] }
-        } else if (normalizedSql.startsWith('SELECT') && normalizedSql.includes('FROM schema_snapshots')) {
+        } else if (normalizedSql.startsWith('SELECT') && normalizedSql.includes('FROM SCHEMA_SNAPSHOTS')) {
           const snapshotList = Array.from(snapshots.values())
           if (normalizedSql.includes('ORDER BY version DESC')) {
             snapshotList.sort((a, b) => b.version - a.version)
@@ -221,9 +221,9 @@ export function createMockD1Database(): MockD1Database {
         const normalizedSql = sql.trim().toUpperCase()
         
         // Handle specific first() queries
-        if (normalizedSql.includes('schema_snapshot_counter')) {
+        if (normalizedSql.includes('SCHEMA_SNAPSHOT_COUNTER')) {
           return { current_version: snapshotCounter }
-        } else if (normalizedSql.includes('FROM schema_snapshots') && normalizedSql.includes('WHERE id =')) {
+        } else if (normalizedSql.includes('FROM SCHEMA_SNAPSHOTS') && normalizedSql.includes('WHERE ID =')) {
           const snapshotId = bindings[0]
           return snapshots.get(snapshotId) || null
         } else if (normalizedSql.includes('FROM sqlite_master') && normalizedSql.includes('WHERE type=') && normalizedSql.includes('AND name =')) {
@@ -276,6 +276,10 @@ export function createMockExecutionContext(): MockExecutionContext {
   return {
     waitUntil: (promise: Promise<any>) => {
       promises.push(promise)
+      // Execute the promise immediately in tests to ensure it completes
+      promise.catch(error => {
+        console.warn('waitUntil promise failed:', error)
+      })
     }
   }
 }

@@ -278,9 +278,6 @@ describe('TableManager', () => {
       // Create a snapshot first
       const snapshotId = await tableManager.createSnapshot({ name: 'Test' })
       
-      // Wait a bit for async snapshot creation to complete
-      await new Promise(resolve => setTimeout(resolve, 10))
-      
       const result = await tableManager.restoreSnapshot(snapshotId)
       expect(result).toHaveProperty('success')
       expect(result).toHaveProperty('message')
@@ -289,9 +286,6 @@ describe('TableManager', () => {
     it('should delete snapshot', async () => {
       // Create a snapshot first
       const snapshotId = await tableManager.createSnapshot({ name: 'Test' })
-      
-      // Wait a bit for async snapshot creation to complete
-      await new Promise(resolve => setTimeout(resolve, 10))
       
       const result = await tableManager.deleteSnapshot(snapshotId)
       expect(result).toHaveProperty('success')
