@@ -53,7 +53,8 @@ docs.get('/tables/:tableName', async (c) => {
     }
 
     const columns = await tm.getTableColumns(tableName)
-    const documentation = await generateTableDocumentation(table, columns, baseUrl)
+    const searchableColumns = await tm.getSearchableColumns(tableName)
+    const documentation = await generateTableDocumentation(table, columns, searchableColumns, baseUrl)
     
     return c.json(documentation)
   } catch (error) {
@@ -132,6 +133,7 @@ async function generateOpenAPISpec(tables: any[], tm: TableManager, baseUrl: str
   // Generate schemas and paths for each table
   for (const table of tables) {
     const columns = await tm.getTableColumns(table.name)
+    const searchableColumns = await tm.getSearchableColumns(table.name)
     
     // Generate schema
     const schema = generateTableSchema(table.name, columns)
@@ -140,7 +142,7 @@ async function generateOpenAPISpec(tables: any[], tm: TableManager, baseUrl: str
     spec.components.schemas[`${table.name}Update`] = schema.update
     
     // Generate paths
-    const paths = generateTablePaths(table.name)
+    const paths = generateTablePaths(table.name, searchableColumns)
     Object.assign(spec.paths, paths)
   }
 
@@ -224,7 +226,7 @@ function getFieldSchema(column: any) {
 }
 
 // Generate OpenAPI paths for a table
-function generateTablePaths(tableName: string) {
+function generateTablePaths(tableName: string, searchableColumns: Array<{name: string, type: string}> = []) {
   return {
     [`/api/data/${tableName}`]: {
       get: {
@@ -430,12 +432,139 @@ function generateTablePaths(tableName: string) {
         },
         tags: [tableName]
       }
+    },
+    [`/api/tables/${tableName}/search`]: {
+      get: {
+        summary: `Search ${tableName} records`,
+        description: `Search records in the ${tableName} table by indexed column values. Only columns with database indexes can be searched.`,
+        parameters: [
+          {
+            name: 'column',
+            in: 'query',
+            required: true,
+            description: searchableColumns.length > 0 
+              ? `Column name to search. Available columns and their supported operators:\n${searchableColumns.map(col => `- ${col.name} (${col.type}): ${col.type === 'TEXT' ? 'eq, is_null, is_not_null' : 'eq, lt, le, gt, ge, ne, is_null, is_not_null'}`).join('\n')}`
+              : 'Column name to search. No searchable columns available - this table has no indexed columns of TEXT or INTEGER type.',
+            schema: { 
+              type: 'string',
+              enum: searchableColumns.length > 0 ? searchableColumns.map(col => col.name) : ['no-columns-available']
+            }
+          },
+          {
+            name: 'operator',
+            in: 'query',
+            required: true,
+            description: 'Search operator',
+            schema: {
+              type: 'string',
+              enum: ['eq', 'lt', 'le', 'gt', 'ge', 'ne', 'is_null', 'is_not_null']
+            }
+          },
+          {
+            name: 'value',
+            in: 'query',
+            required: false,
+            description: 'Value to search for (required for non-null operators)',
+            schema: { type: 'string' }
+          },
+          {
+            name: 'limit',
+            in: 'query',
+            required: false,
+            description: 'Maximum number of results',
+            schema: { type: 'integer', minimum: 1 }
+          },
+          {
+            name: 'offset',
+            in: 'query',
+            required: false,
+            description: 'Number of records to skip',
+            schema: { type: 'integer', minimum: 0, default: 0 }
+          }
+        ],
+        responses: {
+          '200': {
+            description: 'Search results',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    data: {
+                      type: 'array',
+                      items: { $ref: `#/components/schemas/${tableName}` }
+                    },
+                    pagination: {
+                      type: 'object',
+                      properties: {
+                        total: { type: 'integer', description: 'Total matching records' },
+                        limit: { type: 'integer', description: 'Limit applied' },
+                        offset: { type: 'integer', description: 'Offset applied' },
+                        hasMore: { type: 'boolean', description: 'Whether more results exist' }
+                      }
+                    },
+                    query: {
+                      type: 'object',
+                      properties: {
+                        table: { type: 'string' },
+                        column: { type: 'string' },
+                        operator: { type: 'string' },
+                        value: { type: 'string' }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '400': {
+            description: 'Search error',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    error: {
+                      type: 'object',
+                      properties: {
+                        code: { type: 'string' },
+                        message: { type: 'string' },
+                        details: { type: 'object' }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          '403': {
+            description: 'System table access denied',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    error: {
+                      type: 'object',
+                      properties: {
+                        code: { type: 'string' },
+                        message: { type: 'string' }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        tags: [tableName]
+      }
     }
   }
 }
 
 // Generate documentation for a specific table
-async function generateTableDocumentation(table: any, columns: any[], baseUrl: string) {
+async function generateTableDocumentation(table: any, columns: any[], searchableColumns: Array<{name: string, type: string}>, baseUrl: string) {
   const userColumns = columns.filter(col => !['id', 'created_at', 'updated_at'].includes(col.name))
   
   return {
@@ -508,11 +637,42 @@ async function generateTableDocumentation(table: any, columns: any[], baseUrl: s
         method: 'DELETE',
         url: `${baseUrl}/api/data/${table.name}/{id}`,
         description: `Delete a ${table.name} record`
+      },
+      search: {
+        method: 'GET',
+        url: `${baseUrl}/api/tables/${table.name}/search`,
+        description: `Search ${table.name} records by indexed column values`,
+        parameters: [
+          { name: 'column', type: 'string', required: true, description: searchableColumns.length > 0 ? `Column to search (${searchableColumns.map(col => `${col.name}:${col.type}`).join(', ')})` : 'Column to search (no indexed columns available)' },
+          { name: 'operator', type: 'string', required: true, description: 'Search operator (eq, lt, le, gt, ge, ne, is_null, is_not_null)' },
+          { name: 'value', type: 'string', required: false, description: 'Value to search for (required for non-null operators)' },
+          { name: 'limit', type: 'integer', required: false, description: 'Maximum number of results' },
+          { name: 'offset', type: 'integer', required: false, description: 'Number of records to skip (default: 0)' }
+        ]
       }
     },
+    searchableColumns: searchableColumns.map(col => ({
+      name: col.name,
+      type: col.type,
+      description: `${col.type} column with database index`,
+      supportedOperators: col.type === 'TEXT' 
+        ? ['eq', 'is_null', 'is_not_null']
+        : ['eq', 'lt', 'le', 'gt', 'ge', 'ne', 'is_null', 'is_not_null']
+    })),
     examples: {
       create: generateExampleBody(userColumns),
-      update: generateExampleBody(userColumns, true)
+      update: generateExampleBody(userColumns, true),
+      search: {
+        textSearch: searchableColumns.find(col => col.type === 'TEXT') 
+          ? `${baseUrl}/api/tables/${table.name}/search?column=${searchableColumns.find(col => col.type === 'TEXT')?.name}&operator=eq&value=example`
+          : null,
+        integerSearch: searchableColumns.find(col => col.type === 'INTEGER')
+          ? `${baseUrl}/api/tables/${table.name}/search?column=${searchableColumns.find(col => col.type === 'INTEGER')?.name}&operator=gt&value=100&limit=50`
+          : null,
+        nullSearch: searchableColumns.length > 0
+          ? `${baseUrl}/api/tables/${table.name}/search?column=${searchableColumns[0].name}&operator=is_null`
+          : null
+      }
     }
   }
 }

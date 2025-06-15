@@ -696,4 +696,160 @@ export class TableManager {
   async getAllUserIndexes(): Promise<IndexInfo[]> {
     return this.indexManager.getAllUserIndexes()
   }
+
+  // Search functionality
+  async getSearchableColumns(tableName: string): Promise<Array<{name: string, type: string}>> {
+    return this.errorHandler.handleOperation(
+      async () => {
+        // Get all columns for the table
+        const columnsResult = await this.db
+          .prepare(`PRAGMA table_info("${tableName}")`)
+          .all()
+
+        const columns = columnsResult.results as Array<{
+          name: string
+          type: string
+          notnull: number
+          dflt_value: any
+          pk: number
+        }>
+
+        // Get all indexes for the table
+        const indexesResult = await this.db
+          .prepare(`PRAGMA index_list("${tableName}")`)
+          .all()
+
+        const searchableColumns: Array<{name: string, type: string}> = []
+
+        // Check each index to find indexed columns
+        for (const indexRow of indexesResult.results) {
+          const indexName = indexRow.name as string
+          
+          // Skip SQLite auto-created indexes for primary keys/unique constraints
+          if (indexName.startsWith('sqlite_autoindex_')) continue
+
+          // Get columns in this index
+          const indexColumnsResult = await this.db
+            .prepare(`PRAGMA index_info("${indexName}")`)
+            .all()
+
+          for (const indexColumnRow of indexColumnsResult.results) {
+            const columnName = indexColumnRow.name as string
+            const column = columns.find(col => col.name === columnName)
+            
+            if (column && ['TEXT', 'INTEGER'].includes(column.type.toUpperCase())) {
+              // Avoid duplicates
+              if (!searchableColumns.find(sc => sc.name === columnName)) {
+                searchableColumns.push({
+                  name: columnName,
+                  type: column.type.toUpperCase()
+                })
+              }
+            }
+          }
+        }
+
+        // Exclude PRIMARY KEY columns from search (they can be accessed directly via GET /{id})
+        // PRIMARY KEYs don't need to be searchable since they have direct access endpoints
+
+        return searchableColumns.sort((a, b) => a.name.localeCompare(b.name))
+      },
+      { operationName: 'getSearchableColumns', tableName }
+    )
+  }
+
+  async searchRecords(tableName: string, options: {
+    column: string
+    operator: string
+    value?: string
+    limit?: number
+    offset: number
+  }): Promise<{
+    data: Record<string, any>[]
+    total: number
+    hasMore: boolean
+  }> {
+    return this.errorHandler.handleOperation(
+      async () => {
+        const { column, operator, value, limit, offset } = options
+
+        // Build WHERE clause
+        let whereClause = ''
+        let params: any[] = []
+
+        switch (operator) {
+          case 'eq':
+            whereClause = `"${column}" = ?`
+            params = [value]
+            break
+          case 'lt':
+            whereClause = `"${column}" < ?`
+            params = [value]
+            break
+          case 'le':
+            whereClause = `"${column}" <= ?`
+            params = [value]
+            break
+          case 'gt':
+            whereClause = `"${column}" > ?`
+            params = [value]
+            break
+          case 'ge':
+            whereClause = `"${column}" >= ?`
+            params = [value]
+            break
+          case 'ne':
+            whereClause = `"${column}" != ?`
+            params = [value]
+            break
+          case 'is_null':
+            whereClause = `"${column}" IS NULL`
+            params = []
+            break
+          case 'is_not_null':
+            whereClause = `"${column}" IS NOT NULL`
+            params = []
+            break
+          default:
+            throw new Error(`Unsupported operator: ${operator}`)
+        }
+
+        // Get total count
+        const countResult = await this.db
+          .prepare(`SELECT COUNT(*) as total FROM "${tableName}" WHERE ${whereClause}`)
+          .bind(...params)
+          .first()
+
+        const total = (countResult?.total as number) || 0
+
+        // Build data query
+        let dataQuery = `SELECT * FROM "${tableName}" WHERE ${whereClause}`
+        let dataParams = [...params]
+
+        if (limit !== undefined) {
+          dataQuery += ` LIMIT ? OFFSET ?`
+          dataParams.push(limit, offset)
+        } else if (offset > 0) {
+          dataQuery += ` OFFSET ?`
+          dataParams.push(offset)
+        }
+
+        // Get data
+        const dataResult = await this.db
+          .prepare(dataQuery)
+          .bind(...dataParams)
+          .all()
+
+        const data = dataResult.results || []
+        const hasMore = limit !== undefined ? (offset + data.length) < total : false
+
+        return {
+          data,
+          total,
+          hasMore
+        }
+      },
+      { operationName: 'searchRecords', tableName, column: options.column }
+    )
+  }
 }

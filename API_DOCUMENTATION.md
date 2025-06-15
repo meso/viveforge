@@ -257,11 +257,136 @@ curl -X POST "https://viveforge-core.mesongo.workers.dev/api/tables" \
 
 Currently, no rate limits are implemented. This may be added in future versions.
 
+---
+
+## Search API
+
+Search records in a table by specific column values. Only indexed columns of TEXT or INTEGER type can be searched.
+
+### 6. Search Records
+Search for records matching specific criteria.
+
+**Endpoint:** `GET /api/tables/:tableName/search`
+
+**Query Parameters:**
+- `column` (required): Column name to search (must be indexed TEXT or INTEGER)
+- `operator` (required): Search operator
+  - For TEXT: `eq`, `is_null`, `is_not_null`
+  - For INTEGER: `eq`, `lt`, `le`, `gt`, `ge`, `ne`, `is_null`, `is_not_null`
+- `value` (required for non-null operators): Value to search for
+- `limit` (optional): Maximum number of results, default: all matching records
+- `offset` (optional): Number of records to skip, default: 0
+
+**Examples:**
+```bash
+# Search for users with exact name match
+curl "https://viveforge-core.mesongo.workers.dev/api/tables/users/search?column=name&operator=eq&value=John"
+
+# Search for users older than 25
+curl "https://viveforge-core.mesongo.workers.dev/api/tables/users/search?column=age&operator=gt&value=25&limit=50&offset=0"
+
+# Search for users with null email
+curl "https://viveforge-core.mesongo.workers.dev/api/tables/users/search?column=email&operator=is_null"
+```
+
+**Success Response:**
+```json
+{
+  "data": [
+    {
+      "id": "abc123",
+      "name": "John",
+      "age": 30,
+      "email": "john@example.com"
+    }
+  ],
+  "pagination": {
+    "total": 1,
+    "limit": 50,
+    "offset": 0,
+    "hasMore": false
+  },
+  "query": {
+    "table": "users",
+    "column": "name",
+    "operator": "eq",
+    "value": "John"
+  }
+}
+```
+
+### Search Error Responses
+
+**Column Not Searchable:**
+```json
+{
+  "error": {
+    "code": "COLUMN_NOT_SEARCHABLE",
+    "message": "Column 'email' is not searchable (no index found)",
+    "details": {
+      "table": "users",
+      "column": "email",
+      "searchableColumns": ["id", "name", "age"]
+    }
+  }
+}
+```
+
+**Invalid Operator:**
+```json
+{
+  "error": {
+    "code": "INVALID_OPERATOR",
+    "message": "Operator 'like' is not supported for TEXT columns",
+    "details": {
+      "column": "name",
+      "columnType": "TEXT",
+      "supportedOperators": ["eq", "is_null", "is_not_null"]
+    }
+  }
+}
+```
+
+**Type Mismatch:**
+```json
+{
+  "error": {
+    "code": "TYPE_MISMATCH",
+    "message": "Invalid value type for INTEGER column",
+    "details": {
+      "column": "age",
+      "expectedType": "INTEGER",
+      "receivedValue": "not_a_number"
+    }
+  }
+}
+```
+
+**System Table Access:**
+```json
+{
+  "error": {
+    "code": "SYSTEM_TABLE_ACCESS_DENIED",
+    "message": "Search is not allowed on system table 'admins'"
+  }
+}
+```
+
+### Search Constraints
+
+1. **Indexed Columns Only**: Only columns with database indexes can be searched
+2. **System Tables**: Search is prohibited on system tables (`admins`, `sessions`, `schema_snapshots`, etc.)
+3. **Supported Types**: Only TEXT and INTEGER columns are searchable
+4. **Case Sensitivity**: TEXT searches are case-sensitive (SQLite default behavior)
+5. **Performance**: All searches use indexes for optimal performance
+
+---
+
 ## Coming Soon
 
 - Authentication and authorization
 - Field-level permissions
-- Query filtering and search
+- Complex search with multiple conditions (POST-based)
 - Bulk operations
 - Webhooks for data changes
 - Real-time subscriptions

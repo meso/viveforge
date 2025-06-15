@@ -457,3 +457,128 @@ tables.delete('/:tableName/indexes/:indexName', async (c) => {
     }, 400)
   }
 })
+
+// Search records in table
+const searchQuerySchema = z.object({
+  column: z.string().min(1, 'Column name is required'),
+  operator: z.enum(['eq', 'lt', 'le', 'gt', 'ge', 'ne', 'is_null', 'is_not_null'], {
+    errorMap: () => ({ message: 'Invalid operator. Supported: eq, lt, le, gt, ge, ne, is_null, is_not_null' })
+  }),
+  value: z.string().optional(),
+  limit: z.string().optional().transform(val => val ? parseInt(val) : undefined),
+  offset: z.string().optional().transform(val => val ? parseInt(val) : 0)
+})
+
+tables.get('/:tableName/search', zValidator('query', searchQuerySchema), async (c) => {
+  try {
+    const tableName = c.req.param('tableName')
+    const { column, operator, value, limit, offset } = c.req.valid('query')
+    const tableManager = c.get('tableManager')
+
+    // Check if table is a system table
+    if (SYSTEM_TABLES.includes(tableName as any)) {
+      return c.json({
+        error: {
+          code: 'SYSTEM_TABLE_ACCESS_DENIED',
+          message: `Search is not allowed on system table '${tableName}'`
+        }
+      }, 403)
+    }
+
+    // Validate value requirement for non-null operators
+    if (!['is_null', 'is_not_null'].includes(operator) && !value) {
+      return c.json({
+        error: {
+          code: 'MISSING_VALUE',
+          message: `Value is required for operator '${operator}'`
+        }
+      }, 400)
+    }
+
+    // Get searchable columns for the table
+    const searchableColumns = await tableManager.getSearchableColumns(tableName)
+    
+    if (!searchableColumns.find(col => col.name === column)) {
+      return c.json({
+        error: {
+          code: 'COLUMN_NOT_SEARCHABLE',
+          message: `Column '${column}' is not searchable (no index found)`,
+          details: {
+            table: tableName,
+            column: column,
+            searchableColumns: searchableColumns.map(col => col.name)
+          }
+        }
+      }, 400)
+    }
+
+    // Get column info to validate operator
+    const columnInfo = searchableColumns.find(col => col.name === column)!
+    const supportedOperators = columnInfo.type === 'TEXT' 
+      ? ['eq', 'is_null', 'is_not_null']
+      : ['eq', 'lt', 'le', 'gt', 'ge', 'ne', 'is_null', 'is_not_null']
+
+    if (!supportedOperators.includes(operator)) {
+      return c.json({
+        error: {
+          code: 'INVALID_OPERATOR',
+          message: `Operator '${operator}' is not supported for ${columnInfo.type} columns`,
+          details: {
+            column: column,
+            columnType: columnInfo.type,
+            supportedOperators: supportedOperators
+          }
+        }
+      }, 400)
+    }
+
+    // Validate value type for INTEGER columns
+    if (columnInfo.type === 'INTEGER' && value && !['is_null', 'is_not_null'].includes(operator)) {
+      const numValue = Number(value)
+      if (isNaN(numValue) || !Number.isInteger(numValue)) {
+        return c.json({
+          error: {
+            code: 'TYPE_MISMATCH',
+            message: 'Invalid value type for INTEGER column',
+            details: {
+              column: column,
+              expectedType: 'INTEGER',
+              receivedValue: value
+            }
+          }
+        }, 400)
+      }
+    }
+
+    // Perform search
+    const result = await tableManager.searchRecords(tableName, {
+      column,
+      operator,
+      value,
+      limit,
+      offset: offset || 0
+    })
+
+    return c.json({
+      data: result.data,
+      pagination: {
+        total: result.total,
+        limit: limit || result.total,
+        offset: offset || 0,
+        hasMore: result.hasMore
+      },
+      query: {
+        table: tableName,
+        column,
+        operator,
+        value
+      }
+    })
+
+  } catch (error) {
+    console.error('Error searching records:', error)
+    return c.json({ 
+      error: error instanceof Error ? error.message : 'Failed to search records' 
+    }, 500)
+  }
+})

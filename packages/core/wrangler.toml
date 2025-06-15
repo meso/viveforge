@@ -28,7 +28,7 @@ bucket_name = "viveforge-storage"
 # KV Namespace for sessions (will be auto-configured during setup)
 [[kv_namespaces]]
 binding = "SESSIONS"
-id = "REPLACE_WITH_ACTUAL_KV_ID"
+id = "63a32a4e4bdf4699a1447d7f5e56c74f"
 
 [env.production]
 vars = { ENVIRONMENT = "production" }
