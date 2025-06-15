@@ -370,7 +370,7 @@ export class SchemaSnapshotManager {
       
       
       // Sort tables for deletion in reverse dependency order
-      const tableNames = currentTables.results.map(t => t.name as string)
+      const tableNames = currentTables.results.map((t: any) => t.name as string)
       const deletionOrder = this.sortTablesForDeletion(tableNames)
       
       // Add DROP statements in correct order

@@ -32,7 +32,7 @@ export interface IndexInfo {
 export class TableManager {
   private snapshotManager: SchemaSnapshotManager
   
-  constructor(private db: any, systemStorage?: any) { // D1Database, R2Bucket types
+  constructor(private db: any, systemStorage?: any, private executionCtx?: any) { // D1Database, R2Bucket types, ExecutionContext
     this.snapshotManager = new SchemaSnapshotManager(db, systemStorage)
   }
 
@@ -113,20 +113,36 @@ export class TableManager {
     }))
   }
 
+  // Helper method to create async snapshots
+  private createAsyncSnapshot(options: {
+    name?: string
+    description?: string
+    createdBy?: string
+    snapshotType?: 'manual' | 'auto' | 'pre_change'
+  }): void {
+    if (this.executionCtx && this.executionCtx.waitUntil) {
+      this.executionCtx.waitUntil(
+        this.snapshotManager.createSnapshot(options).catch((error: any) => {
+          console.warn('Failed to create async snapshot:', error)
+        })
+      )
+    } else {
+      // Fallback for when executionCtx is not available
+      this.snapshotManager.createSnapshot(options).catch((error: any) => {
+        console.warn('Failed to create fallback snapshot:', error)
+      })
+    }
+  }
+
   // Create a new user table
   async createTable(tableName: string, columns: { name: string; type: string; constraints?: string; foreignKey?: { table: string; column: string } }[]): Promise<void> {
     await this.enableForeignKeys()
     
-    // Create pre-change snapshot 
-    try {
-      await this.snapshotManager.createSnapshot({
-        description: `Before creating table: ${tableName}`,
-        snapshotType: 'pre_change'
-      })
-    } catch (error) {
-      console.warn('Failed to create pre-change snapshot:', error)
-      // Continue with table creation
-    }
+    // Create pre-change snapshot asynchronously
+    this.createAsyncSnapshot({
+      description: `Before creating table: ${tableName}`,
+      snapshotType: 'pre_change'
+    })
     // Validate table name
     if (SYSTEM_TABLES.includes(tableName as SystemTable)) {
       throw new Error(`Cannot create system table: ${tableName}`)
@@ -167,8 +183,8 @@ export class TableManager {
       throw new Error(`Cannot drop system table: ${tableName}`)
     }
     
-    // Create pre-change snapshot
-    await this.snapshotManager.createSnapshot({
+    // Create pre-change snapshot asynchronously
+    this.createAsyncSnapshot({
       description: `Before dropping table: ${tableName}`,
       snapshotType: 'pre_change'
     })
@@ -365,8 +381,8 @@ export class TableManager {
       alterSQL += ` ${column.constraints}`
     }
 
-    // Create pre-change snapshot
-    await this.snapshotManager.createSnapshot({
+    // Create pre-change snapshot asynchronously
+    this.createAsyncSnapshot({
       description: `Before adding column ${column.name} to ${tableName}`,
       snapshotType: 'pre_change'
     })
@@ -441,8 +457,8 @@ export class TableManager {
       throw new Error(`Cannot modify system table: ${tableName}`)
     }
 
-    // Create pre-change snapshot
-    await this.snapshotManager.createSnapshot({
+    // Create pre-change snapshot asynchronously
+    this.createAsyncSnapshot({
       description: `Before renaming column ${oldName} to ${newName} in ${tableName}`,
       snapshotType: 'pre_change'
     })
@@ -461,8 +477,8 @@ export class TableManager {
       throw new Error(`Cannot modify system table: ${tableName}`)
     }
 
-    // Create pre-change snapshot
-    await this.snapshotManager.createSnapshot({
+    // Create pre-change snapshot asynchronously
+    this.createAsyncSnapshot({
       description: `Before dropping column ${columnName} from ${tableName}`,
       snapshotType: 'pre_change'
     })
@@ -646,8 +662,8 @@ export class TableManager {
     console.log('Modified SQL:', modifiedSQL)
     console.log('Temp table name:', tempTableName)
     
-    // Create pre-change snapshot
-    await this.snapshotManager.createSnapshot({
+    // Create pre-change snapshot asynchronously
+    this.createAsyncSnapshot({
       description: `Before modifying column ${columnName} in ${tableName}`,
       snapshotType: 'pre_change'
     })
@@ -896,8 +912,8 @@ export class TableManager {
       throw new Error(`Index "${indexName}" already exists`)
     }
 
-    // Create snapshot before index creation
-    await this.createSnapshot({
+    // Create snapshot before index creation asynchronously
+    this.createAsyncSnapshot({
       name: `Before creating index ${indexName}`,
       description: `Auto-snapshot before creating index ${indexName} on table ${tableName}`,
       snapshotType: 'pre_change'
@@ -936,8 +952,8 @@ export class TableManager {
       throw new Error('Cannot drop system-generated indexes')
     }
 
-    // Create snapshot before index deletion
-    await this.createSnapshot({
+    // Create snapshot before index deletion asynchronously
+    this.createAsyncSnapshot({
       name: `Before dropping index ${indexName}`,
       description: `Auto-snapshot before dropping index ${indexName} from table ${targetIndex.tableName}`,
       snapshotType: 'pre_change'

@@ -12,7 +12,7 @@ snapshots.use('*', async (c, next) => {
     return c.json({ error: 'Database not configured' }, 500)
   }
 
-  const tableManager = new TableManager(env.DB, env.SYSTEM_STORAGE)
+  const tableManager = new TableManager(env.DB, env.SYSTEM_STORAGE, c.executionCtx)
   const db = new Database(env.DB)
   
   c.set('tableManager', tableManager)

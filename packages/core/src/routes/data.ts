@@ -12,7 +12,7 @@ data.use('*', async (c, next) => {
     console.error('Database not available in environment')
     return c.json({ error: 'Database not configured' }, 500)
   }
-  c.set('tableManager', new TableManager(c.env.DB, c.env.SYSTEM_STORAGE))
+  c.set('tableManager', new TableManager(c.env.DB, c.env.SYSTEM_STORAGE, c.executionCtx))
   await next()
 })
 
