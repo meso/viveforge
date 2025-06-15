@@ -1,3 +1,5 @@
+import type { D1Database } from '../types/cloudflare'
+
 export interface IndexInfo {
   name: string
   tableName: string
@@ -8,7 +10,7 @@ export interface IndexInfo {
 
 export class IndexManager {
   constructor(
-    private db: any, // D1Database type
+    private db: D1Database,
     private createAsyncSnapshot: (options: {
       name?: string
       description?: string

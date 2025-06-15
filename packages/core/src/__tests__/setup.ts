@@ -1,26 +1,28 @@
 // Test setup for Viveforge Core
 import { beforeAll, beforeEach, afterEach, afterAll } from 'vitest'
+import type { D1Database, D1PreparedStatement, R2Bucket, ExecutionContext } from '../types/cloudflare'
 
-export interface MockD1Database {
+// Mock interfaces that extend the real Cloudflare types
+export interface MockD1Database extends D1Database {
   prepare: (sql: string) => MockD1PreparedStatement
   batch: (statements: MockD1PreparedStatement[]) => Promise<any>
   exec: (sql: string) => Promise<any>
 }
 
-export interface MockD1PreparedStatement {
+export interface MockD1PreparedStatement extends D1PreparedStatement {
   bind: (...params: any[]) => MockD1PreparedStatement
   run: () => Promise<{ meta: { changes: number } }>
   all: () => Promise<{ results: any[] }>
   first: () => Promise<any>
 }
 
-export interface MockR2Bucket {
+export interface MockR2Bucket extends R2Bucket {
   get: (key: string) => Promise<{ text: () => Promise<string> } | null>
   put: (key: string, data: string) => Promise<void>
   delete: (key: string) => Promise<void>
 }
 
-export interface MockExecutionContext {
+export interface MockExecutionContext extends ExecutionContext {
   waitUntil: (promise: Promise<any>) => void
 }
 

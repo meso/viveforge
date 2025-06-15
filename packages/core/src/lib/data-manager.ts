@@ -1,7 +1,8 @@
 import { SYSTEM_TABLES } from './table-manager'
+import type { D1Database, TableDataResult } from '../types/cloudflare'
 
 export class DataManager {
-  constructor(private db: any) {} // D1Database type
+  constructor(private db: D1Database) {}
 
   private async enableForeignKeys(): Promise<void> {
     try {
@@ -50,7 +51,7 @@ export class DataManager {
   }
 
   // Get data from any table
-  async getTableData(tableName: string, limit = 100, offset = 0): Promise<{ data: any[], total: number }> {
+  async getTableData(tableName: string, limit = 100, offset = 0): Promise<TableDataResult> {
     const countResult = await this.db
       .prepare(`SELECT COUNT(*) as total FROM "${tableName}"`)
       .first()
@@ -85,7 +86,7 @@ export class DataManager {
     offset = 0, 
     sortBy?: string, 
     sortOrder: 'ASC' | 'DESC' = 'DESC'
-  ): Promise<{ data: any[], total: number }> {
+  ): Promise<TableDataResult> {
     const countResult = await this.db
       .prepare(`SELECT COUNT(*) as total FROM "${tableName}"`)
       .first()
@@ -109,7 +110,7 @@ export class DataManager {
   }
 
   // Get single record by ID
-  async getRecordById(tableName: string, id: string): Promise<any | null> {
+  async getRecordById(tableName: string, id: string): Promise<Record<string, any> | null> {
     const result = await this.db
       .prepare(`SELECT * FROM "${tableName}" WHERE id = ? LIMIT 1`)
       .bind(id)

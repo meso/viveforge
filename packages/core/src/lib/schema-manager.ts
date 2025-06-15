@@ -1,5 +1,6 @@
 import { SYSTEM_TABLES } from './table-manager'
 import type { SchemaSnapshotManager } from './schema-snapshot'
+import type { D1Database } from '../types/cloudflare'
 
 export interface ColumnInfo {
   cid: number
@@ -19,7 +20,7 @@ export interface ColumnDefinition {
 
 export class SchemaManager {
   constructor(
-    private db: any,
+    private db: D1Database,
     private snapshotManager: SchemaSnapshotManager,
     private createAsyncSnapshot: (options: {
       name?: string

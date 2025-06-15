@@ -542,4 +542,180 @@ describe('TableManager', () => {
         .rejects.toThrow('Cannot query system table')
     })
   })
+
+  describe('Type Safety and Constructor Validation', () => {
+    it('should properly initialize with valid database instance', () => {
+      const validDb = createMockD1Database()
+      const validStorage = createMockR2Bucket()
+      const validCtx = createMockExecutionContext()
+      
+      expect(() => new TableManager(validDb, validStorage, validCtx)).not.toThrow()
+    })
+
+    it('should handle constructor with minimal parameters', () => {
+      const validDb = createMockD1Database()
+      
+      expect(() => new TableManager(validDb)).not.toThrow()
+    })
+
+    it('should handle constructor with storage but no execution context', () => {
+      const validDb = createMockD1Database()
+      const validStorage = createMockR2Bucket()
+      
+      expect(() => new TableManager(validDb, validStorage)).not.toThrow()
+    })
+
+    it('should provide proper type information for table data', async () => {
+      const testTableName = 'type_test_table'
+      await tableManager.createTable(testTableName, [
+        { name: 'id', type: 'TEXT' },
+        { name: 'count', type: 'INTEGER' },
+        { name: 'active', type: 'BOOLEAN' }
+      ])
+
+      const result = await tableManager.getTableData(testTableName)
+      
+      expect(result).toHaveProperty('data')
+      expect(result).toHaveProperty('total')
+      expect(Array.isArray(result.data)).toBe(true)
+      expect(typeof result.total).toBe('number')
+    })
+
+    it('should return properly typed column information', async () => {
+      const testTableName = 'column_type_test'
+      await tableManager.createTable(testTableName, [
+        { name: 'text_col', type: 'TEXT', constraints: 'NOT NULL' },
+        { name: 'int_col', type: 'INTEGER' },
+        { name: 'real_col', type: 'REAL' }
+      ])
+
+      const columns = await tableManager.getTableColumns(testTableName)
+      
+      expect(Array.isArray(columns)).toBe(true)
+      columns.forEach(column => {
+        expect(column).toHaveProperty('name')
+        expect(column).toHaveProperty('type')
+        expect(column).toHaveProperty('notnull')
+        expect(column).toHaveProperty('pk')
+        expect(typeof column.name).toBe('string')
+        expect(typeof column.type).toBe('string')
+        expect(typeof column.notnull).toBe('number')
+        expect(typeof column.pk).toBe('number')
+      })
+    })
+
+    it('should return properly typed table information', async () => {
+      const tables = await tableManager.getTables()
+      
+      expect(Array.isArray(tables)).toBe(true)
+      tables.forEach(table => {
+        expect(table).toHaveProperty('name')
+        expect(table).toHaveProperty('type')
+        expect(table).toHaveProperty('sql')
+        expect(table).toHaveProperty('rowCount')
+        expect(typeof table.name).toBe('string')
+        expect(['system', 'user'].includes(table.type)).toBe(true)
+        expect(typeof table.sql).toBe('string')
+        expect(typeof table.rowCount).toBe('number')
+      })
+    })
+
+    it('should return properly typed foreign key information', async () => {
+      const testTableName = 'fk_type_test'
+      await tableManager.createTable(testTableName, [
+        { name: 'id', type: 'TEXT' },
+        { name: 'name', type: 'TEXT' }
+      ])
+
+      const foreignKeys = await tableManager.getForeignKeys(testTableName)
+      
+      expect(Array.isArray(foreignKeys)).toBe(true)
+      foreignKeys.forEach(fk => {
+        expect(fk).toHaveProperty('from')
+        expect(fk).toHaveProperty('table')
+        expect(fk).toHaveProperty('to')
+        expect(typeof fk.from).toBe('string')
+        expect(typeof fk.table).toBe('string')
+        expect(typeof fk.to).toBe('string')
+      })
+    })
+
+    it('should handle record operations with proper typing', async () => {
+      const testTableName = 'record_type_test'
+      await tableManager.createTable(testTableName, [
+        { name: 'title', type: 'TEXT' },
+        { name: 'count', type: 'INTEGER' }
+      ])
+
+      // Test createRecordWithId returns string
+      const recordId = await tableManager.createRecordWithId(testTableName, {
+        title: 'Test',
+        count: 42
+      })
+      expect(typeof recordId).toBe('string')
+
+      // Test getRecordById returns proper type
+      const record = await tableManager.getRecordById(testTableName, recordId)
+      expect(record === null || typeof record === 'object').toBe(true)
+    })
+
+    it('should handle validation results with proper typing', async () => {
+      const testTableName = 'validation_type_test'
+      await tableManager.createTable(testTableName, [
+        { name: 'test_col', type: 'TEXT' }
+      ])
+
+      const validation = await tableManager.validateColumnChanges(testTableName, 'test_col', {
+        type: 'INTEGER',
+        notNull: true
+      })
+
+      expect(validation).toHaveProperty('valid')
+      expect(validation).toHaveProperty('errors')
+      expect(validation).toHaveProperty('conflictingRows')
+      expect(typeof validation.valid).toBe('boolean')
+      expect(Array.isArray(validation.errors)).toBe(true)
+      expect(typeof validation.conflictingRows).toBe('number')
+      validation.errors.forEach(error => {
+        expect(typeof error).toBe('string')
+      })
+    })
+
+    it('should handle snapshot operations with proper typing', async () => {
+      // Test createSnapshot returns string ID
+      const snapshotId = await tableManager.createSnapshot({
+        name: 'Type Test Snapshot',
+        description: 'Testing proper return types'
+      })
+      expect(typeof snapshotId).toBe('string')
+
+      // Test getSnapshots returns proper structure
+      const snapshots = await tableManager.getSnapshots(5, 0)
+      expect(snapshots).toHaveProperty('snapshots')
+      expect(snapshots).toHaveProperty('total')
+      expect(Array.isArray(snapshots.snapshots)).toBe(true)
+      expect(typeof snapshots.total).toBe('number')
+
+      // Test getSnapshot returns proper type
+      const snapshot = await tableManager.getSnapshot(snapshotId)
+      if (snapshot) {
+        expect(snapshot).toHaveProperty('id')
+        expect(typeof snapshot.id).toBe('string')
+      }
+
+      // Test restoreSnapshot returns proper structure
+      const restoreResult = await tableManager.restoreSnapshot(snapshotId)
+      expect(restoreResult).toHaveProperty('success')
+      expect(restoreResult).toHaveProperty('message')
+      expect(typeof restoreResult.success).toBe('boolean')
+      expect(typeof restoreResult.message).toBe('string')
+
+      // Test deleteSnapshot returns proper structure
+      const deleteResult = await tableManager.deleteSnapshot(snapshotId)
+      expect(deleteResult).toHaveProperty('success')
+      expect(deleteResult).toHaveProperty('message')
+      expect(typeof deleteResult.success).toBe('boolean')
+      expect(typeof deleteResult.message).toBe('string')
+    })
+  })
 })

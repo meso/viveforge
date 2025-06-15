@@ -1,10 +1,18 @@
-// D1Database type from Cloudflare Workers
 import { SchemaSnapshotManager } from './schema-snapshot'
 import { SchemaManager } from './schema-manager'
 import { DataManager } from './data-manager'
 import { IndexManager } from './index-manager'
 import type { ColumnDefinition, ColumnInfo } from './schema-manager'
 import type { IndexInfo } from './index-manager'
+import type { 
+  D1Database, 
+  R2Bucket, 
+  ExecutionContext,
+  ValidationResult,
+  SnapshotListResult,
+  OperationResult,
+  TableDataResult
+} from '../types/cloudflare'
 
 // System tables that cannot be modified by users
 export const SYSTEM_TABLES = ['admins', 'sessions', 'schema_snapshots', 'schema_snapshot_counter', 'd1_migrations'] as const
@@ -24,7 +32,11 @@ export class TableManager {
   private dataManager: DataManager
   private indexManager: IndexManager
   
-  constructor(private db: any, systemStorage?: any, private executionCtx?: any) { // D1Database, R2Bucket types, ExecutionContext
+  constructor(
+    private db: D1Database, 
+    private systemStorage?: R2Bucket, 
+    private executionCtx?: ExecutionContext
+  ) {
     this.snapshotManager = new SchemaSnapshotManager(db, systemStorage)
     this.schemaManager = new SchemaManager(db, this.snapshotManager, this.createAsyncSnapshot.bind(this))
     this.dataManager = new DataManager(db)
@@ -138,7 +150,7 @@ export class TableManager {
   }
 
   // Get data from any table
-  async getTableData(tableName: string, limit = 100, offset = 0): Promise<{ data: any[], total: number }> {
+  async getTableData(tableName: string, limit = 100, offset = 0): Promise<TableDataResult> {
     return this.dataManager.getTableData(tableName, limit, offset)
   }
 
@@ -149,12 +161,12 @@ export class TableManager {
     offset = 0, 
     sortBy?: string, 
     sortOrder: 'ASC' | 'DESC' = 'DESC'
-  ): Promise<{ data: any[], total: number }> {
+  ): Promise<TableDataResult> {
     return this.dataManager.getTableDataWithSort(tableName, limit, offset, sortBy, sortOrder)
   }
 
   // Get single record by ID
-  async getRecordById(tableName: string, id: string): Promise<any | null> {
+  async getRecordById(tableName: string, id: string): Promise<Record<string, any> | null> {
     return this.dataManager.getRecordById(tableName, id)
   }
 
@@ -329,7 +341,7 @@ export class TableManager {
       notNull?: boolean
       foreignKey?: { table: string; column: string } | null
     }
-  ): Promise<{ valid: boolean; errors: string[]; conflictingRows: number }> {
+  ): Promise<ValidationResult> {
     const errors: string[] = []
     let conflictingRows = 0
 
@@ -591,7 +603,7 @@ export class TableManager {
   }
 
   // Execute custom SQL (with safety checks)
-  async executeSQL(sql: string, params: any[] = []): Promise<any> {
+  async executeSQL(sql: string, params: any[] = []): Promise<{ results: Record<string, any>[] }> {
     // Basic SQL injection prevention
     const normalizedSQL = sql.trim().toUpperCase()
     
@@ -628,15 +640,15 @@ export class TableManager {
     })
   }
   
-  async getSnapshots(limit = 20, offset = 0) {
+  async getSnapshots(limit = 20, offset = 0): Promise<SnapshotListResult> {
     return this.snapshotManager.getSnapshots(limit, offset)
   }
   
-  async getSnapshot(id: string) {
+  async getSnapshot(id: string): Promise<Record<string, any> | null> {
     return this.snapshotManager.getSnapshot(id)
   }
   
-  async restoreSnapshot(id: string) {
+  async restoreSnapshot(id: string): Promise<OperationResult> {
     // Create pre-change snapshot before restore
     this.createAsyncSnapshot({
       description: `Before restoring snapshot ${id}`,
@@ -654,7 +666,7 @@ export class TableManager {
     }
   }
   
-  async deleteSnapshot(id: string) {
+  async deleteSnapshot(id: string): Promise<OperationResult> {
     return await this.snapshotManager.deleteSnapshot(id)
   }
 

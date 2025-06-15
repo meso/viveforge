@@ -1,26 +1,7 @@
 // Use Web Crypto API instead of Node.js crypto for Cloudflare Workers
+import type { D1Database, R2Bucket, SnapshotListResult, OperationResult, SchemaSnapshot } from '../types/cloudflare'
 
-export interface SchemaSnapshot {
-  id: string
-  version: number
-  name?: string
-  description?: string
-  fullSchema: string
-  tablesJson: string
-  schemaHash: string
-  createdAt: string
-  createdBy?: string
-  snapshotType: 'manual' | 'auto' | 'pre_change'
-  d1BookmarkId?: string
-}
-
-export interface IndexInfo {
-  name: string
-  tableName: string
-  columns: string[]
-  unique: boolean
-  sql: string
-}
+import type { IndexInfo } from './index-manager'
 
 export interface TableSchema {
   name: string
@@ -31,7 +12,7 @@ export interface TableSchema {
 }
 
 export class SchemaSnapshotManager {
-  constructor(private db: any, private systemStorage?: any) {} // D1Database, R2Bucket
+  constructor(private db: D1Database, private systemStorage?: R2Bucket) {}
 
   // Get all table schemas excluding system tables
   async getAllTableSchemas(): Promise<TableSchema[]> {
@@ -253,10 +234,7 @@ export class SchemaSnapshotManager {
   }
 
   // Get all snapshots
-  async getSnapshots(limit = 20, offset = 0): Promise<{
-    snapshots: SchemaSnapshot[]
-    total: number
-  }> {
+  async getSnapshots(limit = 20, offset = 0): Promise<SnapshotListResult> {
     const countResult = await this.db
       .prepare('SELECT COUNT(*) as total FROM schema_snapshots')
       .first()
@@ -324,7 +302,7 @@ export class SchemaSnapshotManager {
   }
 
   // Restore from snapshot
-  async restoreSnapshot(snapshotId: string): Promise<{ success: boolean; message: string }> {
+  async restoreSnapshot(snapshotId: string): Promise<OperationResult> {
     const snapshot = await this.getSnapshot(snapshotId)
     if (!snapshot) {
       throw new Error('Snapshot not found')
@@ -495,7 +473,7 @@ export class SchemaSnapshotManager {
   }
   
   // Delete old snapshots (keep N most recent)
-  async deleteSnapshot(id: string): Promise<{ success: boolean; message: string }> {
+  async deleteSnapshot(id: string): Promise<OperationResult> {
     // Check if snapshot exists
     const snapshot = await this.getSnapshot(id)
     if (!snapshot) {
