@@ -2,31 +2,22 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 import type { Env } from '../../types';
 
-// Simple implementation test for auth middleware logic
-describe('Auth Middleware Logic', () => {
-  let mockDB: any;
+// Simple implementation test for authentication logic patterns
+describe('Authentication Logic Patterns', () => {
   let env: Env;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
-    mockDB = {
-      prepare: vi.fn(() => ({
-        bind: vi.fn(() => ({
-          first: vi.fn(),
-          run: vi.fn(),
-          all: vi.fn(),
-        })),
-        first: vi.fn(),
-        run: vi.fn(),
-        all: vi.fn(),
-      })),
-    };
 
     env = {
-      DB: mockDB,
+      VIBEBASE_AUTH_URL: 'https://auth.vibebase.workers.dev',
+      DEPLOYMENT_DOMAIN: 'test.example.com',
+      WORKER_NAME: 'test-worker',
       ENVIRONMENT: 'development',
-      CLOUDFLARE_TEAM_DOMAIN: 'test-team',
+      DB: {} as any,
+      SESSIONS: {} as any,
+      SYSTEM_STORAGE: {} as any,
+      USER_STORAGE: {} as any,
     };
 
     // Mock crypto.randomUUID
@@ -38,78 +29,74 @@ describe('Auth Middleware Logic', () => {
     vi.stubGlobal('crypto', mockCrypto);
   });
 
-  it('should handle first admin registration logic', async () => {
-    // Simulate the logic of first admin registration
-    const githubUsername = 'testuser';
-    const email = 'testuser@users.noreply.github.com';
+  it('should handle vibebase-auth integration patterns', async () => {
+    // Test the new vibebase-auth integration patterns
+    const deploymentDomain = env.DEPLOYMENT_DOMAIN;
+    const authBaseUrl = env.VIBEBASE_AUTH_URL;
 
-    // Mock no existing admin
-    const mockAdminQuery = mockDB.prepare().bind();
-    mockAdminQuery.first.mockResolvedValueOnce(null);
+    expect(deploymentDomain).toBe('test.example.com');
+    expect(authBaseUrl).toBe('https://auth.vibebase.workers.dev');
 
-    // Mock admin count = 0
-    const mockCountQuery = mockDB.prepare().bind();
-    mockCountQuery.first.mockResolvedValueOnce({ count: 0 });
+    // Login URL generation pattern
+    const redirectTo = '/dashboard';
+    const params = new URLSearchParams({
+      origin: `https://${deploymentDomain}`,
+      redirect_to: redirectTo
+    });
+    const loginUrl = `${authBaseUrl}/auth/login?${params.toString()}`;
 
-    // Mock successful insert
-    const mockInsertQuery = mockDB.prepare().bind();
-    mockInsertQuery.run.mockResolvedValueOnce({ success: true });
-
-    // Execute the logic
-    const admin = await mockAdminQuery.first();
-    expect(admin).toBeNull();
-
-    const adminCount = await mockCountQuery.first();
-    expect(adminCount?.count).toBe(0);
-
-    const adminId = crypto.randomUUID();
-    await mockInsertQuery.run();
-
-    expect(adminId).toBe('test-uuid-123');
-    // Verify that prepare was called (without checking specific arguments)
-    expect(mockDB.prepare).toHaveBeenCalled();
+    expect(loginUrl).toBe('https://auth.vibebase.workers.dev/auth/login?origin=https%3A%2F%2Ftest.example.com&redirect_to=%2Fdashboard');
   });
 
-  it('should handle registered admin authentication', async () => {
-    const githubUsername = 'existinguser';
-    
-    const existingAdmin = {
-      id: 'admin-123',
-      email: 'existinguser@users.noreply.github.com',
-      provider: 'github',
-      provider_id: 'existinguser'
+  it('should handle JWT token validation patterns', async () => {
+    // Test JWT token validation logic patterns
+    const now = Math.floor(Date.now() / 1000);
+    const deploymentDomain = env.DEPLOYMENT_DOMAIN;
+    const authBaseUrl = env.VIBEBASE_AUTH_URL;
+
+    // Valid token payload
+    const validPayload = {
+      iss: authBaseUrl,
+      aud: deploymentDomain,
+      exp: now + 3600,
+      iat: now,
+      nbf: now,
+      token_type: 'access',
+      github_id: 12345,
+      github_login: 'testuser',
+      email: 'test@example.com',
+      name: 'Test User',
+      scope: ['admin']
     };
 
-    // Mock existing admin
-    const mockAdminQuery = mockDB.prepare().bind();
-    mockAdminQuery.first.mockResolvedValueOnce(existingAdmin);
+    // Validation logic
+    const isValidIssuer = validPayload.iss === authBaseUrl;
+    const isValidAudience = validPayload.aud === deploymentDomain;
+    const isNotExpired = validPayload.exp > now;
+    const isValidTokenType = validPayload.token_type === 'access';
+    const isNotBeforeValid = !validPayload.nbf || validPayload.nbf <= now;
 
-    const admin = await mockAdminQuery.first();
-    expect(admin).toEqual(existingAdmin);
-    expect(admin.provider_id).toBe(githubUsername);
+    expect(isValidIssuer).toBe(true);
+    expect(isValidAudience).toBe(true);
+    expect(isNotExpired).toBe(true);
+    expect(isValidTokenType).toBe(true);
+    expect(isNotBeforeValid).toBe(true);
   });
 
-  it('should handle unregistered user rejection', async () => {
-    const githubUsername = 'newuser';
+  it('should handle cookie extraction patterns', async () => {
+    // Test cookie parsing patterns
+    const cookieHeader = 'access_token=abc123; refresh_token=def456; other=value';
+    
+    const accessToken = cookieHeader.match(/access_token=([^;]+)/)?.[1];
+    const refreshToken = cookieHeader.match(/refresh_token=([^;]+)/)?.[1];
 
-    // Mock no matching admin
-    const mockAdminQuery = mockDB.prepare().bind();
-    mockAdminQuery.first.mockResolvedValueOnce(null);
+    expect(accessToken).toBe('abc123');
+    expect(refreshToken).toBe('def456');
 
-    // Mock admin count > 0
-    const mockCountQuery = mockDB.prepare().bind();
-    mockCountQuery.first.mockResolvedValueOnce({ count: 1 });
-
-    const admin = await mockAdminQuery.first();
-    expect(admin).toBeNull();
-
-    const adminCount = await mockCountQuery.first();
-    expect(adminCount?.count).toBeGreaterThan(0);
-
-    // Should result in access denial (we can't test the HTTP response here,
-    // but we can verify the conditions that would lead to it)
-    const shouldDeny = !admin && adminCount?.count > 0;
-    expect(shouldDeny).toBe(true);
+    // Test missing tokens
+    const noCookieHeader = null;
+    const noAccessToken = noCookieHeader?.match(/access_token=([^;]+)/)?.[1];
+    expect(noAccessToken).toBeUndefined();
   });
 
   describe('GitHub username extraction logic', () => {

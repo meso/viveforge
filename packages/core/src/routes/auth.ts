@@ -5,6 +5,7 @@ import type { Env, Variables } from '../types'
 
 const auth = new Hono<{ Bindings: Env; Variables: Variables }>()
 
+
 /**
  * ログイン開始
  */
@@ -70,44 +71,15 @@ auth.get('/callback', async (c) => {
     const expires = 15 * 60 // 15分
     const refreshExpires = 30 * 24 * 60 * 60 // 30日
     
-    c.header('Set-Cookie', `access_token=${token}; HttpOnly; Secure; SameSite=Strict; Max-Age=${expires}; Path=/`)
-    c.header('Set-Cookie', `refresh_token=${refresh_token}; HttpOnly; Secure; SameSite=Strict; Max-Age=${refreshExpires}; Path=/`)
+    // 複数のSet-Cookieヘッダーを正しく設定するため、個別に追加
+    c.res.headers.append('Set-Cookie', `access_token=${token}; HttpOnly; Secure; SameSite=Strict; Max-Age=${expires}; Path=/`)
+    c.res.headers.append('Set-Cookie', `refresh_token=${refresh_token}; HttpOnly; Secure; SameSite=Strict; Max-Age=${refreshExpires}; Path=/`)
     
-    // 成功ページを表示
-    return c.html(`
-      <!DOCTYPE html>
-      <html lang="ja">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>ログイン成功 - Vibebase</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-      </head>
-      <body class="bg-gray-100 min-h-screen flex items-center justify-center">
-        <div class="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
-          <div class="text-center">
-            <div class="text-green-500 text-6xl mb-4">✅</div>
-            <h1 class="text-2xl font-bold text-gray-900 mb-2">ログイン成功</h1>
-            <p class="text-gray-600 mb-2">ようこそ、<strong>${user.name || user.username}</strong>さん</p>
-            <p class="text-sm text-gray-500 mb-4">${user.email}</p>
-            <button onclick="redirectToDashboard()" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
-              ダッシュボードへ
-            </button>
-          </div>
-        </div>
-        <script>
-          function redirectToDashboard() {
-            const params = new URLSearchParams(window.location.search);
-            const redirectTo = params.get('redirect_to') || '/';
-            window.location.href = redirectTo;
-          }
-          
-          // 1秒後に自動リダイレクト（スムーズな体験のため短縮）
-          setTimeout(redirectToDashboard, 1000);
-        </script>
-      </body>
-      </html>
-    `)
+    // リダイレクト先を取得
+    const redirectTo = c.req.query('redirect_to') || '/'
+    
+    // 直接リダイレクトに変更（JavaScriptではなくHTTPリダイレクト）
+    return c.redirect(redirectTo)
     
   } catch (error) {
     console.error('Auth callback error:', error)

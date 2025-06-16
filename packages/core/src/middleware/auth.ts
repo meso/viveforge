@@ -11,14 +11,14 @@ export interface AuthError extends Error {
  * 認証が必要なルートで使用するミドルウェア
  */
 export async function requireAuth(c: Context<{ Bindings: Env; Variables: Variables }>, next: Next) {
-  const authClient = c.get('authClient') as VibebaseAuthClient
-  
-  if (!authClient) {
-    console.error('AuthClient not initialized')
-    return c.json({ error: 'Authentication service unavailable' }, 503)
-  }
-
   try {
+    const authClient = c.get('authClient') as VibebaseAuthClient
+    
+    if (!authClient) {
+      console.error('AuthClient not initialized')
+      return c.json({ error: 'Authentication service unavailable' }, 503)
+    }
+
     const user = await authClient.verifyRequest(c)
     
     if (!user) {
@@ -45,27 +45,8 @@ export async function requireAuth(c: Context<{ Bindings: Env; Variables: Variabl
   } catch (error) {
     console.error('Auth middleware error:', error)
     
-    const authError = error as AuthError
-    if (authError.code === 'TOKEN_EXPIRED') {
-      // トークン期限切れ - リフレッシュを試行
-      const refreshed = await tryRefreshToken(c, authClient)
-      if (refreshed) {
-        return await requireAuth(c, next)
-      }
-    }
-    
-    // 認証エラー - ログインページにリダイレクト
-    const currentUrl = c.req.url
-    const loginUrl = authClient.getLoginUrl(currentUrl)
-    
-    if (c.req.path.startsWith('/api/')) {
-      return c.json({ 
-        error: 'Authentication failed',
-        login_url: loginUrl
-      }, 401)
-    }
-    
-    return c.redirect(loginUrl)
+    // エラーハンドリング - 認証サービスの問題の場合はサービス不可
+    return c.json({ error: 'Authentication service error' }, 503)
   }
 }
 

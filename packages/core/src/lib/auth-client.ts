@@ -35,63 +35,98 @@ export class VibebaseAuthClient {
   constructor(private env: Env) {
     this.authBaseUrl = env.VIBEBASE_AUTH_URL || 'https://auth.vibebase.workers.dev'
     this.deploymentDomain = env.DEPLOYMENT_DOMAIN || 'unknown'
-    this.deploymentId = env.DEPLOYMENT_ID || null
+    // deployment_idは不要になったため削除
+    this.deploymentId = null
   }
 
   /**
-   * 起動時の初期化 - デプロイメント登録または検証
+   * 起動時の初期化
    */
   async initialize(): Promise<void> {
-    try {
-      if (!this.deploymentId) {
-        // 初回起動時は自動登録
-        await this.registerDeployment()
-      } else {
-        // 既存デプロイメントの検証
-        await this.validateDeployment()
-      }
-    } catch (error) {
-      console.error('Auth initialization failed:', error)
-      // 失敗した場合は再登録を試行
-      if (this.deploymentId) {
-        await this.registerDeployment()
-      }
-    }
+    // deployment管理はvibebase-auth側で行うため、特に初期化処理は不要
   }
 
   /**
    * デプロイメント登録
    */
   private async registerDeployment(): Promise<void> {
-    const response = await fetch(`${this.authBaseUrl}/api/deployments/register`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Deployment-Domain': this.deploymentDomain,
-        'X-API-Version': '1.0'
-      },
-      body: JSON.stringify({
-        domain: this.deploymentDomain,
-        version: '0.2.0',
-        features: ['database', 'storage', 'auth'],
-        metadata: {
-          worker_name: this.env.WORKER_NAME || 'vibebase',
-          created_at: new Date().toISOString()
+    console.log(`Registering deployment with auth server: ${this.authBaseUrl}`)
+    console.log(`Deployment domain: ${this.deploymentDomain}`)
+    
+    try {
+      const response = await fetch(`${this.authBaseUrl}/api/deployments/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Deployment-Domain': this.deploymentDomain,
+          'X-API-Version': '1.0'
+        },
+        body: JSON.stringify({
+          domain: this.deploymentDomain,
+          version: '0.2.0',
+          features: ['database', 'storage', 'auth'],
+          metadata: {
+            worker_name: this.env.WORKER_NAME || 'vibebase',
+            created_at: new Date().toISOString()
+          }
+        })
+      })
+
+      console.log(`Registration response status: ${response.status}`)
+
+      if (!response.ok) {
+        const errorResponse = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error(`Registration failed with response:`, errorResponse)
+        
+        // ドメインが既に登録済みの場合は、既存のデプロイメント情報を取得
+        if (response.status === 409 || (errorResponse.error && errorResponse.error.includes('already registered'))) {
+          console.log('Domain already registered, attempting to get existing deployment...')
+          return await this.getExistingDeployment()
+        }
+        
+        throw new Error(`Deployment registration failed: ${response.status} - ${errorResponse.error}`)
+      }
+
+      const result = await response.json() as DeploymentInfo
+      this.deploymentId = result.deployment_id
+
+      // 公開鍵をキャッシュ
+      await this.cachePublicKey(result.public_key)
+
+      console.log(`Deployment registered successfully: ${this.deploymentId}`)
+    } catch (error) {
+      console.error('Deployment registration error:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 既存のデプロイメント情報を取得
+   */
+  private async getExistingDeployment(): Promise<void> {
+    try {
+      const response = await fetch(`${this.authBaseUrl}/api/deployments/by-domain/${encodeURIComponent(this.deploymentDomain)}`, {
+        method: 'GET',
+        headers: {
+          'X-API-Version': '1.0'
         }
       })
-    })
 
-    if (!response.ok) {
-      throw new Error(`Deployment registration failed: ${response.status}`)
+      if (!response.ok) {
+        throw new Error(`Failed to get existing deployment: ${response.status}`)
+      }
+
+      const result = await response.json() as DeploymentInfo
+      this.deploymentId = result.deployment_id
+
+      // 公開鍵をキャッシュ
+      await this.cachePublicKey(result.public_key)
+
+      console.log(`Retrieved existing deployment: ${this.deploymentId}`)
+    } catch (error) {
+      console.error('Failed to get existing deployment:', error)
+      throw error
     }
-
-    const result = await response.json() as DeploymentInfo
-    this.deploymentId = result.deployment_id
-
-    // 公開鍵をキャッシュ
-    await this.cachePublicKey(result.public_key)
-
-    console.log(`Deployment registered: ${this.deploymentId}`)
   }
 
   /**
@@ -119,13 +154,8 @@ export class VibebaseAuthClient {
    * ログインURLを生成
    */
   getLoginUrl(redirectTo: string = '/'): string {
-    if (!this.deploymentId) {
-      throw new Error('Deployment not initialized')
-    }
-
     const params = new URLSearchParams({
       origin: `https://${this.deploymentDomain}`,
-      deployment_id: this.deploymentId,
       redirect_to: redirectTo
     })
 
@@ -167,14 +197,39 @@ export class VibebaseAuthClient {
       // Authorization ヘッダーからトークン取得
       const authHeader = c.req.header('Authorization')
       if (authHeader?.startsWith('Bearer ')) {
+        console.log('Found Authorization header')
         const token = authHeader.substring(7)
         return await this.verifyToken(token)
       }
 
       // Cookieからトークン取得
-      const cookieToken = c.req.raw.headers.get('Cookie')?.match(/access_token=([^;]+)/)?.[1]
+      const cookieHeader = c.req.raw.headers.get('Cookie')
+      const cookieToken = cookieHeader?.match(/access_token=([^;]+)/)?.[1]
+      const refreshToken = cookieHeader?.match(/refresh_token=([^;]+)/)?.[1]
+      
       if (cookieToken) {
         return await this.verifyToken(cookieToken)
+      }
+      
+      // access_tokenがないがrefresh_tokenがある場合、リフレッシュを試行
+      if (refreshToken) {
+        try {
+          const tokens = await this.refreshToken(refreshToken)
+          
+          // 新しいCookieを設定（本番環境用セキュア設定）
+          const expires = tokens.expires_in
+          const refreshExpires = 30 * 24 * 60 * 60 // 30日
+          
+          c.res.headers.append('Set-Cookie', `access_token=${tokens.access_token}; HttpOnly; Secure; SameSite=Strict; Max-Age=${expires}; Path=/`)
+          c.res.headers.append('Set-Cookie', `refresh_token=${tokens.refresh_token}; HttpOnly; Secure; SameSite=Strict; Max-Age=${refreshExpires}; Path=/`)
+          
+          return await this.verifyToken(tokens.access_token)
+        } catch (error) {
+          // リフレッシュ失敗時はクッキーをクリア
+          c.res.headers.append('Set-Cookie', `access_token=; HttpOnly; Secure; Max-Age=0; Path=/`)
+          c.res.headers.append('Set-Cookie', `refresh_token=; HttpOnly; Secure; Max-Age=0; Path=/`)
+          return null
+        }
       }
 
       return null
@@ -199,7 +254,8 @@ export class VibebaseAuthClient {
     })
 
     if (!response.ok) {
-      throw new Error(`Token refresh failed: ${response.status}`)
+      const errorText = await response.text().catch(() => 'Unknown error')
+      throw new Error(`Token refresh failed: ${response.status} - ${errorText}`)
     }
 
     return await response.json()
@@ -292,19 +348,19 @@ export class VibebaseAuthClient {
   private validateTokenPayload(payload: any): void {
     const now = Math.floor(Date.now() / 1000)
 
-    // 有効期限チェック
-    if (payload.exp < now) {
-      throw new Error('Token expired')
+    // 重要: audフィールドが自分のドメインと一致するかチェック
+    if (payload.aud !== this.deploymentDomain) {
+      throw new Error(`Invalid audience: expected ${this.deploymentDomain}, got ${payload.aud}`)
     }
 
-    // 発行者チェック
+    // 発行者チェック - 信頼できるvibebase-authからのトークンか
     if (payload.iss !== this.authBaseUrl) {
       throw new Error('Invalid issuer')
     }
 
-    // 対象者チェック
-    if (payload.aud !== this.deploymentId) {
-      throw new Error('Invalid audience')
+    // 有効期限チェック
+    if (payload.exp < now) {
+      throw new Error('Token expired')
     }
 
     // トークンタイプチェック
@@ -316,6 +372,7 @@ export class VibebaseAuthClient {
     if (payload.nbf && payload.nbf > now) {
       throw new Error('Token not yet valid')
     }
+
   }
 
   /**
