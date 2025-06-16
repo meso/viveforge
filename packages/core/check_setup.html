@@ -1,0 +1,44 @@
+<\!DOCTYPE html>
+<html>
+<head>
+    <title>Check Vibebase Setup</title>
+</head>
+<body>
+    <h1>Checking Vibebase Setup...</h1>
+    <div id="results"></div>
+    <script>
+        async function checkSetup() {
+            const results = document.getElementById('results');
+            
+            // Check if setup wizard should show
+            try {
+                const response = await fetch('https://vibebase.mesongo.workers.dev/api/setup/status');
+                const data = await response.json();
+                results.innerHTML += '<p>Setup Status: ' + JSON.stringify(data) + '</p>';
+            } catch (error) {
+                results.innerHTML += '<p>Error checking setup status: ' + error.message + '</p>';
+            }
+            
+            // Try to check admin status
+            try {
+                const response = await fetch('https://vibebase.mesongo.workers.dev/api/admin/check');
+                const data = await response.json();
+                results.innerHTML += '<p>Admin Check: ' + JSON.stringify(data) + '</p>';
+            } catch (error) {
+                results.innerHTML += '<p>Error checking admin: ' + error.message + '</p>';
+            }
+            
+            // Check database endpoint
+            try {
+                const response = await fetch('https://vibebase.mesongo.workers.dev/api/db/tables');
+                const data = await response.json();
+                results.innerHTML += '<p>Database Tables: ' + JSON.stringify(data) + '</p>';
+            } catch (error) {
+                results.innerHTML += '<p>Error checking database: ' + error.message + '</p>';
+            }
+        }
+        
+        checkSetup();
+    </script>
+</body>
+</html>
