@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { VibebaseAuthClient, type User } from '../lib/auth-client'
 import { getCurrentUser } from '../middleware/auth'
+import { getAuthErrorHTML, getAccessDeniedHTML, getLogoutHTML } from '../templates/html'
 import type { Env, Variables } from '../types'
 
 const auth = new Hono<{ Bindings: Env; Variables: Variables }>()
@@ -33,29 +34,7 @@ auth.get('/callback', async (c) => {
   const { token, refresh_token } = c.req.query()
   
   if (!token || !refresh_token) {
-    return c.html(`
-      <!DOCTYPE html>
-      <html lang="ja">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>認証エラー - Vibebase</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-      </head>
-      <body class="bg-gray-100 min-h-screen flex items-center justify-center">
-        <div class="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
-          <div class="text-center">
-            <div class="text-red-500 text-6xl mb-4">⚠️</div>
-            <h1 class="text-2xl font-bold text-gray-900 mb-2">認証エラー</h1>
-            <p class="text-gray-600 mb-4">認証に失敗しました。トークンが見つかりません。</p>
-            <a href="/auth/login" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-              再度ログイン
-            </a>
-          </div>
-        </div>
-      </body>
-      </html>
-    `)
+    return c.html(getAuthErrorHTML("認証エラー", "認証に失敗しました。トークンが見つかりません。"))
   }
   
   try {
@@ -67,8 +46,32 @@ auth.get('/callback', async (c) => {
     // JWTトークンを検証
     const user = await authClient.verifyToken(token)
     
+    // adminsテーブルでGitHubユーザー名をチェック
+    const db = c.env.DB
+    const existingAdmin = await db.prepare(
+      'SELECT id, is_root FROM admins WHERE github_username = ?'
+    ).bind(user.username).first()
+    
+    // 管理者チェック
+    if (!existingAdmin) {
+      // adminsテーブルが空かチェック（初回ログイン判定）
+      const adminCount = await db.prepare('SELECT COUNT(*) as count FROM admins').first()
+      
+      if (adminCount.count === 0) {
+        // 初回ログイン者をroot adminとして登録
+        await db.prepare(
+          'INSERT INTO admins (github_username, is_root) VALUES (?, ?)'
+        ).bind(user.username, true).run()
+        
+        console.log(`First admin registered: GitHub username ${user.username}`)
+      } else {
+        // 管理者として登録されていない
+        return c.html(getAccessDeniedHTML(user.username))
+      }
+    }
+    
     // Cookieでセッション管理
-    const expires = 15 * 60 // 15分
+    const expires = 24 * 60 * 60 // 24時間
     const refreshExpires = 30 * 24 * 60 * 60 // 30日
     
     // 複数のSet-Cookieヘッダーを正しく設定するため、個別に追加
@@ -84,30 +87,7 @@ auth.get('/callback', async (c) => {
   } catch (error) {
     console.error('Auth callback error:', error)
     const err = error as Error
-    return c.html(`
-      <!DOCTYPE html>
-      <html lang="ja">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>認証エラー - Vibebase</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-      </head>
-      <body class="bg-gray-100 min-h-screen flex items-center justify-center">
-        <div class="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
-          <div class="text-center">
-            <div class="text-red-500 text-6xl mb-4">❌</div>
-            <h1 class="text-2xl font-bold text-gray-900 mb-2">認証エラー</h1>
-            <p class="text-gray-600 mb-2">認証処理中にエラーが発生しました</p>
-            <p class="text-sm text-gray-500 mb-4">${err.message}</p>
-            <a href="/auth/login" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-              再度ログイン
-            </a>
-          </div>
-        </div>
-      </body>
-      </html>
-    `)
+    return c.html(getAuthErrorHTML("認証エラー", "認証処理中にエラーが発生しました", err.message))
   }
 })
 
@@ -151,35 +131,7 @@ auth.get('/logout', async (c) => {
     c.header('Set-Cookie', 'access_token=; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Path=/')
     c.header('Set-Cookie', 'refresh_token=; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Path=/')
     
-    return c.html(`
-      <!DOCTYPE html>
-      <html lang="ja">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>ログアウト - Vibebase</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-      </head>
-      <body class="bg-gray-100 min-h-screen flex items-center justify-center">
-        <div class="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
-          <div class="text-center">
-            <div class="text-blue-500 text-6xl mb-4">👋</div>
-            <h1 class="text-2xl font-bold text-gray-900 mb-2">ログアウト完了</h1>
-            <p class="text-gray-600 mb-4">ログアウトしました。ご利用ありがとうございました。</p>
-            <a href="/" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
-              ホームに戻る
-            </a>
-          </div>
-        </div>
-        <script>
-          // 3秒後にホームにリダイレクト
-          setTimeout(() => {
-            window.location.href = '/';
-          }, 3000);
-        </script>
-      </body>
-      </html>
-    `)
+    return c.html(getLogoutHTML())
   } catch (error) {
     console.error('Logout error:', error)
     return c.redirect('/')

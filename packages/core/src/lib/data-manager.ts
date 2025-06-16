@@ -22,7 +22,7 @@ export class DataManager {
     const pragmaResult = await this.db.prepare('PRAGMA foreign_keys').first()
     console.log('Foreign keys status:', pragmaResult)
     
-    // Check if table is system table
+    // Check if table is protected system table (admins table is allowed)
     if (SYSTEM_TABLES.includes(tableName as any)) {
       throw new Error(`Cannot modify system table: ${tableName}`)
     }
@@ -43,7 +43,7 @@ export class DataManager {
   async deleteRecord(tableName: string, id: string): Promise<void> {
     await this.enableForeignKeys()
     
-    // Check if table is system table
+    // Check if table is protected system table (admins table is allowed)
     if (SYSTEM_TABLES.includes(tableName as any)) {
       throw new Error(`Cannot modify system table: ${tableName}`)
     }
@@ -124,7 +124,7 @@ export class DataManager {
   async createRecordWithId(tableName: string, data: Record<string, any>): Promise<string> {
     await this.enableForeignKeys()
     
-    // Check if table is system table
+    // Check if table is protected system table (admins table is allowed)
     if (SYSTEM_TABLES.includes(tableName as any)) {
       throw new Error(`Cannot modify system table: ${tableName}`)
     }
@@ -148,7 +148,7 @@ export class DataManager {
   async updateRecord(tableName: string, id: string, data: Record<string, any>): Promise<void> {
     await this.enableForeignKeys()
     
-    // Check if table is system table
+    // Check if table is protected system table (admins table is allowed)
     if (SYSTEM_TABLES.includes(tableName as any)) {
       throw new Error(`Cannot modify system table: ${tableName}`)
     }
