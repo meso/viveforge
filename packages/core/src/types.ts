@@ -1,5 +1,6 @@
 import { TableManager } from './lib/table-manager'
 import { Database } from './lib/database'
+import type { VibebaseAuthClient, User } from './lib/auth-client'
 
 export interface Env {
   DB?: D1Database
@@ -8,8 +9,14 @@ export interface Env {
   SESSIONS?: KVNamespace
   ENVIRONMENT: 'development' | 'production'
   
-  // Cloudflare Access settings
-  CLOUDFLARE_TEAM_DOMAIN?: string  // e.g., "vibebase" for vibebase.cloudflareaccess.com
+  // Vibebase Auth settings
+  VIBEBASE_AUTH_URL?: string
+  DEPLOYMENT_ID?: string
+  DEPLOYMENT_DOMAIN?: string
+  WORKER_NAME?: string
+  
+  // Legacy Cloudflare Access settings (deprecated)
+  CLOUDFLARE_TEAM_DOMAIN?: string
   
   // OAuth providers secrets (legacy)
   GOOGLE_CLIENT_ID?: string
@@ -22,15 +29,10 @@ export interface Env {
 export interface Variables {
   tableManager?: TableManager
   db?: Database
+  authClient?: VibebaseAuthClient
+  user?: User
   userId?: string
   adminId?: string
-  user?: {
-    id: string
-    email: string
-    provider: string
-    providerId: string
-    isFirstAdmin?: boolean
-  }
   tableInfo?: any
 }
 

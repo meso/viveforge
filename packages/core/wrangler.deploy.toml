@@ -32,3 +32,4 @@ binding = "SESSIONS"
 [vars]
 ENVIRONMENT = "production"
 VIBEBASE_DEPLOY_MODE = "deploy-button"
+VIBEBASE_AUTH_URL = "https://auth.vibebase.workers.dev"
