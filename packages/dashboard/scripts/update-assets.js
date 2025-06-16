@@ -9,6 +9,7 @@ const __dirname = dirname(__filename)
 
 const dashboardDistPath = join(__dirname, '../dist/index.html')
 const coreIndexPath = join(__dirname, '../../core/src/index.ts')
+const coreAssetsPath = join(__dirname, '../../core/src/templates/assets.ts')
 
 try {
   // Read the built index.html to extract asset file names
@@ -47,7 +48,17 @@ try {
   // Write the updated content back
   writeFileSync(coreIndexPath, coreIndexContent)
   
+  // Also create/update the assets file for templates
+  const assetsContent = `// Auto-generated asset file names
+export const CURRENT_ASSETS = {
+  js: '${jsFile}',
+  css: '${cssFile}'
+}
+`
+  writeFileSync(coreAssetsPath, assetsContent)
+  
   console.log('✅ Updated core/src/index.ts with new asset file names')
+  console.log('✅ Updated core/src/templates/assets.ts with asset references')
   
 } catch (error) {
   console.error('❌ Failed to update asset file names:', error.message)

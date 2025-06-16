@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && npm run copy-assets",
-    "copy-assets": "cp -r dist/* ../core/assets/ && node scripts/update-assets.js",
+    "copy-assets": "cp dist/favicon.svg dist/index.html ../core/assets/ && cp dist/assets/* ../core/assets/ && node scripts/update-assets.js",
     "deploy": "npm run build && cd ../core && npm run deploy",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
