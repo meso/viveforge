@@ -1,6 +1,6 @@
 // Use Web Crypto API instead of Node.js crypto for Cloudflare Workers
 import type { D1Database, R2Bucket, SnapshotListResult, OperationResult, SchemaSnapshot } from '../types/cloudflare'
-
+import type { TableInfo, SnapshotRecord, SchemaSnapshotCounterRecord, CountResult, IndexInfo as DBIndexInfo } from '../types/database'
 import type { IndexInfo } from './index-manager'
 
 export interface TableSchema {
@@ -32,22 +32,24 @@ export class SchemaSnapshotManager {
     const schemas: TableSchema[] = []
     
     for (const table of result.results) {
+      const tableInfo = table as TableInfo
       const columnsResult = await this.db
-        .prepare(`PRAGMA table_info("${table.name}")`)
+        .prepare(`PRAGMA table_info("${tableInfo.name}")`)
         .all()
       
       const foreignKeysResult = await this.db
-        .prepare(`PRAGMA foreign_key_list("${table.name}")`)
+        .prepare(`PRAGMA foreign_key_list("${tableInfo.name}")`)
         .all()
 
       // Get indexes for this table
       const indexesResult = await this.db
-        .prepare(`PRAGMA index_list("${table.name}")`)
+        .prepare(`PRAGMA index_list("${tableInfo.name}")`)
         .all()
 
       const indexes: IndexInfo[] = []
       for (const indexRow of indexesResult.results) {
-        const indexName = indexRow.name
+        const indexInfo = indexRow as DBIndexInfo
+        const indexName = indexInfo.name
         
         // Skip auto-generated indexes
         if (indexName.startsWith('sqlite_autoindex_')) {
@@ -71,16 +73,16 @@ export class SchemaSnapshotManager {
 
         indexes.push({
           name: indexName,
-          tableName: table.name as string,
+          tableName: tableInfo.name,
           columns: columns,
-          unique: indexRow.unique === 1,
-          sql: sqlResult?.sql || ''
+          unique: indexInfo.unique === 1,
+          sql: (sqlResult as DBIndexInfo)?.sql || ''
         })
       }
       
       schemas.push({
-        name: table.name as string,
-        sql: table.sql as string,
+        name: tableInfo.name,
+        sql: tableInfo.sql,
         columns: columnsResult.results,
         foreignKeys: foreignKeysResult.results,
         indexes: indexes
@@ -148,7 +150,7 @@ export class SchemaSnapshotManager {
       return true // No snapshots yet
     }
     
-    return currentHash !== latestSnapshot.schema_hash
+    return currentHash !== (latestSnapshot as SnapshotRecord).schema_hash
   }
 
   // Get next version number
@@ -166,7 +168,7 @@ export class SchemaSnapshotManager {
       return 1
     }
     
-    const nextVersion = (counter.current_version as number) + 1
+    const nextVersion = (counter as SchemaSnapshotCounterRecord).current_version + 1
     
     // Update counter
     await this.db
@@ -267,7 +269,7 @@ export class SchemaSnapshotManager {
     
     return {
       snapshots,
-      total: countResult?.total as number || 0
+      total: (countResult as CountResult)?.total || 0
     }
   }
 
@@ -287,17 +289,17 @@ export class SchemaSnapshotManager {
     if (!result) return null
     
     return {
-      id: result.id,
-      version: result.version,
-      name: result.name,
-      description: result.description,
-      fullSchema: result.full_schema,
-      tablesJson: result.tables_json,
-      schemaHash: result.schema_hash,
-      createdAt: result.created_at,
-      createdBy: result.created_by,
-      snapshotType: result.snapshot_type,
-      d1BookmarkId: result.d1_bookmark_id
+      id: (result as any).id,
+      version: (result as any).version,
+      name: (result as any).name,
+      description: (result as any).description,
+      fullSchema: (result as any).full_schema,
+      tablesJson: (result as any).tables_json,
+      schemaHash: (result as any).schema_hash,
+      createdAt: (result as any).created_at,
+      createdBy: (result as any).created_by,
+      snapshotType: (result as any).snapshot_type,
+      d1BookmarkId: (result as any).d1_bookmark_id
     }
   }
 

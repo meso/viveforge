@@ -13,7 +13,7 @@ describe('Search Functionality', () => {
     mockDb = createMockD1Database()
     mockStorage = createMockR2Bucket()
     mockCtx = createMockExecutionContext()
-    tableManager = new TableManager(mockDb, mockStorage, mockCtx)
+    tableManager = new TableManager(mockDb as any, mockStorage as any, mockCtx as any)
 
     // Create a test table with some indexed columns
     await tableManager.createTable('searchtable', [
@@ -49,12 +49,13 @@ describe('Search Functionality', () => {
   })
 
   afterEach(async () => {
-    // Clean up
-    try {
-      await tableManager.deleteTable('searchtable')
-    } catch (error) {
-      // Table might not exist, ignore
-    }
+    // Clean up - Note: deleteTable method doesn't exist, 
+    // but in tests we can rely on the mock DB being reset
+    // try {
+    //   await tableManager.deleteTable('searchtable')
+    // } catch (error) {
+    //   // Table might not exist, ignore
+    // }
   })
 
   describe('getSearchableColumns', () => {

@@ -1,6 +1,7 @@
 import { SYSTEM_TABLES } from './table-manager'
 import type { SchemaSnapshotManager } from './schema-snapshot'
 import type { D1Database } from '../types/cloudflare'
+import type { CountResult, TableInfo } from '../types/database'
 
 export interface ColumnInfo {
   cid: number
@@ -212,7 +213,7 @@ export class SchemaManager {
         .prepare(`SELECT COUNT(*) as count FROM "${tableName}" WHERE "${columnName}" IS NULL`)
         .first()
       
-      const nullCount = nullCheckResult?.count as number || 0
+      const nullCount = (nullCheckResult as CountResult)?.count || 0
       if (nullCount > 0) {
         errors.push(`Cannot add NOT NULL constraint: ${nullCount} rows have NULL values in column '${columnName}'`)
         conflictingRows += nullCount
@@ -233,7 +234,7 @@ export class SchemaManager {
         `)
         .first()
       
-      const fkViolationCount = fkCheckResult?.count as number || 0
+      const fkViolationCount = (fkCheckResult as CountResult)?.count || 0
       if (fkViolationCount > 0) {
         errors.push(`Cannot add foreign key constraint: ${fkViolationCount} rows reference non-existent values in '${changes.foreignKey.table}.${changes.foreignKey.column}'`)
         conflictingRows += fkViolationCount
@@ -247,7 +248,7 @@ export class SchemaManager {
         .all()
       
       const column = currentColumn.results.find((col: any) => col.name === columnName)
-      if (column && column.type !== changes.type) {
+      if (column && (column as any).type !== changes.type) {
         // Check if data can be safely converted
         if (changes.type === 'INTEGER') {
           const invalidIntegerResult = await this.db
@@ -261,7 +262,7 @@ export class SchemaManager {
             `)
             .first()
           
-          const invalidCount = invalidIntegerResult?.count as number || 0
+          const invalidCount = (invalidIntegerResult as CountResult)?.count || 0
           if (invalidCount > 0) {
             errors.push(`Cannot convert to INTEGER: ${invalidCount} rows contain non-numeric values in column '${columnName}'`)
             conflictingRows += invalidCount
@@ -280,7 +281,7 @@ export class SchemaManager {
             `)
             .first()
           
-          const invalidCount = invalidRealResult?.count as number || 0
+          const invalidCount = (invalidRealResult as CountResult)?.count || 0
           if (invalidCount > 0) {
             errors.push(`Cannot convert to REAL: ${invalidCount} rows contain non-numeric values in column '${columnName}'`)
             conflictingRows += invalidCount
@@ -339,14 +340,14 @@ export class SchemaManager {
     // Create temp table with modifications
     const tempTableName = `${tableName}_temp_${Date.now()}`
     const modifiedSQL = this.modifyCreateStatementForColumn(
-      tableInfo.sql as string,
+      (tableInfo as TableInfo).sql,
       columnName,
       changes,
       tempTableName,
       columns
     )
     
-    console.log('Original SQL:', tableInfo.sql)
+    console.log('Original SQL:', (tableInfo as TableInfo).sql)
     console.log('Modified SQL:', modifiedSQL)
     console.log('Temp table name:', tempTableName)
     
@@ -385,7 +386,7 @@ export class SchemaManager {
 
     // Create temp table with new foreign key
     const tempTableName = `${tableName}_temp_${Date.now()}`
-    const originalSQL = tableInfo.sql as string
+    const originalSQL = (tableInfo as TableInfo).sql
     
     // Parse and modify the CREATE TABLE statement to add foreign key
     const modifiedSQL = this.addForeignKeyToCreateStatement(originalSQL, columnName, foreignKey, tempTableName)

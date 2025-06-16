@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { getCookie, setCookie } from 'hono/cookie'
 import type { Env, Variables, Session } from '../types'
+import { requireAuth } from '../middleware/auth'
 
 export const auth = new Hono<{ Bindings: Env; Variables: Variables }>()
 
@@ -36,8 +37,8 @@ async function getSession(sessionId: string, kv: KVNamespace | undefined): Promi
   return session
 }
 
-// Auth middleware
-export async function requireAuth(c: any, next: () => Promise<void>) {
+// Legacy session-based auth (kept for compatibility)
+async function requireSessionAuth(c: any, next: () => Promise<void>) {
   const sessionId = getCookie(c, 'session')
   if (!sessionId) {
     return c.json({ error: 'Unauthorized' }, 401)
@@ -56,12 +57,15 @@ export async function requireAuth(c: any, next: () => Promise<void>) {
 auth.get('/me', requireAuth, async (c) => {
   const adminId = c.get('adminId')
   
-  // TODO: Fetch admin from D1 database
-  return c.json({
-    id: adminId,
-    email: 'admin@example.com',
-    name: 'Example Admin',
-  })
+  const admin = await c.env.DB?.prepare(
+    'SELECT id, email, provider, provider_id, created_at, updated_at FROM admins WHERE id = ?'
+  ).bind(adminId).first()
+  
+  if (!admin) {
+    return c.json({ error: 'Admin not found' }, 404)
+  }
+  
+  return c.json({ admin })
 })
 
 auth.post('/logout', requireAuth, async (c) => {

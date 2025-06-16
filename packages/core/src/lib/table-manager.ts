@@ -5,6 +5,7 @@ import { IndexManager } from './index-manager'
 import { ErrorHandler } from './error-handler'
 import type { ColumnDefinition, ColumnInfo } from './schema-manager'
 import type { IndexInfo } from './index-manager'
+import type { TableInfo, CountResult, IndexColumnInfo } from '../types/database'
 import type { 
   D1Database, 
   R2Bucket, 
@@ -19,7 +20,7 @@ import type {
 export const SYSTEM_TABLES = ['admins', 'sessions', 'schema_snapshots', 'schema_snapshot_counter', 'd1_migrations'] as const
 type SystemTable = typeof SYSTEM_TABLES[number]
 
-export interface TableInfo {
+export interface LocalTableInfo {
   name: string
   type: 'system' | 'user'
   sql: string // CREATE TABLE statement
@@ -72,16 +73,17 @@ export class TableManager {
   }
 
   // Get all tables with their types
-  async getTables(): Promise<TableInfo[]> {
+  async getTables(): Promise<LocalTableInfo[]> {
     await this.enableForeignKeys()
     const result = await this.db
       .prepare("SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name != '_cf_KV'")
       .all()
 
-    const tables: TableInfo[] = []
+    const tables: LocalTableInfo[] = []
     
     for (const row of result.results) {
-      const name = row.name as string
+      const tableRow = row as TableInfo
+      const name = tableRow.name
       const isSystem = SYSTEM_TABLES.includes(name as SystemTable)
       
       // Get row count for each table
@@ -90,7 +92,7 @@ export class TableManager {
         const countResult = await this.db
           .prepare(`SELECT COUNT(*) as count FROM "${name}"`)
           .first()
-        rowCount = countResult?.count as number || 0
+        rowCount = (countResult as CountResult)?.count || 0
       } catch (e) {
         this.errorHandler.handleStorageWarning(`getRowCountFor${name}`, e)
       }
@@ -98,7 +100,7 @@ export class TableManager {
       tables.push({
         name,
         type: isSystem ? 'system' : 'user',
-        sql: row.sql as string,
+        sql: tableRow.sql,
         rowCount
       })
     }
@@ -240,15 +242,16 @@ export class TableManager {
     const tableInfo = await this.db
       .prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name=?`)
       .bind(tableName)
-      .first()
+      .first() as TableInfo | null
     
     if (!tableInfo) {
       this.errorHandler.handleNotFound('Table', tableName)
+      return
     }
 
     // Create temp table with new foreign key
     const tempTableName = `${tableName}_temp_${Date.now()}`
-    const originalSQL = tableInfo.sql as string
+    const originalSQL = tableInfo.sql
     
     // Parse and modify the CREATE TABLE statement to add foreign key
     const modifiedSQL = this.addForeignKeyToCreateStatement(originalSQL, columnName, foreignKey, tempTableName)
@@ -352,7 +355,7 @@ export class TableManager {
         .prepare(`SELECT COUNT(*) as count FROM "${tableName}" WHERE "${columnName}" IS NULL`)
         .first()
       
-      const nullCount = nullCheckResult?.count as number || 0
+      const nullCount = (nullCheckResult as CountResult)?.count || 0
       if (nullCount > 0) {
         errors.push(`Cannot add NOT NULL constraint: ${nullCount} rows have NULL values in column '${columnName}'`)
         conflictingRows += nullCount
@@ -373,7 +376,7 @@ export class TableManager {
         `)
         .first()
       
-      const fkViolationCount = fkCheckResult?.count as number || 0
+      const fkViolationCount = (fkCheckResult as CountResult)?.count || 0
       if (fkViolationCount > 0) {
         errors.push(`Cannot add foreign key constraint: ${fkViolationCount} rows reference non-existent values in '${changes.foreignKey.table}.${changes.foreignKey.column}'`)
         conflictingRows += fkViolationCount
@@ -387,7 +390,7 @@ export class TableManager {
         .all()
       
       const column = currentColumn.results.find((col: any) => col.name === columnName)
-      if (column && column.type !== changes.type) {
+      if (column && (column as any).type !== changes.type) {
         // Check if data can be safely converted
         if (changes.type === 'INTEGER') {
           const invalidIntegerResult = await this.db
@@ -401,7 +404,7 @@ export class TableManager {
             `)
             .first()
           
-          const invalidCount = invalidIntegerResult?.count as number || 0
+          const invalidCount = (invalidIntegerResult as CountResult)?.count || 0
           if (invalidCount > 0) {
             errors.push(`Cannot convert to INTEGER: ${invalidCount} rows contain non-numeric values in column '${columnName}'`)
             conflictingRows += invalidCount
@@ -420,7 +423,7 @@ export class TableManager {
             `)
             .first()
           
-          const invalidCount = invalidRealResult?.count as number || 0
+          const invalidCount = (invalidRealResult as CountResult)?.count || 0
           if (invalidCount > 0) {
             errors.push(`Cannot convert to REAL: ${invalidCount} rows contain non-numeric values in column '${columnName}'`)
             conflictingRows += invalidCount
@@ -460,10 +463,11 @@ export class TableManager {
     const tableInfo = await this.db
       .prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name=?`)
       .bind(tableName)
-      .first()
+      .first() as TableInfo | null
     
     if (!tableInfo) {
       this.errorHandler.handleNotFound('Table', tableName)
+      return
     }
 
     // Get current column info
@@ -472,12 +476,13 @@ export class TableManager {
     
     if (!currentColumn) {
       this.errorHandler.handleNotFound('Column', `${columnName} in table ${tableName}`)
+      return
     }
 
     // Create temp table with modifications
     const tempTableName = `${tableName}_temp_${Date.now()}`
     const modifiedSQL = this.modifyCreateStatementForColumn(
-      tableInfo.sql as string,
+      tableInfo.sql,
       columnName,
       changes,
       tempTableName,
@@ -629,7 +634,9 @@ export class TableManager {
       .bind(...params)
       .all()
 
-    return result
+    return {
+      results: result.results as Record<string, unknown>[]
+    }
   }
   
   // Schema snapshot management
@@ -723,7 +730,8 @@ export class TableManager {
 
         // Check each index to find indexed columns
         for (const indexRow of indexesResult.results) {
-          const indexName = indexRow.name as string
+          const index = indexRow as IndexInfo
+          const indexName = index.name
           
           // Skip SQLite auto-created indexes for primary keys/unique constraints
           if (indexName.startsWith('sqlite_autoindex_')) continue
@@ -734,7 +742,8 @@ export class TableManager {
             .all()
 
           for (const indexColumnRow of indexColumnsResult.results) {
-            const columnName = indexColumnRow.name as string
+            const columnInfo = indexColumnRow as IndexColumnInfo
+            const columnName = columnInfo.name
             const column = columns.find(col => col.name === columnName)
             
             if (column && ['TEXT', 'INTEGER'].includes(column.type.toUpperCase())) {
@@ -820,7 +829,7 @@ export class TableManager {
           .bind(...params)
           .first()
 
-        const total = (countResult?.total as number) || 0
+        const total = (countResult as CountResult)?.total || 0
 
         // Build data query
         let dataQuery = `SELECT * FROM "${tableName}" WHERE ${whereClause}`
@@ -844,12 +853,12 @@ export class TableManager {
         const hasMore = limit !== undefined ? (offset + data.length) < total : false
 
         return {
-          data,
+          data: data as Record<string, unknown>[],
           total,
           hasMore
         }
       },
-      { operationName: 'searchRecords', tableName, column: options.column }
+      { operationName: 'searchRecords', tableName, columnName: options.column }
     )
   }
 }

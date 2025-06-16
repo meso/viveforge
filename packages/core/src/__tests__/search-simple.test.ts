@@ -13,7 +13,7 @@ describe('Search Functionality - Simple', () => {
     mockDb = createMockD1Database()
     mockStorage = createMockR2Bucket()
     mockCtx = createMockExecutionContext()
-    tableManager = new TableManager(mockDb, mockStorage, mockCtx)
+    tableManager = new TableManager(mockDb as any, mockStorage as any, mockCtx as any)
   })
 
   it('should have getSearchableColumns method', () => {

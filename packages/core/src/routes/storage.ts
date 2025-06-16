@@ -75,20 +75,21 @@ storage.post('/upload', async (c) => {
   try {
     const formData = await c.req.formData()
     const file = formData.get('file')
-    if (!(file instanceof File)) {
+    if (!file || typeof file === 'string') {
       return errorResponse(c, 400, ErrorCode.VALIDATION_FAILED, 'No file provided')
     }
     const path = formData.get('path') as string || ''
 
-    const key = path ? `${path}/${file.name}` : file.name
-    const buffer = await file.arrayBuffer()
+    const fileObj = file as File;
+    const key = path ? `${path}/${fileObj.name}` : fileObj.name
+    const buffer = await fileObj.arrayBuffer()
 
     const result = await bucket.put(key, buffer, {
       httpMetadata: {
-        contentType: file.type || 'application/octet-stream'
+        contentType: fileObj.type || 'application/octet-stream'
       },
       customMetadata: {
-        originalName: file.name,
+        originalName: fileObj.name,
         uploadedAt: new Date().toISOString()
       }
     })

@@ -12,7 +12,7 @@ tables.use('*', async (c, next) => {
     console.error('Database not available in environment')
     return c.json({ error: 'Database not configured' }, 500)
   }
-  c.set('tableManager', new TableManager(c.env.DB, c.env.SYSTEM_STORAGE, c.executionCtx))
+  c.set('tableManager', new TableManager(c.env.DB, c.env.SYSTEM_STORAGE as any, c.executionCtx))
   await next()
 })
 
@@ -379,7 +379,10 @@ tables.post('/query', zValidator('json', executeSQLSchema), async (c) => {
 // Get all indexes across all tables
 tables.get('/indexes', async (c) => {
   try {
-    const tableManager = c.get('tableManager')
+    const tableManager = c.get('tableManager')!
+    if (!tableManager) {
+      return c.json({ error: 'TableManager not available' }, 500)
+    }
     const indexes = await tableManager.getAllUserIndexes()
     return c.json({ indexes })
   } catch (error) {
@@ -394,7 +397,7 @@ tables.get('/indexes', async (c) => {
 tables.get('/:tableName/indexes', async (c) => {
   try {
     const tableName = c.req.param('tableName')
-    const tableManager = c.get('tableManager')
+    const tableManager = c.get('tableManager')!
     
     const indexes = await tableManager.getTableIndexes(tableName)
     return c.json({ indexes })
@@ -417,7 +420,7 @@ tables.post('/:tableName/indexes', zValidator('json', createIndexSchema), async 
   try {
     const tableName = c.req.param('tableName')
     const { name, columns, unique } = c.req.valid('json')
-    const tableManager = c.get('tableManager')
+    const tableManager = c.get('tableManager')!
     
     await tableManager.createIndex(name, tableName, columns, { unique })
     
@@ -442,7 +445,7 @@ tables.post('/:tableName/indexes', zValidator('json', createIndexSchema), async 
 tables.delete('/:tableName/indexes/:indexName', async (c) => {
   try {
     const indexName = c.req.param('indexName')
-    const tableManager = c.get('tableManager')
+    const tableManager = c.get('tableManager')!
     
     await tableManager.dropIndex(indexName)
     
@@ -473,7 +476,7 @@ tables.get('/:tableName/search', zValidator('query', searchQuerySchema), async (
   try {
     const tableName = c.req.param('tableName')
     const { column, operator, value, limit, offset } = c.req.valid('query')
-    const tableManager = c.get('tableManager')
+    const tableManager = c.get('tableManager')!
 
     // Check if table is a system table
     if (SYSTEM_TABLES.includes(tableName as any)) {

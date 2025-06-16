@@ -8,7 +8,10 @@ export interface Env {
   SESSIONS?: KVNamespace
   ENVIRONMENT: 'development' | 'production'
   
-  // OAuth providers secrets
+  // Cloudflare Access settings
+  CLOUDFLARE_TEAM_DOMAIN?: string  // e.g., "vibebase" for vibebase.cloudflareaccess.com
+  
+  // OAuth providers secrets (legacy)
   GOOGLE_CLIENT_ID?: string
   GOOGLE_CLIENT_SECRET?: string
   GITHUB_CLIENT_ID?: string
@@ -17,10 +20,17 @@ export interface Env {
 
 // Hono Context Variables
 export interface Variables {
-  tableManager: TableManager
-  db: Database
+  tableManager?: TableManager
+  db?: Database
   userId?: string
   adminId?: string
+  user?: {
+    id: string
+    email: string
+    provider: string
+    providerId: string
+    isFirstAdmin?: boolean
+  }
   tableInfo?: any
 }
 

@@ -12,7 +12,7 @@ snapshots.use('*', async (c, next) => {
     return c.json({ error: 'Database not configured' }, 500)
   }
 
-  const tableManager = new TableManager(env.DB, env.SYSTEM_STORAGE, c.executionCtx)
+  const tableManager = new TableManager(env.DB, env.SYSTEM_STORAGE as any, c.executionCtx)
   const db = new Database(env.DB)
   
   c.set('tableManager', tableManager)
@@ -27,7 +27,7 @@ snapshots.get('/', async (c) => {
     const limit = parseInt(c.req.query('limit') || '20')
     const offset = parseInt(c.req.query('offset') || '0')
     
-    const tableManager = c.get('tableManager')
+    const tableManager = c.get('tableManager')!
     const result = await tableManager.getSnapshots(limit, offset)
     
     return c.json(result)
@@ -41,7 +41,7 @@ snapshots.get('/', async (c) => {
 snapshots.get('/:id', async (c) => {
   try {
     const id = c.req.param('id')
-    const tableManager = c.get('tableManager')
+    const tableManager = c.get('tableManager')!
     const snapshot = await tableManager.getSnapshot(id)
     
     if (!snapshot) {
@@ -61,7 +61,7 @@ snapshots.post('/', async (c) => {
     const body = await c.req.json()
     const { name, description } = body
     
-    const tableManager = c.get('tableManager')
+    const tableManager = c.get('tableManager')!
     const adminId = c.get('adminId') // If available from auth
     
     const id = await tableManager.createSnapshot({
@@ -83,7 +83,7 @@ snapshots.post('/:id/restore', async (c) => {
   try {
     const id = c.req.param('id')
     
-    const tableManager = c.get('tableManager')
+    const tableManager = c.get('tableManager')!
     if (!tableManager) {
       throw new Error('TableManager not available')
     }
@@ -114,7 +114,7 @@ snapshots.post('/:id/restore', async (c) => {
 snapshots.delete('/:id', async (c) => {
   try {
     const id = c.req.param('id')
-    const tableManager = c.get('tableManager')
+    const tableManager = c.get('tableManager')!
     
     await tableManager.deleteSnapshot(id)
     
@@ -130,7 +130,7 @@ snapshots.get('/compare/:id1/:id2', async (c) => {
   try {
     const id1 = c.req.param('id1')
     const id2 = c.req.param('id2')
-    const tableManager = c.get('tableManager')
+    const tableManager = c.get('tableManager')!
     
     const snapshot1 = await tableManager.getSnapshot(id1)
     const snapshot2 = await tableManager.getSnapshot(id2)

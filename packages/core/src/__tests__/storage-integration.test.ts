@@ -78,7 +78,7 @@ describe('Storage API Integration Tests', () => {
       const res = await app.request('/api/storage')
       expect(res.status).toBe(500)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(data.error.message).toBe('Failed to list objects')
     })
 
@@ -96,7 +96,7 @@ describe('Storage API Integration Tests', () => {
       
       expect(res.status).toBe(500)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(data.error.message).toBe('Failed to upload file')
     })
 
@@ -106,7 +106,7 @@ describe('Storage API Integration Tests', () => {
       const res = await app.request('/api/storage/download/test.txt')
       expect(res.status).toBe(500)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(data.error.message).toBe('Failed to download file')
     })
 
@@ -116,7 +116,7 @@ describe('Storage API Integration Tests', () => {
       const res = await app.request('/api/storage/info/test.txt')
       expect(res.status).toBe(500)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(data.error.message).toBe('Failed to get file info')
     })
 
@@ -129,7 +129,7 @@ describe('Storage API Integration Tests', () => {
       
       expect(res.status).toBe(500)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(data.error.message).toBe('Failed to delete file')
     })
 
@@ -144,7 +144,7 @@ describe('Storage API Integration Tests', () => {
       
       expect(res.status).toBe(500)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(data.error.message).toBe('Failed to delete files')
     })
   })
@@ -180,7 +180,7 @@ describe('Storage API Integration Tests', () => {
       
       expect(res.status).toBe(200)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(data.key).toBe('README')
     })
 
@@ -196,7 +196,7 @@ describe('Storage API Integration Tests', () => {
       
       expect(res.status).toBe(200)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(data.size).toBe(0)
     })
 
@@ -213,7 +213,7 @@ describe('Storage API Integration Tests', () => {
       
       expect(res.status).toBe(200)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(data.key).toBe(unicodeFileName)
     })
 
@@ -231,7 +231,7 @@ describe('Storage API Integration Tests', () => {
       
       expect(res.status).toBe(200)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(data.key).toBe(`${deepPath}/deep.txt`)
     })
 
@@ -253,7 +253,7 @@ describe('Storage API Integration Tests', () => {
       })
       
       expect(res.status).toBe(400)
-      expect((await res.json()).error.message).toBe('Content-Type must be multipart/form-data')
+      expect((await res.json() as any).error.message).toBe('Content-Type must be multipart/form-data')
     })
   })
 
@@ -262,7 +262,7 @@ describe('Storage API Integration Tests', () => {
       const res = await app.request('/api/storage?limit=999999')
       expect(res.status).toBe(200)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(Array.isArray(data.objects)).toBe(true)
     })
 
@@ -270,7 +270,7 @@ describe('Storage API Integration Tests', () => {
       const res = await app.request('/api/storage?cursor=invalid-cursor-value')
       expect(res.status).toBe(200)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(Array.isArray(data.objects)).toBe(true)
     })
 
@@ -329,7 +329,7 @@ describe('Storage API Integration Tests', () => {
       
       expect(res.status).toBe(200)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(Array.isArray(data.objects)).toBe(true)
     })
   })

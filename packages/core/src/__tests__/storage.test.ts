@@ -162,7 +162,7 @@ describe('Storage API', () => {
       const res = await app.request('/api/storage')
       expect(res.status).toBe(200)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(data.objects).toEqual([])
       expect(data.truncated).toBe(false)
       expect(data.delimitedPrefixes).toEqual([])
@@ -179,7 +179,7 @@ describe('Storage API', () => {
       const res = await app.request('/api/storage')
       expect(res.status).toBe(200)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(data.objects).toHaveLength(1)
       expect(data.objects[0]).toMatchObject({
         key: 'test.txt',
@@ -197,7 +197,7 @@ describe('Storage API', () => {
       const res = await app.request('/api/storage?prefix=images/')
       expect(res.status).toBe(200)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(data.objects).toHaveLength(2)
       expect(data.objects.every((obj: any) => obj.key.startsWith('images/'))).toBe(true)
     })
@@ -211,7 +211,7 @@ describe('Storage API', () => {
       const res = await app.request('/api/storage?limit=2')
       expect(res.status).toBe(200)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(data.objects).toHaveLength(2)
       expect(data.truncated).toBe(true)
       expect(data.cursor).toBeDefined()
@@ -228,7 +228,7 @@ describe('Storage API', () => {
       const res = await tempApp.request('/api/storage')
       expect(res.status).toBe(500)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(data.error.message).toBe('R2 bucket not configured')
     })
   })
@@ -246,7 +246,7 @@ describe('Storage API', () => {
       
       expect(res.status).toBe(200)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(data).toMatchObject({
         key: 'test.txt',
         size: 12, // 'test content'.length
@@ -272,7 +272,7 @@ describe('Storage API', () => {
       
       expect(res.status).toBe(200)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(data.key).toBe('uploads/documents/test.txt')
     })
 
@@ -287,7 +287,7 @@ describe('Storage API', () => {
       expect(res.status).toBe(400)
       
       try {
-        const data = await res.json()
+        const data = await res.json() as any
         expect(data.error.message).toBe('No file provided')
       } catch {
         // Response might not be JSON in error cases
@@ -305,7 +305,7 @@ describe('Storage API', () => {
       
       expect(res.status).toBe(400)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(data.error.message).toBe('Content-Type must be multipart/form-data')
     })
 
@@ -360,7 +360,7 @@ describe('Storage API', () => {
       const res = await app.request('/api/storage/download/non-existent.txt')
       expect(res.status).toBe(404)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(data.error.message).toBe('File not found')
     })
 
@@ -391,7 +391,7 @@ describe('Storage API', () => {
       const res = await app.request('/api/storage/info/info-test.txt')
       expect(res.status).toBe(200)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(data).toMatchObject({
         key: 'info-test.txt',
         size: 12,
@@ -421,7 +421,7 @@ describe('Storage API', () => {
       
       expect(res.status).toBe(200)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(data).toMatchObject({
         success: true,
         message: 'File deleted successfully'
@@ -461,7 +461,7 @@ describe('Storage API', () => {
       
       expect(res.status).toBe(200)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(data).toMatchObject({
         success: true,
         message: '2 files deleted successfully',
@@ -488,7 +488,7 @@ describe('Storage API', () => {
       
       expect(res.status).toBe(400)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(data.error.message).toBe('Keys array is required')
     })
 

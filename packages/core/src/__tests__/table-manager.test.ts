@@ -13,7 +13,7 @@ describe('TableManager', () => {
     mockDb = createMockD1Database()
     mockStorage = createMockR2Bucket()
     mockCtx = createMockExecutionContext()
-    tableManager = new TableManager(mockDb, mockStorage, mockCtx)
+    tableManager = new TableManager(mockDb as any, mockStorage as any, mockCtx as any)
   })
 
   describe('Table Operations', () => {
@@ -660,7 +660,7 @@ describe('TableManager', () => {
         await tableManager.createTable('invalid-table-name', [{ name: 'test', type: 'TEXT' }])
       } catch (error) {
         expect(error).toBeInstanceOf(Error)
-        expect(error.message).toContain('table name')
+        expect((error as any).message).toContain('table name')
       }
     })
 
@@ -735,7 +735,7 @@ describe('TableManager', () => {
       const validStorage = createMockR2Bucket()
       const validCtx = createMockExecutionContext()
       
-      expect(() => new TableManager(validDb, validStorage, validCtx)).not.toThrow()
+      expect(() => new TableManager(validDb as any, validStorage as any, validCtx as any)).not.toThrow()
     })
 
     it('should handle constructor with minimal parameters', () => {

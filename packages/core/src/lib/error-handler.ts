@@ -51,7 +51,7 @@ export class ErrorHandler {
       }
 
       const vibebaseError = VibebaseError.fromError(error, ErrorCode.DATABASE_OPERATION_FAILED)
-      vibebaseError.context = {
+      ;(vibebaseError as any).context = {
         ...vibebaseError.context,
         ...context
       }
@@ -161,7 +161,7 @@ export class ErrorHandler {
    */
   public handleStorageWarning(operation: string, error: unknown): void {
     const warning = VibebaseError.fromError(error, ErrorCode.STORAGE_OPERATION_FAILED)
-    warning.context = { operation, originalError: error }
+    ;(warning as any).context = { operation, originalError: error }
     
     // Log warning but don't throw - allow graceful degradation
     this.logWarning(warning)

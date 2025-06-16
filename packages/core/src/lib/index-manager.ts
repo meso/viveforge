@@ -1,4 +1,5 @@
 import type { D1Database } from '../types/cloudflare'
+import type { IndexInfo as DBIndexInfo, IndexColumnInfo } from '../types/database'
 
 export interface IndexInfo {
   name: string
@@ -39,7 +40,8 @@ export class IndexManager {
       const indexes: IndexInfo[] = []
 
       for (const indexRow of indexListResult.results) {
-        const indexName = indexRow.name
+        const dbIndex = indexRow as DBIndexInfo
+        const indexName = dbIndex.name
         
         // Skip auto-generated indexes (those starting with sqlite_autoindex_)
         if (indexName.startsWith('sqlite_autoindex_')) {
@@ -65,8 +67,8 @@ export class IndexManager {
           name: indexName,
           tableName: tableName,
           columns: columns,
-          unique: indexRow.unique === 1,
-          sql: sqlResult?.sql || ''
+          unique: dbIndex.unique === 1,
+          sql: (sqlResult as DBIndexInfo)?.sql || ''
         })
       }
 
@@ -178,8 +180,9 @@ export class IndexManager {
       const indexes: IndexInfo[] = []
 
       for (const row of result.results) {
-        const indexName = row.name
-        const tableName = row.tbl_name
+        const dbIndex = row as DBIndexInfo
+        const indexName = dbIndex.name
+        const tableName = (dbIndex as any).tbl_name
 
         // Get detailed info about this index
         const indexInfoResult = await this.db
@@ -201,8 +204,8 @@ export class IndexManager {
           name: indexName,
           tableName: tableName,
           columns: columns,
-          unique: indexDetails?.unique === 1,
-          sql: row.sql || ''
+          unique: (indexDetails as DBIndexInfo)?.unique === 1,
+          sql: dbIndex.sql || ''
         })
       }
 

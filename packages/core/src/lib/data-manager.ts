@@ -1,5 +1,6 @@
 import { SYSTEM_TABLES } from './table-manager'
 import type { D1Database, TableDataResult } from '../types/cloudflare'
+import type { CountResult } from '../types/database'
 
 export class DataManager {
   constructor(private db: D1Database) {}
@@ -75,7 +76,7 @@ export class DataManager {
 
     return {
       data: dataResult.results,
-      total: countResult?.total as number || 0
+      total: (countResult as any)?.total as number || 0
     }
   }
 
@@ -105,7 +106,7 @@ export class DataManager {
 
     return {
       data: dataResult.results,
-      total: countResult?.total as number || 0
+      total: (countResult as any)?.total as number || 0
     }
   }
 

@@ -112,7 +112,7 @@ describe('Storage API - Basic Tests', () => {
       const res = await app.request('/api/storage')
       expect(res.status).toBe(200)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(data.objects).toEqual([])
       expect(data.truncated).toBe(false)
     })
@@ -129,7 +129,7 @@ describe('Storage API - Basic Tests', () => {
       
       expect(res.status).toBe(200)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(data.key).toBe('test.txt')
       expect(data.size).toBe(12)
     })
@@ -160,7 +160,7 @@ describe('Storage API - Basic Tests', () => {
       
       expect(res.status).toBe(200)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(data.success).toBe(true)
       
       // Verify file was deleted
@@ -179,7 +179,7 @@ describe('Storage API - Basic Tests', () => {
       const res = await app.request('/api/storage/info/info-test.txt')
       expect(res.status).toBe(200)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(data.key).toBe('info-test.txt')
       expect(data.size).toBe(12)
       expect(data.customMetadata.uploadedBy).toBe('test')
@@ -193,7 +193,7 @@ describe('Storage API - Basic Tests', () => {
       const res = await app.request('/api/storage')
       expect(res.status).toBe(200)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(data.objects).toHaveLength(2)
       expect(data.objects.map((obj: any) => obj.key)).toContain('file1.txt')
       expect(data.objects.map((obj: any) => obj.key)).toContain('file2.txt')
@@ -213,7 +213,7 @@ describe('Storage API - Basic Tests', () => {
       
       expect(res.status).toBe(200)
       
-      const data = await res.json()
+      const data = await res.json() as any
       expect(data.success).toBe(true)
       expect(data.deletedKeys).toEqual(['bulk1.txt', 'bulk2.txt'])
       

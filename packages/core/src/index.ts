@@ -3,11 +3,13 @@ import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { api } from './routes/api'
 import { auth } from './routes/auth'
+import { admins } from './routes/admins'
 import { tables } from './routes/tables'
 import { data } from './routes/data'
 import { docs } from './routes/docs'
 import { snapshots } from './routes/snapshots'
 import { storage } from './routes/storage'
+import { requireAuth } from './middleware/auth'
 import type { Env, Variables } from './types'
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>()
@@ -15,14 +17,22 @@ const app = new Hono<{ Bindings: Env; Variables: Variables }>()
 app.use('*', logger())
 app.use('/api/*', cors())
 
-// API routes
+// API routes (protected by authentication)
 app.route('/api', api)
 app.route('/api/tables', tables)
 app.route('/api/data', data)
 app.route('/api/docs', docs)
 app.route('/api/snapshots', snapshots)
 app.route('/api/storage', storage)
+app.route('/api/admins', admins)
 app.route('/auth', auth)
+
+// Apply authentication middleware to protected routes
+app.use('/api/tables/*', requireAuth)
+app.use('/api/data/*', requireAuth)
+app.use('/api/docs/*', requireAuth)
+app.use('/api/snapshots/*', requireAuth)
+app.use('/api/storage/*', requireAuth)
 
 // Catch-all route for SPA fallback - serve index.html for non-API routes
 app.get('*', async (c) => {

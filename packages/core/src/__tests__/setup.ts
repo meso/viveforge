@@ -3,27 +3,42 @@ import { beforeAll, beforeEach, afterEach, afterAll } from 'vitest'
 import type { D1Database, D1PreparedStatement, R2Bucket, ExecutionContext } from '../types/cloudflare'
 
 // Mock interfaces that extend the real Cloudflare types
-export interface MockD1Database extends D1Database {
+export interface MockD1Database {
   prepare: (sql: string) => MockD1PreparedStatement
   batch: (statements: MockD1PreparedStatement[]) => Promise<any>
   exec: (sql: string) => Promise<any>
 }
 
-export interface MockD1PreparedStatement extends D1PreparedStatement {
+export interface MockD1PreparedStatement {
   bind: (...params: any[]) => MockD1PreparedStatement
-  run: () => Promise<{ meta: { changes: number } }>
-  all: () => Promise<{ results: any[] }>
+  run: () => Promise<{ results: any[], success: boolean, meta: { changes: number, last_row_id: number, duration: number, size_after: number, rows_read: number, rows_written: number } }>
+  all: () => Promise<{ results: any[], success: boolean, meta: { changes: number, last_row_id: number, duration: number, size_after: number, rows_read: number, rows_written: number } }>
   first: () => Promise<any>
 }
 
-export interface MockR2Bucket extends R2Bucket {
-  get: (key: string) => Promise<{ text: () => Promise<string> } | null>
-  put: (key: string, data: string) => Promise<void>
+export interface MockR2Bucket {
+  get: (key: string) => Promise<{ 
+    key: string, 
+    version: string, 
+    size: number, 
+    etag: string, 
+    httpEtag: string, 
+    uploaded: Date, 
+    checksums: any, 
+    text: () => Promise<string>,
+    json: () => Promise<any>,
+    arrayBuffer: () => Promise<ArrayBuffer>,
+    blob: () => Promise<Blob>
+  } | null>
+  put: (key: string, data: string) => Promise<{ key: string, version: string, size: number, etag: string, httpEtag: string, uploaded: Date, checksums: any, text: () => Promise<string>, json: () => Promise<any>, arrayBuffer: () => Promise<ArrayBuffer>, blob: () => Promise<Blob> }>
   delete: (key: string) => Promise<void>
+  list: (options?: any) => Promise<{ objects: any[], truncated: boolean, delimitedPrefixes: string[] }>
+  head: (key: string) => Promise<any>
 }
 
-export interface MockExecutionContext extends ExecutionContext {
+export interface MockExecutionContext {
   waitUntil: (promise: Promise<any>) => void
+  passThroughOnException: () => void
 }
 
 // Create mock D1 database
@@ -218,7 +233,18 @@ export function createMockD1Database(): MockD1Database {
           }
         }
         
-        return { meta: { changes: 1 } }
+        return { 
+          results: [], 
+          success: true, 
+          meta: { 
+            changes: 1, 
+            last_row_id: 1, 
+            duration: 1, 
+            size_after: 100, 
+            rows_read: 0, 
+            rows_written: 1 
+          } 
+        }
       },
       all: async () => {
         const normalizedSql = sql.trim().toUpperCase()
@@ -230,7 +256,16 @@ export function createMockD1Database(): MockD1Database {
                 name,
                 sql,
                 type: 'table'
-              }))
+              })),
+              success: true,
+              meta: {
+                changes: 0,
+                last_row_id: 0,
+                duration: 1,
+                size_after: 100,
+                rows_read: Array.from(schemas.entries()).length,
+                rows_written: 0
+              }
             }
           } else if (normalizedSql.includes("TYPE = 'INDEX'")) {
             const allIndexes: any[] = []
@@ -243,22 +278,90 @@ export function createMockD1Database(): MockD1Database {
                 })
               }
             }
-            return { results: allIndexes }
+            return { 
+              results: allIndexes,
+              success: true,
+              meta: {
+                changes: 0,
+                last_row_id: 0,
+                duration: 1,
+                size_after: 100,
+                rows_read: allIndexes.length,
+                rows_written: 0
+              }
+            }
           }
         } else if (normalizedSql.startsWith('PRAGMA TABLE_INFO')) {
           const tableName = getTableNameFromSql(sql)
           if (tableName && tableColumns.has(tableName)) {
-            return { results: tableColumns.get(tableName) || [] }
+            const columns = tableColumns.get(tableName) || []
+            return { 
+              results: columns,
+              success: true,
+              meta: {
+                changes: 0,
+                last_row_id: 0,
+                duration: 1,
+                size_after: 100,
+                rows_read: columns.length,
+                rows_written: 0
+              }
+            }
           }
-          return { results: [] }
+          return { 
+            results: [], 
+            success: true, 
+            meta: { 
+              changes: 0, 
+              last_row_id: 0, 
+              duration: 1, 
+              size_after: 100, 
+              rows_read: 0, 
+              rows_written: 0 
+            } 
+          }
         } else if (normalizedSql.startsWith('PRAGMA FOREIGN_KEY_LIST')) {
-          return { results: [] }
+          return { 
+            results: [], 
+            success: true, 
+            meta: { 
+              changes: 0, 
+              last_row_id: 0, 
+              duration: 1, 
+              size_after: 100, 
+              rows_read: 0, 
+              rows_written: 0 
+            } 
+          }
         } else if (normalizedSql.startsWith('PRAGMA INDEX_LIST')) {
           const tableName = getTableNameFromSql(sql)
           if (tableName && tableIndexes.has(tableName)) {
-            return { results: tableIndexes.get(tableName) || [] }
+            const indexes = tableIndexes.get(tableName) || []
+            return { 
+              results: indexes,
+              success: true,
+              meta: {
+                changes: 0,
+                last_row_id: 0,
+                duration: 1,
+                size_after: 100,
+                rows_read: indexes.length,
+                rows_written: 0
+              }
+            }
           }
-          return { results: [] }
+          return { 
+            results: [], 
+            success: true, 
+            meta: { 
+              changes: 0, 
+              last_row_id: 0, 
+              duration: 1, 
+              size_after: 100, 
+              rows_read: 0, 
+              rows_written: 0 
+            } 
+          }
         } else if (normalizedSql.startsWith('PRAGMA INDEX_INFO')) {
           // Extract index name from sql
           const indexMatch = sql.match(/PRAGMA\s+index_info\s*\(\s*"?(\w+)"?\s*\)/i)
@@ -273,15 +376,46 @@ export function createMockD1Database(): MockD1Database {
                     seqno: i, 
                     cid: i, 
                     name: col 
-                  }))
+                  })),
+                  success: true,
+                  meta: {
+                    changes: 0,
+                    last_row_id: 0,
+                    duration: 1,
+                    size_after: 100,
+                    rows_read: index.columns.length,
+                    rows_written: 0
+                  }
                 }
               }
             }
           }
-          return { results: [] }
+          return { 
+            results: [], 
+            success: true, 
+            meta: { 
+              changes: 0, 
+              last_row_id: 0, 
+              duration: 1, 
+              size_after: 100, 
+              rows_read: 0, 
+              rows_written: 0 
+            } 
+          }
         } else if (normalizedSql.startsWith('SELECT COUNT(*)')) {
           if (normalizedSql.includes('SCHEMA_SNAPSHOTS')) {
-            return { results: [{ total: snapshots.size }] }
+            return { 
+              results: [{ total: snapshots.size }],
+              success: true,
+              meta: {
+                changes: 0,
+                last_row_id: 0,
+                duration: 1,
+                size_after: 100,
+                rows_read: 1,
+                rows_written: 0
+              }
+            }
           }
           
           // Handle COUNT(*) for other tables
@@ -293,19 +427,63 @@ export function createMockD1Database(): MockD1Database {
             // Handle WHERE clauses in COUNT queries
             if (normalizedSql.includes('WHERE')) {
               const filtered = handleSelectWithWhere(sql, tableData, bindings)
-              return { results: [{ total: filtered.results.length, count: filtered.results.length }] }
+              return { 
+                results: [{ total: filtered.results.length, count: filtered.results.length }],
+                success: true,
+                meta: {
+                  changes: 0,
+                  last_row_id: 0,
+                  duration: 1,
+                  size_after: 100,
+                  rows_read: 1,
+                  rows_written: 0
+                }
+              }
             }
             
-            return { results: [{ total: tableData.length, count: tableData.length }] }
+            return { 
+              results: [{ total: tableData.length, count: tableData.length }],
+              success: true,
+              meta: {
+                changes: 0,
+                last_row_id: 0,
+                duration: 1,
+                size_after: 100,
+                rows_read: 1,
+                rows_written: 0
+              }
+            }
           }
           
-          return { results: [{ count: 0 }] }
+          return { 
+            results: [{ count: 0 }],
+            success: true,
+            meta: {
+              changes: 0,
+              last_row_id: 0,
+              duration: 1,
+              size_after: 100,
+              rows_read: 0,
+              rows_written: 0
+            }
+          }
         } else if (normalizedSql.startsWith('SELECT') && normalizedSql.includes('FROM SCHEMA_SNAPSHOTS')) {
           const snapshotList = Array.from(snapshots.values())
           if (normalizedSql.includes('ORDER BY version DESC')) {
             snapshotList.sort((a, b) => b.version - a.version)
           }
-          return { results: snapshotList }
+          return { 
+            results: snapshotList,
+            success: true,
+            meta: {
+              changes: 0,
+              last_row_id: 0,
+              duration: 1,
+              size_after: 100,
+              rows_read: snapshotList.length,
+              rows_written: 0
+            }
+          }
         } else if (normalizedSql.startsWith('SELECT')) {
           // Handle general SELECT queries
           const tableMatch = sql.match(/FROM\s+["']?(\w+)["']?/i)
@@ -341,11 +519,33 @@ export function createMockD1Database(): MockD1Database {
             // Apply pagination
             const paginatedData = tableData.slice(offset, offset + limit)
             
-            return { results: paginatedData }
+            return { 
+              results: paginatedData,
+              success: true,
+              meta: {
+                changes: 0,
+                last_row_id: 0,
+                duration: 1,
+                size_after: 100,
+                rows_read: paginatedData.length,
+                rows_written: 0
+              }
+            }
           }
         }
         
-        return { results: [] }
+        return { 
+          results: [], 
+          success: true, 
+          meta: { 
+            changes: 0, 
+            last_row_id: 0, 
+            duration: 1, 
+            size_after: 100, 
+            rows_read: 0, 
+            rows_written: 0 
+          } 
+        }
       },
       first: async () => {
         const normalizedSql = sql.trim().toUpperCase()
@@ -388,13 +588,44 @@ export function createMockR2Bucket(): MockR2Bucket {
   return {
     get: async (key: string) => {
       const data = storage.get(key)
-      return data ? { text: async () => data } : null
+      return data ? { 
+        key,
+        version: '1',
+        size: data.length,
+        etag: 'mock-etag',
+        httpEtag: '"mock-etag"',
+        uploaded: new Date(),
+        checksums: {},
+        text: async () => data,
+        json: async () => JSON.parse(data),
+        arrayBuffer: async () => new TextEncoder().encode(data).buffer,
+        blob: async () => new Blob([data])
+      } : null
     },
     put: async (key: string, data: string) => {
       storage.set(key, data)
+      return {
+        key,
+        version: '1',
+        size: data.length,
+        etag: 'mock-etag',
+        httpEtag: '"mock-etag"',
+        uploaded: new Date(),
+        checksums: {},
+        text: async () => data,
+        json: async () => JSON.parse(data),
+        arrayBuffer: async () => new TextEncoder().encode(data).buffer,
+        blob: async () => new Blob([data])
+      }
     },
     delete: async (key: string) => {
       storage.delete(key)
+    },
+    list: async (options?: any) => {
+      return { objects: [], truncated: false, delimitedPrefixes: [] }
+    },
+    head: async (key: string) => {
+      return null
     }
   }
 }
@@ -410,6 +641,9 @@ export function createMockExecutionContext(): MockExecutionContext {
       promise.catch(error => {
         console.warn('waitUntil promise failed:', error)
       })
+    },
+    passThroughOnException: () => {
+      // In tests, this is a no-op
     }
   }
 }
