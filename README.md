@@ -4,7 +4,7 @@
 
 ⚠️ **Work in Progress** - このプロジェクトは現在開発中です。基本機能は動作しますが、まだ実験的な段階にあります。本番環境での使用は推奨されません。
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/meso/vibebase)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/meso/vibebase&authed=true&config=packages/core/wrangler.deploy.toml)
 
 Vibebaseは、Cloudflare上で動作する、AIを活用してコードを書く開発者（Vibe Coders）のためのパーソナルBaaSプラットフォームです。フロントエンドやモバイルアプリ開発が得意な開発者が、バックエンドインフラを簡単に構築・管理できることを目指しています。
 
@@ -27,7 +27,7 @@ Vibebaseは、Cloudflare上で動作する、AIを活用してコードを書く
 
 ### ワンクリックデプロイ
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/meso/vibebase)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/meso/vibebase&authed=true&config=packages/core/wrangler.deploy.toml)
 
 **⚠️ デプロイ前の準備**
 1. Cloudflareアカウントを作成
