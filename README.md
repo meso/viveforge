@@ -18,7 +18,7 @@ Vibebaseは、Cloudflare上で動作する、AIを活用してコードを書く
 
 ## 🎯 ターゲットユーザー
 
-- AIを活用して効率的にコードを書くVive Coders
+- AIを活用して効率的にコードを書くVibe Coders
 - フロントエンド・モバイルアプリ開発に集中したい開発者
 - バックエンドインフラの構築に時間をかけたくない開発者
 - Cloudflareのサービスをシンプルに活用したい開発者
@@ -70,10 +70,13 @@ chmod +x deploy/setup.sh
 - 📦 **ワンクリックデプロイ** - GitHub経由のデプロイ
 - 💾 **ストレージ（R2）** - ファイルアップロード・ダウンロード・削除
 - 🔍 **検索機能** - インデックス付きカラムでの高速検索
+- 🔐 **管理者認証** - GitHub OAuthとJWT認証（[vibebase-auth](https://github.com/vibebase/vibebase-auth)統合）
+- 📸 **スキーマスナップショット** - データベーススキーマのバックアップ
+- 🔗 **インデックス管理** - データベースインデックスの作成・削除
 
 ### 🚧 開発予定
 
-- 🔐 **認証機能** - OAuth providers（Google、GitHub等）
+- 👥 **ユーザー認証** - 複数OAuth providers（Google、GitHub等）
 - ⚡ **リアルタイム機能** - WebSocket/SSE対応
 - 📱 **Push通知** - Web Push/FCM
 - 🛠️ **CLIツール** - 開発効率化ツール
@@ -142,32 +145,13 @@ curl https://your-worker.your-subdomain.workers.dev/api/items
 
 ## 🗺️ ロードマップ
 
-### Phase 1: MVP (v0.1.0) ✅
-- [x] 基本的な管理ダッシュボード
-- [x] D1データベース統合
-- [x] 基本的なCRUD API
-- [x] GitHub経由のデプロイ
+詳細なロードマップと開発方針については [CLAUDE.md](./CLAUDE.md) をご確認ください。
 
-### 追加実装済み機能
-- [x] 検索機能（インデックス付きカラムでの高速検索）
-- [x] スキーマスナップショット機能
-- [x] インデックス管理機能
-- [x] 包括的なテストスイート
-
-### Phase 2: 認証とストレージ (v0.2.0) 🚧 進行中
-- [ ] OAuth認証実装
-- [x] R2ストレージ統合
-- [x] ファイルアップロードAPI
-
-### Phase 3: リアルタイム機能 (v0.3.0)
-- [ ] リアルタイムDB機能
-- [ ] Push通知実装
-- [ ] WebSocket/SSE対応
-
-### Phase 4: 開発体験向上 (v0.4.0)
-- [ ] CLIツール
-- [ ] 各種フレームワーク用SDK
-- [ ] 開発/本番環境の分離
+### 現在の状況
+- ✅ **Phase 1**: MVP完了（データベース、CRUD API、ダッシュボード）
+- 🚧 **Phase 2**: 認証とストレージ（管理者認証完了、R2ストレージ完了、ユーザー認証開発中）
+- 📋 **Phase 3**: リアルタイム機能
+- 📋 **Phase 4**: 開発体験向上
 
 ## 🤝 コントリビューション
 
@@ -196,4 +180,4 @@ Elastic License 2.0 - 詳細は [LICENSE](LICENSE) ファイルをご覧くだ�
 
 ---
 
-**Vibebase** - Made with ❤️ for Vive Coders who want to focus on building great experiences with AI.
+**Vibebase** - Made with ❤️ for Vibe Coders who want to focus on building great experiences with AI.

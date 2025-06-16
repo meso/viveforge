@@ -1,85 +1,33 @@
 # Vibebase - Personal BaaS for Vibe Coders on Cloudflare
 
-## 概要
+このドキュメントは、Vibebaseプロジェクトの開発支援のためにClaude（とユーザー）に重要なコンテキストを提供します。
 
-Vibebaseは、Cloudflare上で動作する、AIを活用してコードを書く開発者（Vibe Coders）のためのパーソナルBackend-as-a-Service（BaaS）プラットフォームです。フロントエンドやモバイルアプリ開発が得意な開発者が、バックエンドインフラを簡単に構築・管理できることを目指しています。
+## プロジェクト概要
 
-## プロジェクトの目的
+Vibebaseは、Cloudflare上で動作する、AIを活用してコードを書く開発者（Vibe Coders）のためのパーソナルBackend-as-a-Service（BaaS）プラットフォームです。フロントエンドやモバイルアプリ開発が得意な開発者が、バックエンドインフラの複雑さに悩まされることなく、得意分野に集中できることを目指しています。
 
-- **簡単なデプロイ**: GitHubから1クリックでCloudflareアカウントにデプロイ可能
+### プロジェクトの目標
+
+- **ワンクリックデプロイ**: GitHubから1クリックでCloudflareにデプロイ
 - **フルスタックTypeScript**: 型安全性と開発体験の向上
-- **Cloudflareエコシステムの活用**: Workers、D1、R2などのCloudflareサービスをフル活用
-- **個人開発者フレンドリー**: 複雑な設定不要で、すぐに使い始められる
+- **Cloudflareエコシステム**: Workers、D1、R2などのCloudflareサービスを活用
+- **開発者フレンドリー**: 最小限の設定で、すぐに使い始められる
 
-## ターゲットユーザー
+### 対象ユーザー
 
-- AIを活用して効率的にコードを書くVibe Coders
-- フロントエンド・モバイルアプリ開発に集中したい開発者
+- AIツールを活用して効率的にコードを書くVibe Coders
+- 自分の得意分野（フロントエンド・モバイル開発）に集中したい開発者
 - バックエンドインフラの構築に時間をかけたくない開発者
 - Cloudflareのサービスをシンプルに活用したい開発者
 
-## 主要機能
-
-### 1. 管理ダッシュボード
-- Cloudflare Workers上で動作するWebベースの管理画面
-- 直感的なUI/UXでバックエンドリソースを管理
-- リアルタイムでのデータ確認・編集
-
-### 2. データベース機能（D1）
-- Cloudflare D1を使用したSQLiteベースのデータベース
-- ダッシュボード上でのテーブル作成・編集・削除
-- SQLクエリエディタ
-- データのインポート/エクスポート機能
-- スキーマの履歴管理（マイグレーション履歴の追跡）
-- 基本的なCRUD操作のためのREST APIの自動生成
-
-### 3. リアルタイムDB機能
-- レコードの追加・更新・削除をトリガーとしたタスク実行
-- WebSocketまたはServer-Sent Eventsによるリアルタイム通知
-- カスタムフック・イベントハンドラーの設定
-
-### 4. 環境管理
-- 本番環境と開発環境の分離
-- 環境ごとのデータベース管理
-- 環境間でのスキーマ同期機能
-
-### 5. ストレージ（R2）
-- Cloudflare R2を使用したオブジェクトストレージ
-- ファイルアップロード/ダウンロードAPI
-- 画像リサイズ・最適化機能
-- アクセス制御とプリサインURL生成
-
-### 6. 認証機能
-- Honoの OAuth Providers Middlewareを活用
-- 対応プロバイダー:
-  - Google
-  - GitHub
-  - Twitter/X
-  - Discord
-  - その他主要OAuthプロバイダー
-- JWTトークンベースの認証
-- ロールベースのアクセス制御（RBAC）
-
-### 7. Push通知
-- Web Push / FCMを使用したプッシュ通知
-- トピックベースの通知配信
-- スケジュール通知
-- 通知テンプレート機能
-
-### 8. ワンクリックデプロイ
-- GitHub ActionsまたはDeploy Buttonによる自動デプロイ
-- 環境変数の自動設定
-- Cloudflareアカウントとの連携
-
 ## 技術スタック
 
-- **言語**: TypeScript
 - **ランタイム**: Cloudflare Workers
 - **フレームワーク**: Hono
 - **データベース**: Cloudflare D1 (SQLite)
 - **ストレージ**: Cloudflare R2
-- **認証**: Hono OAuth Providers Middleware
-- **フロントエンド**: Preact + Vite（管理ダッシュボード用）
+- **認証**: [vibebase-auth](https://github.com/vibebase/vibebase-auth) + JWT (RS256)
+- **フロントエンド**: Preact + Vite + Tailwind CSS
 - **アセット配信**: Cloudflare Workers Assets
 - **ビルドツール**: Wrangler, Vite
 - **テスト**: Vitest, Miniflare
@@ -89,59 +37,147 @@ Vibebaseは、Cloudflare上で動作する、AIを活用してコードを書く
 ```
 vibebase/
 ├── packages/
-│   ├── core/              # コアライブラリ（Cloudflare Workers）
-│   ├── dashboard/         # 管理ダッシュボード（Preact + Vite）
-│   ├── sdk/              # クライアントSDK
-│   └── cli/              # CLIツール
+│   ├── core/              # コアAPI（Hono + Workers）
+│   ├── dashboard/         # 管理ダッシュボード（Preact）
+│   ├── sdk/              # クライアントSDK（予定）
+│   └── cli/              # CLIツール（予定）
 ├── examples/             # サンプルアプリケーション
 ├── docs/                 # ドキュメント
-└── deploy/              # デプロイメント設定
+├── deploy/              # デプロイメント設定
+├── DEPLOYMENT.md        # デプロイ手順
+└── README.md           # ユーザー向けドキュメント
 ```
 
-## ロードマップ
+## 機能実装状況
 
-### Phase 1: MVP (v0.1.0) ✅ 完了
-- [x] 基本的な管理ダッシュボード
-- [x] D1データベース統合
-- [x] 基本的なCRUD API
-- [x] GitHub経由のデプロイ
+### ✅ 実装済み
 
-### 追加実装済み機能
-- [x] 検索機能（インデックス付きカラムでの高速検索）
-- [x] スキーマスナップショット機能
-- [x] インデックス管理機能
-- [x] 包括的なテストスイート
+#### 1. 管理ダッシュボード
+- Cloudflare Workers上で動作するWebベースの管理画面
+- バックエンドリソースを管理するための直感的なUI/UX
+- リアルタイムでのデータ表示・編集
 
-### Phase 2: 認証とストレージ (v0.2.0) 🚧 進行中
-- [ ] OAuth認証実装
-- [x] R2ストレージ統合
-- [x] ファイルアップロードAPI
+#### 2. データベース（D1）
+- Cloudflare D1を使用したSQLiteベースのデータベース
+- ダッシュボード経由でのテーブル作成・編集・削除
+- SQLクエリエディタ
+- データのインポート/エクスポート機能
+- スキーマ履歴管理（マイグレーション追跡）
+- 基本的なCRUD操作のためのREST API自動生成
+- インデックス付きカラムでの検索機能
+- スキーマスナップショット機能
+- インデックス管理
 
-### Phase 3: リアルタイム機能 (v0.3.0)
-- [ ] リアルタイムDB機能
-- [ ] Push通知実装
-- [ ] WebSocket/SSE対応
+#### 3. ストレージ（R2）
+- Cloudflare R2を使用したオブジェクトストレージ
+- ファイルアップロード/ダウンロード/削除API
+- アクセス制御とプリサインURL生成
 
-### Phase 4: 開発体験向上 (v0.4.0)
-- [ ] CLIツール
-- [ ] 各種フレームワーク用SDK
-- [ ] 開発/本番環境の分離
+#### 4. 認証（管理者）
+- [vibebase-auth](https://github.com/vibebase/vibebase-auth)中央認証サーバーとの統合
+- GitHub OAuth認証
+- JWTトークンベースの認証（RS256署名検証）
+- 自動トークンリフレッシュ
+- セキュアなクッキー管理（HttpOnly, Secure, SameSite=Strict）
+- 全ルートを保護する認証ミドルウェア
 
-## 開発方針
+### 🚧 開発中
 
-### リファクタリングの方針
-1. **継続的なリファクタリング**: コードベースの品質と保守性を向上させるため、適宜リファクタリングを実施する
-2. **テスト駆動リファクタリング**: リファクタリング前には必ず十分なテストを追加し、動作が変わらないことを保証する
+#### ユーザー認証
+- 複数OAuthプロバイダー対応（Google、GitHub、Twitter/X、Discord等）
+- ユーザー登録・ログイン・ログアウト機能
+- ユーザー管理API（CRUD操作）
+- ロールベースのアクセス制御（RBAC）
+- セッション管理
+
+### 📋 予定
+
+#### リアルタイム機能
+- レコードの追加/更新/削除をトリガーとしたタスク実行
+- WebSocketまたはServer-Sent Eventsによるリアルタイム通知
+- カスタムフック・イベントハンドラー
+
+#### Push通知
+- Web Push / FCMを使用したプッシュ通知
+- トピックベースの通知配信
+- スケジュール通知
+- 通知テンプレート機能
+
+#### 環境管理
+- 本番環境と開発環境の分離
+- 環境ごとのデータベース管理
+- 環境間でのスキーマ同期
+
+## 開発コマンド
+
+### ルートレベル
+```bash
+pnpm dev         # 全ての開発サーバーを並列起動
+pnpm build       # 全てのパッケージをビルド
+pnpm test        # 全てのテストを実行
+pnpm lint        # 全てのパッケージでリンティング実行
+pnpm typecheck   # 全てのパッケージで型チェック実行
+```
+
+### コアパッケージ（packages/core）
+```bash
+pnpm dev         # Wrangler開発サーバーを起動
+pnpm deploy      # Cloudflareにデプロイ
+pnpm db:init     # D1データベースを初期化
+pnpm test        # Vitestテストを実行
+pnpm typecheck   # TypeScript型チェックを実行
+```
+
+### ダッシュボードパッケージ（packages/dashboard）
+```bash
+pnpm dev         # Vite開発サーバーを起動
+pnpm build       # ダッシュボードをビルドしてcoreにアセットをコピー
+pnpm deploy      # ビルドしてデプロイ
+pnpm typecheck   # TypeScript型チェックを実行
+```
+
+## 開発ガイドライン
 
 ### テスト戦略
-- リファクタリング対象の機能に対して包括的なテストを作成
-- リファクタリング前後でテストが通ることを確認
-- 外部から見た動作が変わらないことを保証
+- **100%テスト成功の維持**: 全てのテストが常に成功する状態を絶対に保つ
+- **継続的テスト実行**: 機能追加・修正時には必ずテストを実行し、全て成功することを確認
+- **包括的テストカバレッジ**: リファクタリング対象の機能に対して包括的なテストを作成
+- **テスト駆動開発**: リファクタリング前後でテストが通ることを確認
+- **動作保証**: 外部から見た動作が変わらないことを保証
+- **テスト品質**: ユニットテスト、インテグレーションテスト、エンドツーエンドテストの適切な組み合わせ
+
+### リファクタリング方針
+1. **継続的なリファクタリング**: コードの品質と保守性を向上させるため定期的にリファクタリングを実施
+2. **テスト駆動リファクタリング**: リファクタリング前には必ず十分なテストを追加し、動作が変わらないことを保証
+
+### コードスタイル
+- 全てのコードでTypeScriptを使用
+- 一貫した命名規則に従う：
+  - 変数と関数: camelCase
+  - 型とインターフェース: PascalCase
+  - 定数: UPPER_SNAKE_CASE
+- 意味のある変数名・関数名を使用
+- パブリックAPIにはJSDocコメントを記述
+- 厳格なTypeScript設定を使用
+
+### セキュリティ
+- シークレットやAPIキーをコミットしない
+- 機密データには環境変数を使用
+- 認証に関してはセキュリティベストプラクティスに従う
+- 依存関係を定期的に更新
 
 ## ライセンス
 
 Elastic License 2.0
 
-## コントリビューション
+**要約**:
+- ✅ 個人・商用利用可能（自分のアプリのバックエンドとして）
+- ✅ 修正・再配布可能
+- ❌ SaaS/PaaSとして第三者に提供することは禁止
 
-プロジェクトへの貢献を歓迎します！詳細はCONTRIBUTING.mdをご確認ください。
+## important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
+ALWAYS discuss and agree on the approach/design before implementation. Never jump straight into implementation without first proposing the plan, discussing it with the user, and getting agreement on "that sounds good" before proceeding with actual code/document changes.
