@@ -102,8 +102,8 @@ auth.get('/callback', async (c) => {
             window.location.href = redirectTo;
           }
           
-          // 3秒後に自動リダイレクト
-          setTimeout(redirectToDashboard, 3000);
+          // 1秒後に自動リダイレクト（スムーズな体験のため短縮）
+          setTimeout(redirectToDashboard, 1000);
         </script>
       </body>
       </html>
