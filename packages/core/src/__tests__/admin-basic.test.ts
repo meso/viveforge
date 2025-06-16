@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest'
 
 describe('Admin System Integration', () => {
-  it('should have admin routes defined', () => {
+  it('should have admin routes defined', async () => {
     // Basic test to ensure admin module exists
-    const { admin } = require('../routes/admin')
+    const { admin } = await import('../routes/admin')
     expect(admin).toBeDefined()
   })
 
-  it('should export admin API handlers', () => {
-    const { admin } = require('../routes/admin')
+  it('should export admin API handlers', async () => {
+    const { admin } = await import('../routes/admin')
     expect(typeof admin).toBe('object')
   })
 })

@@ -19,12 +19,46 @@ describe('Auth Routes', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     
+    // Mock database for admin authentication
+    const mockDB = {
+      prepare: vi.fn((query: string) => {
+        // Mock different queries based on SQL
+        if (query.includes('SELECT id, is_root FROM admins WHERE github_username')) {
+          return {
+            bind: vi.fn((username: string) => ({
+              first: vi.fn().mockResolvedValue({ id: '1', is_root: true, github_username: username }) // Mock existing admin
+            }))
+          }
+        } else if (query.includes('SELECT COUNT(*) as count FROM admins')) {
+          return {
+            first: vi.fn().mockResolvedValue({ count: 1 }) // Mock non-empty admins table
+          }
+        } else if (query.includes('INSERT INTO admins')) {
+          return {
+            bind: vi.fn(() => ({
+              run: vi.fn().mockResolvedValue({ success: true })
+            }))
+          }
+        }
+        
+        // Default fallback
+        return {
+          bind: vi.fn(() => ({
+            first: vi.fn().mockResolvedValue({ id: '1', is_root: true }),
+            run: vi.fn().mockResolvedValue({ success: true })
+          })),
+          first: vi.fn().mockResolvedValue({ count: 1 }),
+          run: vi.fn().mockResolvedValue({ success: true })
+        }
+      })
+    }
+    
     env = {
       VIBEBASE_AUTH_URL: 'https://auth.vibebase.workers.dev',
       DEPLOYMENT_DOMAIN: 'test.example.com',
       WORKER_NAME: 'test-worker',
       ENVIRONMENT: 'test',
-      DB: {} as any,
+      DB: mockDB,
       SESSIONS: {} as any,
       SYSTEM_STORAGE: {} as any,
       USER_STORAGE: {} as any,
@@ -51,7 +85,7 @@ describe('Auth Routes', () => {
 
   describe('GET /auth/login', () => {
     it('should redirect to vibebase-auth login', async () => {
-      const res = await app.request('/auth/login', {}, { env })
+      const res = await app.request('/auth/login', {}, env)
 
       expect(res.status).toBe(302)
       expect(res.headers.get('Location')).toBe('https://auth.vibebase.workers.dev/auth/login?origin=https%3A%2F%2Ftest.example.com&redirect_to=%2F')
@@ -60,7 +94,7 @@ describe('Auth Routes', () => {
     it('should handle custom redirect parameter', async () => {
       mockAuthClient.getLoginUrl.mockReturnValue('https://auth.vibebase.workers.dev/auth/login?origin=https%3A%2F%2Ftest.example.com&redirect_to=%2Fdashboard')
 
-      const res = await app.request('/auth/login?redirect=/dashboard', {}, { env })
+      const res = await app.request('/auth/login?redirect=/dashboard', {}, env)
 
       expect(res.status).toBe(302)
       expect(mockAuthClient.getLoginUrl).toHaveBeenCalledWith('/dashboard')
@@ -75,7 +109,7 @@ describe('Auth Routes', () => {
       })
       testApp.route('/auth', auth)
 
-      const res = await testApp.request('/auth/login', {}, { env })
+      const res = await testApp.request('/auth/login', {}, env)
 
       expect(res.status).toBe(503)
       const body = await res.json()
@@ -95,7 +129,8 @@ describe('Auth Routes', () => {
 
       mockAuthClient.verifyToken.mockResolvedValue(mockUser)
 
-      const res = await app.request('/auth/callback?token=valid-token&refresh_token=valid-refresh-token', {}, { env })
+      const res = await app.request('/auth/callback?token=valid-token&refresh_token=valid-refresh-token', {}, env)
+
 
       expect(res.status).toBe(302)
       expect(res.headers.get('Location')).toBe('/')
@@ -122,14 +157,14 @@ describe('Auth Routes', () => {
 
       mockAuthClient.verifyToken.mockResolvedValue(mockUser)
 
-      const res = await app.request('/auth/callback?token=valid-token&refresh_token=valid-refresh-token&redirect_to=/dashboard', {}, { env })
+      const res = await app.request('/auth/callback?token=valid-token&refresh_token=valid-refresh-token&redirect_to=/dashboard', {}, env)
 
       expect(res.status).toBe(302)
       expect(res.headers.get('Location')).toBe('/dashboard')
     })
 
     it('should handle missing tokens', async () => {
-      const res = await app.request('/auth/callback', {}, { env })
+      const res = await app.request('/auth/callback', {}, env)
 
       expect(res.status).toBe(200)
       const body = await res.text()
@@ -138,7 +173,7 @@ describe('Auth Routes', () => {
     })
 
     it('should handle missing access token', async () => {
-      const res = await app.request('/auth/callback?refresh_token=valid-refresh-token', {}, { env })
+      const res = await app.request('/auth/callback?refresh_token=valid-refresh-token', {}, env)
 
       expect(res.status).toBe(200)
       const body = await res.text()
@@ -149,7 +184,7 @@ describe('Auth Routes', () => {
     it('should handle token verification failure', async () => {
       mockAuthClient.verifyToken.mockRejectedValue(new Error('Invalid token'))
 
-      const res = await app.request('/auth/callback?token=invalid-token&refresh_token=valid-refresh-token', {}, { env })
+      const res = await app.request('/auth/callback?token=invalid-token&refresh_token=valid-refresh-token', {}, env)
 
       expect(res.status).toBe(200)
       const body = await res.text()
@@ -166,7 +201,7 @@ describe('Auth Routes', () => {
       })
       testApp.route('/auth', auth)
 
-      const res = await testApp.request('/auth/callback?token=valid-token&refresh_token=valid-refresh-token', {}, { env })
+      const res = await testApp.request('/auth/callback?token=valid-token&refresh_token=valid-refresh-token', {}, env)
 
       expect(res.status).toBe(200)
       const body = await res.text()
@@ -184,7 +219,7 @@ describe('Auth Routes', () => {
         headers: {
           'Cookie': 'refresh_token=valid-refresh-token'
         }
-      }, { env })
+      }, env)
 
       expect(res.status).toBe(200)
       const body = await res.json()
@@ -198,7 +233,7 @@ describe('Auth Routes', () => {
     it('should handle logout without refresh token', async () => {
       const res = await app.request('/auth/logout', {
         method: 'POST'
-      }, { env })
+      }, env)
 
       expect(res.status).toBe(200)
       const body = await res.json()
@@ -213,7 +248,7 @@ describe('Auth Routes', () => {
         headers: {
           'Cookie': 'refresh_token=valid-refresh-token'
         }
-      }, { env })
+      }, env)
 
       expect(res.status).toBe(200)
       const body = await res.json()
@@ -230,7 +265,7 @@ describe('Auth Routes', () => {
         headers: {
           'Cookie': 'refresh_token=valid-refresh-token'
         }
-      }, { env })
+      }, env)
 
       expect(res.status).toBe(200)
       const body = await res.text()
@@ -255,7 +290,7 @@ describe('Auth Routes', () => {
         headers: {
           'Cookie': 'refresh_token=valid-refresh-token'
         }
-      }, { env })
+      }, env)
 
       expect(res.status).toBe(200)
       const body = await res.json()
@@ -269,7 +304,7 @@ describe('Auth Routes', () => {
     it('should handle missing refresh token', async () => {
       const res = await app.request('/auth/refresh', {
         method: 'POST'
-      }, { env })
+      }, env)
 
       expect(res.status).toBe(401)
       const body = await res.json()
@@ -284,7 +319,7 @@ describe('Auth Routes', () => {
         headers: {
           'Cookie': 'refresh_token=expired-refresh-token'
         }
-      }, { env })
+      }, env)
 
       expect(res.status).toBe(401)
       const body = await res.json()
@@ -311,7 +346,7 @@ describe('Auth Routes', () => {
       })
       testApp.route('/auth', auth)
 
-      const res = await testApp.request('/auth/me', {}, { env })
+      const res = await testApp.request('/auth/me', {}, env)
 
       expect(res.status).toBe(200)
       const body = await res.json()
@@ -319,7 +354,7 @@ describe('Auth Routes', () => {
     })
 
     it('should handle unauthenticated request', async () => {
-      const res = await app.request('/auth/me', {}, { env })
+      const res = await app.request('/auth/me', {}, env)
 
       expect(res.status).toBe(401)
       const body = await res.json()
@@ -346,7 +381,7 @@ describe('Auth Routes', () => {
       })
       testApp.route('/auth', auth)
 
-      const res = await testApp.request('/auth/status', {}, { env })
+      const res = await testApp.request('/auth/status', {}, env)
 
       expect(res.status).toBe(200)
       const body = await res.json()
@@ -355,7 +390,7 @@ describe('Auth Routes', () => {
     })
 
     it('should return authentication status for unauthenticated user', async () => {
-      const res = await app.request('/auth/status', {}, { env })
+      const res = await app.request('/auth/status', {}, env)
 
       expect(res.status).toBe(200)
       const body = await res.json()
