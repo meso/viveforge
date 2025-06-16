@@ -31,18 +31,14 @@ bucket_name = "vibebase-storage"
 binding = "SESSIONS"
 id = "63a32a4e4bdf4699a1447d7f5e56c74f"
 
-[env.production]
-vars = { 
-  ENVIRONMENT = "production",
-  VIBEBASE_AUTH_URL = "https://auth.vibebase.workers.dev",
-  DEPLOYMENT_DOMAIN = "vibebase.mesongo.workers.dev",
-  WORKER_NAME = "vibebase"
-}
+[env.production.vars]
+ENVIRONMENT = "production"
+VIBEBASE_AUTH_URL = "https://auth.vibebase.workers.dev"
+DEPLOYMENT_DOMAIN = "vibebase.mesongo.workers.dev"
+WORKER_NAME = "vibebase"
 
-[env.development]
-vars = { 
-  ENVIRONMENT = "development",
-  VIBEBASE_AUTH_URL = "https://auth.vibebase.workers.dev",
-  DEPLOYMENT_DOMAIN = "localhost:8787",
-  WORKER_NAME = "vibebase-dev"
-}
+[env.development.vars]
+ENVIRONMENT = "development"
+VIBEBASE_AUTH_URL = "https://auth.vibebase.workers.dev"
+DEPLOYMENT_DOMAIN = "localhost:8787"
+WORKER_NAME = "vibebase-dev"
