@@ -13,6 +13,9 @@ admin.get('/', async (c) => {
 
   try {
     const db = c.env.DB
+    if (!db) {
+      return c.json({ error: 'Database not available' }, 500)
+    }
     const result = await db.prepare('SELECT * FROM admins ORDER BY created_at DESC').all()
     
     // Convert is_root from SQLite integer to boolean
@@ -45,6 +48,9 @@ admin.post('/', async (c) => {
     }
 
     const db = c.env.DB
+    if (!db) {
+      return c.json({ error: 'Database not available' }, 500)
+    }
     
     // Check if admin already exists
     const existing = await db.prepare(
@@ -80,6 +86,9 @@ admin.delete('/:id', async (c) => {
   try {
     const id = c.req.param('id')
     const db = c.env.DB
+    if (!db) {
+      return c.json({ error: 'Database not available' }, 500)
+    }
     
     // Check if admin exists and is not root
     const admin = await db.prepare(

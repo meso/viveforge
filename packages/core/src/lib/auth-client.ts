@@ -79,12 +79,12 @@ export class VibebaseAuthClient {
         console.error(`Registration failed with response:`, errorResponse)
         
         // ドメインが既に登録済みの場合は、既存のデプロイメント情報を取得
-        if (response.status === 409 || (errorResponse.error && errorResponse.error.includes('already registered'))) {
+        if (response.status === 409 || (errorResponse && typeof errorResponse === 'object' && 'error' in errorResponse && typeof errorResponse.error === 'string' && errorResponse.error.includes('already registered'))) {
           console.log('Domain already registered, attempting to get existing deployment...')
           return await this.getExistingDeployment()
         }
         
-        throw new Error(`Deployment registration failed: ${response.status} - ${errorResponse.error}`)
+        throw new Error(`Deployment registration failed: ${response.status} - ${errorResponse && typeof errorResponse === 'object' && 'error' in errorResponse ? errorResponse.error : 'Unknown error'}`)
       }
 
       const result = await response.json() as DeploymentInfo

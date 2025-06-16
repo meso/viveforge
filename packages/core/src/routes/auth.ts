@@ -48,6 +48,9 @@ auth.get('/callback', async (c) => {
     
     // adminsテーブルでGitHubユーザー名をチェック
     const db = c.env.DB
+    if (!db) {
+      return c.html(getAuthErrorHTML("認証エラー", "データベースが利用できません"))
+    }
     const existingAdmin = await db.prepare(
       'SELECT id, is_root FROM admins WHERE github_username = ?'
     ).bind(user.username).first()
@@ -56,6 +59,10 @@ auth.get('/callback', async (c) => {
     if (!existingAdmin) {
       // adminsテーブルが空かチェック（初回ログイン判定）
       const adminCount = await db.prepare('SELECT COUNT(*) as count FROM admins').first()
+      
+      if (!adminCount) {
+        return c.html(getAuthErrorHTML("認証エラー", "管理者テーブルの確認に失敗しました"))
+      }
       
       if (adminCount.count === 0) {
         // 初回ログイン者をroot adminとして登録

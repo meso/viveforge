@@ -39,7 +39,7 @@ app.use('*', async (c, next) => {
   } catch (error) {
     console.error('Failed to initialize auth client:', error)
     // 認証クライアントの初期化に失敗した場合
-    c.set('authClient', null)
+    c.set('authClient', undefined)
     
     // 認証ルート以外では初期化失敗をエラーとして返す
     if (!c.req.path.startsWith('/auth/')) {

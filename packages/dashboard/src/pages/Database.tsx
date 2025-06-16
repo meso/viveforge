@@ -1134,13 +1134,23 @@ export function DatabasePage() {
                             {editingColumn?.oldName === col.name ? (
                               <input
                                 type="text"
-                                value={editingColumn.newName}
-                                onInput={(e) => setEditingColumn({ ...editingColumn, newName: (e.target as HTMLInputElement).value })}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') handleRenameColumn(editingColumn.oldName, editingColumn.newName)
-                                  if (e.key === 'Escape') setEditingColumn(null)
+                                value={editingColumn?.newName || ''}
+                                onInput={(e) => {
+                                  if (editingColumn) {
+                                    setEditingColumn({ ...editingColumn, newName: (e.target as HTMLInputElement).value })
+                                  }
                                 }}
-                                onBlur={() => handleRenameColumn(editingColumn.oldName, editingColumn.newName)}
+                                onKeyDown={(e) => {
+                                  if (editingColumn) {
+                                    if (e.key === 'Enter') handleRenameColumn(editingColumn.oldName, editingColumn.newName)
+                                    if (e.key === 'Escape') setEditingColumn(null)
+                                  }
+                                }}
+                                onBlur={() => {
+                                  if (editingColumn) {
+                                    handleRenameColumn(editingColumn.oldName, editingColumn.newName)
+                                  }
+                                }}
                                 class="flex-1 text-sm border-gray-300 rounded px-2 py-1"
                                 autoFocus
                               />
@@ -1906,24 +1916,32 @@ export function DatabasePage() {
                                   <div class="relative">
                                     <input
                                       type={col.type === 'INTEGER' || col.type === 'REAL' ? 'number' : 'text'}
-                                      value={editingCell.value || ''}
+                                      value={editingCell?.value || ''}
                                       onInput={(e) => {
-                                        const newValue = (e.target as HTMLInputElement).value
-                                        setEditingCell({ ...editingCell, value: newValue })
-                                        
-                                        // FK validation for foreign key columns
-                                        const fkInfo = getForeignKeyForColumn(col.name)
-                                        if (fkInfo && newValue.trim()) {
-                                          validateForeignKey(newValue, fkInfo)
+                                        if (editingCell) {
+                                          const newValue = (e.target as HTMLInputElement).value
+                                          setEditingCell({ ...editingCell, value: newValue })
+                                          
+                                          // FK validation for foreign key columns
+                                          const fkInfo = getForeignKeyForColumn(col.name)
+                                          if (fkInfo && newValue.trim()) {
+                                            validateForeignKey(newValue, fkInfo)
+                                          }
                                         }
                                       }}
                                       onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && !e.isComposing) handleCellSave(row.id, col.name, editingCell.value)
-                                        if (e.key === 'Escape') handleCellCancel()
+                                        if (editingCell) {
+                                          if (e.key === 'Enter' && !e.isComposing) handleCellSave(row.id, col.name, editingCell.value)
+                                          if (e.key === 'Escape') handleCellCancel()
+                                        }
                                       }}
-                                      onBlur={() => handleCellSave(row.id, col.name, editingCell.value)}
+                                      onBlur={() => {
+                                        if (editingCell) {
+                                          handleCellSave(row.id, col.name, editingCell.value)
+                                        }
+                                      }}
                                       class={`w-full px-2 py-1 border rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
-                                        getForeignKeyForColumn(col.name) && editingCell.value && fkValidation[`${getForeignKeyForColumn(col.name)?.table}-${editingCell.value}`]
+                                        getForeignKeyForColumn(col.name) && editingCell?.value && fkValidation[`${getForeignKeyForColumn(col.name)?.table}-${editingCell.value}`]
                                           ? fkValidation[`${getForeignKeyForColumn(col.name)?.table}-${editingCell.value}`].isValid
                                             ? 'border-green-300 bg-green-50'
                                             : 'border-red-300 bg-red-50'
@@ -1942,7 +1960,7 @@ export function DatabasePage() {
                                         }
                                       }}
                                     />
-                                    {getForeignKeyForColumn(col.name) && editingCell.value && fkValidation[`${getForeignKeyForColumn(col.name)?.table}-${editingCell.value}`] && (
+                                    {getForeignKeyForColumn(col.name) && editingCell?.value && fkValidation[`${getForeignKeyForColumn(col.name)?.table}-${editingCell.value}`] && (
                                       <div class={`absolute left-0 -bottom-6 text-xs px-2 py-1 rounded ${
                                         fkValidation[`${getForeignKeyForColumn(col.name)?.table}-${editingCell.value}`].isValid
                                           ? 'text-green-700 bg-green-100'
@@ -1964,7 +1982,7 @@ export function DatabasePage() {
                                         e.stopPropagation()
                                         handleIdClick(e, row[col.name], idx, col.name)
                                       }}
-                                      onDoubleClick={(e) => {
+                                      onDblClick={(e: MouseEvent) => {
                                         e.preventDefault()
                                         e.stopPropagation()
                                       }}
