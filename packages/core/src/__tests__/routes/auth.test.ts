@@ -57,8 +57,8 @@ describe('Auth Routes', () => {
       VIBEBASE_AUTH_URL: 'https://auth.vibebase.workers.dev',
       DEPLOYMENT_DOMAIN: 'test.example.com',
       WORKER_NAME: 'test-worker',
-      ENVIRONMENT: 'test',
-      DB: mockDB,
+      ENVIRONMENT: 'development',
+      DB: mockDB as unknown as D1Database,
       SESSIONS: {} as any,
       SYSTEM_STORAGE: {} as any,
       USER_STORAGE: {} as any,
@@ -104,7 +104,7 @@ describe('Auth Routes', () => {
       // Create a separate app instance for this test
       const testApp = new Hono<{ Bindings: Env; Variables: Variables }>()
       testApp.use('*', async (c, next) => {
-        c.set('authClient', null)
+        c.set('authClient', undefined)
         await next()
       })
       testApp.route('/auth', auth)
@@ -112,7 +112,7 @@ describe('Auth Routes', () => {
       const res = await testApp.request('/auth/login', {}, env)
 
       expect(res.status).toBe(503)
-      const body = await res.json()
+      const body = await res.json() as any
       expect(body.error).toBe('Authentication service unavailable')
     })
   })
@@ -196,7 +196,7 @@ describe('Auth Routes', () => {
       // Create a separate app instance for this test
       const testApp = new Hono<{ Bindings: Env; Variables: Variables }>()
       testApp.use('*', async (c, next) => {
-        c.set('authClient', null)
+        c.set('authClient', undefined)
         await next()
       })
       testApp.route('/auth', auth)
@@ -222,7 +222,7 @@ describe('Auth Routes', () => {
       }, env)
 
       expect(res.status).toBe(200)
-      const body = await res.json()
+      const body = await res.json() as any
       expect(body.success).toBe(true)
       expect(body.message).toBe('Logged out successfully')
 
@@ -236,7 +236,7 @@ describe('Auth Routes', () => {
       }, env)
 
       expect(res.status).toBe(200)
-      const body = await res.json()
+      const body = await res.json() as any
       expect(body.success).toBe(true)
     })
 
@@ -251,7 +251,7 @@ describe('Auth Routes', () => {
       }, env)
 
       expect(res.status).toBe(200)
-      const body = await res.json()
+      const body = await res.json() as any
       expect(body.success).toBe(true)
       expect(body.message).toBe('Logged out')
     })
@@ -293,7 +293,7 @@ describe('Auth Routes', () => {
       }, env)
 
       expect(res.status).toBe(200)
-      const body = await res.json()
+      const body = await res.json() as any
       expect(body.success).toBe(true)
       expect(body.expires_in).toBe(900)
 
@@ -307,7 +307,7 @@ describe('Auth Routes', () => {
       }, env)
 
       expect(res.status).toBe(401)
-      const body = await res.json()
+      const body = await res.json() as any
       expect(body.error).toBe('No refresh token')
     })
 
@@ -322,7 +322,7 @@ describe('Auth Routes', () => {
       }, env)
 
       expect(res.status).toBe(401)
-      const body = await res.json()
+      const body = await res.json() as any
       expect(body.error).toBe('Token refresh failed')
     })
   })
@@ -349,7 +349,7 @@ describe('Auth Routes', () => {
       const res = await testApp.request('/auth/me', {}, env)
 
       expect(res.status).toBe(200)
-      const body = await res.json()
+      const body = await res.json() as any
       expect(body.user).toEqual(mockUser)
     })
 
@@ -357,7 +357,7 @@ describe('Auth Routes', () => {
       const res = await app.request('/auth/me', {}, env)
 
       expect(res.status).toBe(401)
-      const body = await res.json()
+      const body = await res.json() as any
       expect(body.error).toBe('Not authenticated')
     })
   })
@@ -384,7 +384,7 @@ describe('Auth Routes', () => {
       const res = await testApp.request('/auth/status', {}, env)
 
       expect(res.status).toBe(200)
-      const body = await res.json()
+      const body = await res.json() as any
       expect(body.authenticated).toBe(true)
       expect(body.user).toEqual(mockUser)
     })
@@ -393,7 +393,7 @@ describe('Auth Routes', () => {
       const res = await app.request('/auth/status', {}, env)
 
       expect(res.status).toBe(200)
-      const body = await res.json()
+      const body = await res.json() as any
       expect(body.authenticated).toBe(false)
       expect(body.user).toBeNull()
     })

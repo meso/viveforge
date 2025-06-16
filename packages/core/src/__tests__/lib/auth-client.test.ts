@@ -17,7 +17,7 @@ describe('VibebaseAuthClient', () => {
       VIBEBASE_AUTH_URL: 'https://auth.vibebase.workers.dev',
       DEPLOYMENT_DOMAIN: 'test.example.com',
       WORKER_NAME: 'test-worker',
-      ENVIRONMENT: 'test',
+      ENVIRONMENT: 'development',
       DB: {} as any,
       SESSIONS: {} as any,
       SYSTEM_STORAGE: {} as any,

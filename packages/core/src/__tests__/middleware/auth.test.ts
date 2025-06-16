@@ -19,7 +19,7 @@ describe('Auth Middleware', () => {
       VIBEBASE_AUTH_URL: 'https://auth.vibebase.workers.dev',
       DEPLOYMENT_DOMAIN: 'test.example.com',
       WORKER_NAME: 'test-worker',
-      ENVIRONMENT: 'test',
+      ENVIRONMENT: 'development',
       DB: {} as any,
       SESSIONS: {} as any,
       SYSTEM_STORAGE: {} as any,
@@ -60,7 +60,7 @@ describe('Auth Middleware', () => {
       const res = await app.request('/protected', {}, { env })
 
       expect(res.status).toBe(200)
-      const body = await res.json()
+      const body = await res.json() as any
       expect(body.message).toBe('success')
       expect(body.user).toEqual(mockUser)
     })
@@ -96,14 +96,14 @@ describe('Auth Middleware', () => {
       }, { env })
 
       expect(res.status).toBe(401)
-      const body = await res.json()
+      const body = await res.json() as any
       expect(body.error).toBe('Authentication required')
       expect(body.login_url).toBe('https://auth.vibebase.workers.dev/auth/login?origin=https%3A%2F%2Ftest.example.com&redirect_to=%2F')
     })
 
     it('should handle auth service unavailable', async () => {
       app.use('*', async (c, next) => {
-        c.set('authClient', null)
+        c.set('authClient', undefined)
         await next()
       })
 
@@ -114,7 +114,7 @@ describe('Auth Middleware', () => {
       const res = await app.request('/protected', {}, { env })
 
       expect(res.status).toBe(503)
-      const body = await res.json()
+      const body = await res.json() as any
       expect(body.error).toBe('Authentication service unavailable')
     })
 
@@ -128,7 +128,7 @@ describe('Auth Middleware', () => {
       const res = await app.request('/protected', {}, { env })
 
       expect(res.status).toBe(503)
-      const body = await res.json()
+      const body = await res.json() as any
       expect(body.error).toBe('Authentication service error')
     })
   })
@@ -153,7 +153,7 @@ describe('Auth Middleware', () => {
       const res = await app.request('/optional', {}, { env })
 
       expect(res.status).toBe(200)
-      const body = await res.json()
+      const body = await res.json() as any
       expect(body.user).toEqual(mockUser)
     })
 
@@ -168,13 +168,13 @@ describe('Auth Middleware', () => {
       const res = await app.request('/optional', {}, { env })
 
       expect(res.status).toBe(200)
-      const body = await res.json()
+      const body = await res.json() as any
       expect(body.user).toBeNull()
     })
 
     it('should continue when auth client is unavailable', async () => {
       app.use('*', async (c, next) => {
-        c.set('authClient', null)
+        c.set('authClient', undefined)
         await next()
       })
 
@@ -186,7 +186,7 @@ describe('Auth Middleware', () => {
       const res = await app.request('/optional', {}, { env })
 
       expect(res.status).toBe(200)
-      const body = await res.json()
+      const body = await res.json() as any
       expect(body.user).toBeNull()
     })
 
@@ -201,13 +201,13 @@ describe('Auth Middleware', () => {
       const res = await app.request('/optional', {}, { env })
 
       expect(res.status).toBe(200)
-      const body = await res.json()
+      const body = await res.json() as any
       expect(body.user).toBeNull()
     })
   })
 
   describe('getCurrentUser', () => {
-    it('should return user when set in context', () => {
+    it('should return user when set in context', async () => {
       const mockUser = {
         id: 12345,
         username: 'testuser',
@@ -222,24 +222,22 @@ describe('Auth Middleware', () => {
         return c.json({ user })
       })
 
-      return app.request('/user', {}, { env }).then(async (res) => {
-        expect(res.status).toBe(200)
-        const body = await res.json()
-        expect(body.user).toEqual(mockUser)
-      })
+      const res = await app.request('/user', {}, { env })
+      expect(res.status).toBe(200)
+      const body = await res.json() as { user: typeof mockUser }
+      expect(body.user).toEqual(mockUser)
     })
 
-    it('should return null when no user in context', () => {
+    it('should return null when no user in context', async () => {
       app.get('/user', (c) => {
         const user = getCurrentUser(c)
         return c.json({ user })
       })
 
-      return app.request('/user', {}, { env }).then(async (res) => {
-        expect(res.status).toBe(200)
-        const body = await res.json()
-        expect(body.user).toBeNull()
-      })
+      const res = await app.request('/user', {}, { env })
+      expect(res.status).toBe(200)
+      const body = await res.json() as { user: null }
+      expect(body.user).toBeNull()
     })
   })
 })

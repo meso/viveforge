@@ -94,7 +94,7 @@ describe('Authentication Logic Patterns', () => {
     expect(refreshToken).toBe('def456');
 
     // Test missing tokens
-    const noCookieHeader = null;
+    const noCookieHeader = null as string | null;
     const noAccessToken = noCookieHeader?.match(/access_token=([^;]+)/)?.[1];
     expect(noAccessToken).toBeUndefined();
   });

@@ -208,10 +208,14 @@ export class VibebaseAuthClient {
       const refreshToken = cookieHeader?.match(/refresh_token=([^;]+)/)?.[1]
       
       if (cookieToken) {
-        return await this.verifyToken(cookieToken)
+        try {
+          return await this.verifyToken(cookieToken)
+        } catch (error) {
+          // アクセストークンが無効な場合、リフレッシュトークンで更新を試行
+        }
       }
       
-      // access_tokenがないがrefresh_tokenがある場合、リフレッシュを試行
+      // access_tokenがないまたは無効で、refresh_tokenがある場合、リフレッシュを試行
       if (refreshToken) {
         try {
           const tokens = await this.refreshToken(refreshToken)
