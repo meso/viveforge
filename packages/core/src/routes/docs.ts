@@ -78,18 +78,18 @@ async function generateOpenAPISpec(tables: any[], tm: TableManager, baseUrl: str
   const spec = {
     openapi: '3.0.0',
     info: {
-      title: 'Viveforge Dynamic CRUD API',
+      title: 'Vibebase Dynamic CRUD API',
       description: 'Automatically generated CRUD API for user-created tables',
       version: '1.0.0',
       contact: {
-        name: 'Viveforge',
-        url: 'https://github.com/meso/viveforge'
+        name: 'Vibebase',
+        url: 'https://github.com/vibebase/vibebase'
       }
     },
     servers: [
       {
         url: baseUrl,
-        description: 'Viveforge Instance'
+        description: 'Vibebase Instance'
       }
     ],
     paths: {} as any,
@@ -731,7 +731,7 @@ function generateSwaggerUI(baseUrl: string): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Viveforge API Documentation</title>
+  <title>Vibebase API Documentation</title>
   <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui.css" />
   <style>
     html { box-sizing: border-box; overflow: -moz-scrollbars-vertical; overflow-y: scroll; }
