@@ -2,8 +2,8 @@ name = "vibebase-core"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
 
-# Workers Assets for dashboard
-assets = { directory = "../dashboard/dist" }
+# Workers Assets disabled - using Hono serveStatic for authentication
+# assets = { directory = "../dashboard/dist" }
 
 # Enable Workers Logs
 [observability]

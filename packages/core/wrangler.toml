@@ -3,8 +3,8 @@ main = "src/index.ts"
 compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
 
-# Workers Assets for dashboard
-assets = { directory = "../dashboard/dist" }
+# Workers Assets disabled - handle all routing in Worker
+# assets = { directory = "../dashboard/dist" }
 
 # Enable Workers Logs
 [observability]
