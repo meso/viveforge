@@ -8,7 +8,6 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 const dashboardDistPath = join(__dirname, '../dist/index.html')
-const coreIndexPath = join(__dirname, '../../core/src/index.ts')
 const coreAssetsPath = join(__dirname, '../../core/src/templates/assets.ts')
 
 try {
@@ -31,24 +30,7 @@ try {
   console.log('  CSS:', cssFile)
   console.log('  JS:', jsFile)
   
-  // Read the core index.ts file
-  let coreIndexContent = readFileSync(coreIndexPath, 'utf-8')
-  
-  // Update the asset references using regex replacement
-  coreIndexContent = coreIndexContent.replace(
-    /src="\/assets\/index-[^"]+\.js"/,
-    `src="/assets/${jsFile}"`
-  )
-  
-  coreIndexContent = coreIndexContent.replace(
-    /href="\/assets\/index-[^"]+\.css"/,
-    `href="/assets/${cssFile}"`
-  )
-  
-  // Write the updated content back
-  writeFileSync(coreIndexPath, coreIndexContent)
-  
-  // Also create/update the assets file for templates
+  // Create/update the assets file for templates
   const assetsContent = `// Auto-generated asset file names
 export const CURRENT_ASSETS = {
   js: '${jsFile}',
@@ -57,7 +39,6 @@ export const CURRENT_ASSETS = {
 `
   writeFileSync(coreAssetsPath, assetsContent)
   
-  console.log('✅ Updated core/src/index.ts with new asset file names')
   console.log('✅ Updated core/src/templates/assets.ts with asset references')
   
 } catch (error) {

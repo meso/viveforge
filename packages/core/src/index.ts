@@ -13,6 +13,7 @@ import { admin } from './routes/admin'
 import { VibebaseAuthClient } from './lib/auth-client'
 import { getDashboardHTML, getLoginHTML } from './templates/html'
 import { requireAuth, optionalAuth } from './middleware/auth'
+import { CURRENT_ASSETS } from './templates/assets'
 import type { Env, Variables } from './types'
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>()
@@ -61,6 +62,7 @@ app.use('*', async (c, next) => {
   if (c.req.path.startsWith('/auth/') || 
       c.req.path.startsWith('/assets/') ||
       c.req.path.startsWith('/favicon.')) {
+    console.log(`Skipping auth for: ${c.req.path}`)
     await next()
     return
   }
@@ -108,11 +110,6 @@ app.use('*', async (c, next) => {
 })
 
 
-// Current asset files (updated by build process)
-const CURRENT_ASSETS = {
-  js: 'index-CG3uv528.js',
-  css: 'index-uQ_gp5jX.css'
-}
 
 // Root route - Dashboard
 app.get('/', async (c) => {
@@ -136,10 +133,29 @@ app.route('/api/snapshots', snapshots)
 app.route('/api/storage', storage)
 app.route('/api/admin', admin)
 
+// Handle static assets
+app.get('/assets/*', async (c) => {
+  console.log(`Asset request for: ${c.req.path}`)
+  // Let Workers Assets handle this through env.ASSETS
+  return c.env.ASSETS.fetch(c.req.raw)
+})
+
+app.get('/favicon.svg', async (c) => {
+  console.log(`Favicon request`)
+  // Let Workers Assets handle this through env.ASSETS
+  return c.env.ASSETS.fetch(c.req.raw)
+})
+
 // Catch-all route for SPA fallback
 app.get('*', async (c) => {
-  // Don't handle API routes or auth routes
-  if (c.req.path.startsWith('/api/') || c.req.path.startsWith('/auth/')) {
+  console.log(`Catch-all route hit for: ${c.req.path}`)
+  
+  // Don't handle API routes, auth routes, or static assets
+  if (c.req.path.startsWith('/api/') || 
+      c.req.path.startsWith('/auth/') ||
+      c.req.path.startsWith('/assets/') ||
+      c.req.path.startsWith('/favicon.')) {
+    console.log(`Returning 404 for: ${c.req.path}`)
     return c.json({ error: 'Not Found' }, 404)
   }
   

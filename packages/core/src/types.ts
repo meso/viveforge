@@ -7,6 +7,7 @@ export interface Env {
   SYSTEM_STORAGE?: R2Bucket  // システム用（スナップショット等）
   USER_STORAGE?: R2Bucket    // ユーザー用
   SESSIONS?: KVNamespace
+  ASSETS: { fetch: (request: Request) => Promise<Response> }  // Workers Assets
   ENVIRONMENT: 'development' | 'production'
   
   // Vibebase Auth settings
