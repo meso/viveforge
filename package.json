@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm -r build",
-    "deploy": "cd packages/dashboard && npm run deploy",
+    "deploy": "pnpm --filter @vibebase/dashboard build && pnpm --filter @vibebase/core run deploy",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck"

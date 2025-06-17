@@ -114,6 +114,7 @@ vibebase/
 ```bash
 pnpm dev         # 全ての開発サーバーを並列起動
 pnpm build       # 全てのパッケージをビルド
+pnpm deploy      # プロジェクト全体をデプロイ（推奨：ダッシュボードビルド→アセットクリーンアップ・コピー→coreのCloudflareデプロイまで全自動実行）
 pnpm test        # 全てのテストを実行
 pnpm lint        # 全てのパッケージでリンティング実行
 pnpm typecheck   # 全てのパッケージで型チェック実行
@@ -132,7 +133,6 @@ pnpm typecheck   # TypeScript型チェックを実行
 ```bash
 pnpm dev         # Vite開発サーバーを起動
 pnpm build       # ダッシュボードをビルドしてcoreにアセットをコピー
-pnpm deploy      # ビルドしてデプロイ
 pnpm typecheck   # TypeScript型チェックを実行
 ```
 
@@ -184,3 +184,4 @@ ALWAYS discuss and agree on the approach/design before implementation. Never jum
 
 ## Memories
 - コマンドを実行する前に、今いるフォルダがどこなのかを確認しましょう
+- デプロイ時は **ルートで `pnpm deploy`** を使用する（ダッシュボードビルド→アセットクリーンアップ・コピー→coreのCloudflareデプロイまで全自動実行される）
