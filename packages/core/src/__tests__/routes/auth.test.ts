@@ -62,6 +62,9 @@ describe('Auth Routes', () => {
       SESSIONS: {} as any,
       SYSTEM_STORAGE: {} as any,
       USER_STORAGE: {} as any,
+      ASSETS: {
+        fetch: vi.fn(() => Promise.resolve(new Response('mock asset')))
+      }
     }
 
     mockAuthClient = {

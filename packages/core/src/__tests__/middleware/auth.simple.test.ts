@@ -18,6 +18,9 @@ describe('Authentication Logic Patterns', () => {
       SESSIONS: {} as any,
       SYSTEM_STORAGE: {} as any,
       USER_STORAGE: {} as any,
+      ASSETS: {
+        fetch: vi.fn(() => Promise.resolve(new Response('mock asset')))
+      }
     };
 
     // Mock crypto.randomUUID
