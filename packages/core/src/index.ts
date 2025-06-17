@@ -116,7 +116,7 @@ app.get('/', async (c) => {
   return c.html(getDashboardHTML(user, CURRENT_ASSETS.js, CURRENT_ASSETS.css))
 })
 
-// Static assets handled by Workers Assets below - no serveStatic needed
+// Static assets handled by Workers Assets below
 
 // Auth routes (public)
 app.route('/auth', auth)
