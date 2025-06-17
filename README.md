@@ -88,6 +88,7 @@ chmod +x deploy/setup.sh
 - **フレームワーク**: Hono
 - **データベース**: Cloudflare D1 (SQLite)
 - **ストレージ**: Cloudflare R2
+- **アセット配信**: Cloudflare Workers Assets
 - **フロントエンド**: Preact + Vite + Tailwind CSS
 - **ビルドツール**: Wrangler, Vite
 - **テスト**: Vitest, Miniflare

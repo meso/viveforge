@@ -28,7 +28,7 @@ Vibebaseは、Cloudflare上で動作する、AIを活用してコードを書く
 - **ストレージ**: Cloudflare R2
 - **認証**: [vibebase-auth](https://github.com/vibebase/vibebase-auth) + JWT (RS256)
 - **フロントエンド**: Preact + Vite + Tailwind CSS
-- **アセット配信**: Hono serveStatic (認証統合のため)
+- **アセット配信**: Cloudflare Workers Assets
 - **ビルドツール**: Wrangler, Vite
 - **テスト**: Vitest, Miniflare
 
@@ -53,9 +53,10 @@ vibebase/
 ### ✅ 実装済み
 
 #### 1. 管理ダッシュボード
-- Cloudflare Workers上で動作するWebベースの管理画面
+- Cloudflare Workers + Workers Assetsで動作するWebベースの管理画面
 - バックエンドリソースを管理するための直感的なUI/UX
 - リアルタイムでのデータ表示・編集
+- Workers Assetsによる高速なアセット配信
 
 #### 2. データベース（D1）
 - Cloudflare D1を使用したSQLiteベースのデータベース
