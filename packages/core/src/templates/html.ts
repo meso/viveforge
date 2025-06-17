@@ -32,6 +32,7 @@ export const getAuthErrorHTML = (title: string, message: string, details?: strin
 <html lang="ja">
   <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${title} - Vibebase</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -57,6 +58,7 @@ export const getAccessDeniedHTML = (username: string) => {
 <html lang="ja">
   <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>アクセス拒否 - Vibebase</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -79,6 +81,7 @@ export const getLoginHTML = (loginUrl: string) => {
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ログイン - Vibebase</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -124,6 +127,7 @@ export const getLogoutHTML = () => {
 <html lang="ja">
   <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ログアウト - Vibebase</title>
     <script src="https://cdn.tailwindcss.com"></script>

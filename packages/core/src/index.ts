@@ -143,6 +143,12 @@ app.get('/favicon.svg', async (c) => {
   return c.env.ASSETS.fetch(c.req.raw)
 })
 
+app.get('/favicon.ico', async (c) => {
+  console.log(`Favicon.ico request - redirecting to favicon.svg`)
+  // Redirect to SVG favicon
+  return c.redirect('/favicon.svg', 301)
+})
+
 // Catch-all route for SPA fallback
 app.get('*', async (c) => {
   console.log(`Catch-all route hit for: ${c.req.path}`)
