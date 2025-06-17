@@ -9,9 +9,10 @@ import { docs } from './routes/docs'
 import { snapshots } from './routes/snapshots'
 import { storage } from './routes/storage'
 import { admin } from './routes/admin'
+import { apiKeys } from './routes/api-keys'
 import { VibebaseAuthClient } from './lib/auth-client'
 import { getDashboardHTML, getLoginHTML } from './templates/html'
-import { requireAuth, optionalAuth } from './middleware/auth'
+import { requireAuth, optionalAuth, multiAuth } from './middleware/auth'
 import { CURRENT_ASSETS } from './templates/assets'
 import type { Env, Variables } from './types'
 
@@ -66,46 +67,8 @@ app.use('*', async (c, next) => {
     return
   }
   
-  try {
-    const authClient = c.get('authClient') as VibebaseAuthClient
-    
-    if (!authClient) {
-      console.error('AuthClient not initialized')
-      return c.json({ error: 'Authentication service unavailable' }, 503)
-    }
-
-    const user = await authClient.verifyRequest(c)
-    
-    if (!user) {
-      // APIリクエストの場合はJSONで返す
-      if (c.req.path.startsWith('/api/')) {
-        const currentUrl = c.req.url
-        const loginUrl = authClient.getLoginUrl(currentUrl)
-        return c.json({ 
-          error: 'Authentication required',
-          login_url: loginUrl
-        }, 401)
-      }
-      
-      // ブラウザリクエストの場合はログイン画面を表示
-      const currentPath = new URL(c.req.url).pathname
-      const loginUrl = authClient.getLoginUrl(currentPath)
-      
-      return c.html(getLoginHTML(loginUrl))
-    }
-    
-    // ユーザー情報をコンテキストに設定
-    c.set('user', user)
-    await next()
-    
-  } catch (error) {
-    console.error('Authentication middleware error:', error)
-    return c.json({ 
-      error: 'Authentication failed', 
-      details: error instanceof Error ? error.message : 'Unknown error',
-      path: c.req.path
-    }, 500)
-  }
+  // Use multi-auth middleware for API routes and dashboard
+  return await multiAuth(c, next)
 })
 
 
@@ -129,6 +92,7 @@ app.route('/api/docs', docs)
 app.route('/api/snapshots', snapshots)
 app.route('/api/storage', storage)
 app.route('/api/admin', admin)
+app.route('/api/api-keys', apiKeys)
 
 // Handle static assets
 app.get('/assets/*', async (c) => {

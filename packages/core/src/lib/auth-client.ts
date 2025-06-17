@@ -191,6 +191,18 @@ export class VibebaseAuthClient {
   }
 
   /**
+   * JWT token verification (public method for API key auth)
+   */
+  async verifyJWT(token: string): Promise<User | null> {
+    try {
+      return await this.verifyToken(token)
+    } catch (error) {
+      console.error('JWT verification failed:', error)
+      return null
+    }
+  }
+
+  /**
    * リクエストから認証情報を取得・検証
    */
   async verifyRequest(c: any): Promise<User | null> {

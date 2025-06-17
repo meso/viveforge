@@ -35,6 +35,9 @@ export interface Variables {
   userId?: string
   adminId?: string
   tableInfo?: any
+  apiKeyManager?: any
+  authContext?: any
+  apiKey?: any
 }
 
 export interface Admin {
