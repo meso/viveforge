@@ -1,7 +1,6 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
-import { serveStatic } from 'hono/cloudflare-workers'
 import { api } from './routes/api'
 import { auth } from './routes/auth'
 import { tables } from './routes/tables'
@@ -117,9 +116,7 @@ app.get('/', async (c) => {
   return c.html(getDashboardHTML(user, CURRENT_ASSETS.js, CURRENT_ASSETS.css))
 })
 
-// Static assets (public) - no authentication required
-app.use('/assets/*', serveStatic({ root: './' }))
-app.use('/favicon.svg', serveStatic({ path: './assets/favicon.svg' }))
+// Static assets handled by Workers Assets below - no serveStatic needed
 
 // Auth routes (public)
 app.route('/auth', auth)
