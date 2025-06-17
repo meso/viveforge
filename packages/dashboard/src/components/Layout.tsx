@@ -53,7 +53,7 @@ interface NavLinkProps {
 function NavLink({ href, children }: NavLinkProps) {
   return (
     <Link
-      href={href}
+      {...({ href } as any)}
       class={clsx(
         'inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium',
         'hover:border-gray-300 hover:text-gray-700',
