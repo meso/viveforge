@@ -1,4 +1,5 @@
 import type { Env } from '../types'
+import { jwt } from 'hono/jwt'
 
 export interface User {
   id: number
@@ -170,8 +171,8 @@ export class VibebaseAuthClient {
       // 公開鍵取得
       const publicKey = await this.getPublicKey()
       
-      // JWT検証（簡易実装 - 本格実装ではライブラリ使用）
-      const payload = await this.verifyJWTSignature(token, publicKey)
+      // JWT検証（hono/jwtを使用）
+      const payload = await this.verifyJWTWithHono(token, publicKey)
       
       // ペイロード検証
       this.validateTokenPayload(payload)
@@ -323,27 +324,40 @@ export class VibebaseAuthClient {
   }
 
   /**
-   * JWK to PEM conversion (簡易実装)
+   * JWK to PEM conversion
    */
   private async jwkToPublicKey(jwk: any): Promise<string> {
-    // 実際の実装では適切なライブラリを使用
-    // ここでは簡易的な実装
-    return jwk.x5c ? jwk.x5c[0] : jwk.n
+    // x5c (X.509 Certificate Chain) が利用可能な場合
+    if (jwk.x5c && jwk.x5c[0]) {
+      const cert = jwk.x5c[0]
+      // Base64エンコードされた証明書をPEM形式に変換
+      const pemCert = `-----BEGIN CERTIFICATE-----\n${cert.match(/.{1,64}/g)?.join('\n')}\n-----END CERTIFICATE-----`
+      return pemCert
+    }
+    
+    // RSA公開鍵の場合はJWK形式をそのまま返す（hono/jwtがJWKをサポート）
+    if (jwk.kty === 'RSA' && jwk.n && jwk.e) {
+      return JSON.stringify(jwk)
+    }
+    
+    throw new Error('Unsupported JWK format')
   }
 
   /**
-   * JWT署名検証 (簡易実装)
+   * JWT署名検証 (hono/jwt使用)
    */
-  private async verifyJWTSignature(token: string, publicKey: string): Promise<any> {
-    // 実際の実装ではjose等のライブラリを使用
-    // ここでは簡易的にペイロードのみ取得
-    const parts = token.split('.')
-    if (parts.length !== 3) {
-      throw new Error('Invalid JWT format')
+  private async verifyJWTWithHono(token: string, publicKey: string): Promise<any> {
+    try {
+      // hono/jwtのverify関数を直接使用
+      const { verify } = await import('hono/jwt')
+      
+      // RS256で検証
+      const payload = await verify(token, publicKey, 'RS256')
+      return payload
+    } catch (error) {
+      const err = error as Error
+      throw new Error(`JWT verification failed: ${err.message}`)
     }
-
-    const payload = JSON.parse(atob(parts[1]))
-    return payload
   }
 
   /**

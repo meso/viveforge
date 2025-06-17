@@ -6,6 +6,13 @@ import type { Env } from '../../types'
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
+// Mock hono/jwt verify function
+const mockVerify = vi.fn()
+vi.mock('hono/jwt', () => ({
+  jwt: vi.fn(),
+  verify: mockVerify
+}))
+
 describe('VibebaseAuthClient', () => {
   let authClient: VibebaseAuthClient
   let env: Env
@@ -77,8 +84,10 @@ describe('VibebaseAuthClient', () => {
         scope: ['admin']
       }
 
-      // Mock JWT parts
-      const mockToken = 'header.' + btoa(JSON.stringify(mockPayload)) + '.signature'
+      // Mock hono/jwt verify to return the payload
+      mockVerify.mockResolvedValue(mockPayload)
+
+      const mockToken = 'valid.jwt.token'
 
       const user = await authClient.verifyToken(mockToken)
 
@@ -105,7 +114,10 @@ describe('VibebaseAuthClient', () => {
         scope: ['admin']
       }
 
-      const mockToken = 'header.' + btoa(JSON.stringify(mockPayload)) + '.signature'
+      // Mock hono/jwt verify to return the payload
+      mockVerify.mockResolvedValue(mockPayload)
+
+      const mockToken = 'valid.jwt.token'
 
       await expect(authClient.verifyToken(mockToken)).rejects.toThrow(
         'Invalid audience: expected test.example.com, got wrong.example.com'
@@ -126,7 +138,10 @@ describe('VibebaseAuthClient', () => {
         scope: ['admin']
       }
 
-      const mockToken = 'header.' + btoa(JSON.stringify(mockPayload)) + '.signature'
+      // Mock hono/jwt verify to return the payload
+      mockVerify.mockResolvedValue(mockPayload)
+
+      const mockToken = 'valid.jwt.token'
 
       await expect(authClient.verifyToken(mockToken)).rejects.toThrow('Token expired')
     })
@@ -145,15 +160,21 @@ describe('VibebaseAuthClient', () => {
         scope: ['admin']
       }
 
-      const mockToken = 'header.' + btoa(JSON.stringify(mockPayload)) + '.signature'
+      // Mock hono/jwt verify to return the payload
+      mockVerify.mockResolvedValue(mockPayload)
+
+      const mockToken = 'valid.jwt.token'
 
       await expect(authClient.verifyToken(mockToken)).rejects.toThrow('Invalid issuer')
     })
 
     it('should reject malformed JWT', async () => {
+      // Mock hono/jwt verify to throw an error for malformed JWT
+      mockVerify.mockRejectedValue(new Error('Invalid JWT format'))
+
       const malformedToken = 'not.a.valid.jwt.token'
 
-      await expect(authClient.verifyToken(malformedToken)).rejects.toThrow('Invalid JWT format')
+      await expect(authClient.verifyToken(malformedToken)).rejects.toThrow('JWT verification failed')
     })
   })
 
@@ -248,7 +269,10 @@ describe('VibebaseAuthClient', () => {
         scope: ['admin']
       }
 
-      const mockToken = 'header.' + btoa(JSON.stringify(mockPayload)) + '.signature'
+      // Mock hono/jwt verify to return the payload
+      mockVerify.mockResolvedValue(mockPayload)
+
+      const mockToken = 'valid.jwt.token'
       
       mockContext.req.header.mockReturnValue(`Bearer ${mockToken}`)
       mockContext.req.raw.headers.get.mockReturnValue(null)
@@ -278,7 +302,10 @@ describe('VibebaseAuthClient', () => {
         scope: ['admin']
       }
 
-      const mockToken = 'header.' + btoa(JSON.stringify(mockPayload)) + '.signature'
+      // Mock hono/jwt verify to return the payload
+      mockVerify.mockResolvedValue(mockPayload)
+
+      const mockToken = 'valid.jwt.token'
       
       mockContext.req.header.mockReturnValue(null)
       mockContext.req.raw.headers.get.mockReturnValue(`access_token=${mockToken}; other=value`)

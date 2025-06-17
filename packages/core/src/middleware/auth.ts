@@ -97,28 +97,6 @@ export function requireAdmin(c: Context<{ Bindings: Env; Variables: Variables }>
   }
 }
 
-/**
- * トークンリフレッシュを試行
- */
-async function tryRefreshToken(c: Context, authClient: VibebaseAuthClient): Promise<boolean> {
-  try {
-    const refreshToken = c.req.raw.headers.get('Cookie')?.match(/refresh_token=([^;]+)/)?.[1]
-    if (!refreshToken) {
-      return false
-    }
-    
-    const tokens = await authClient.refreshToken(refreshToken)
-    
-    // 新しいトークンをCookieに設定
-    c.header('Set-Cookie', `access_token=${tokens.access_token}; HttpOnly; Secure; SameSite=Strict; Max-Age=${tokens.expires_in}; Path=/`)
-    c.header('Set-Cookie', `refresh_token=${tokens.refresh_token}; HttpOnly; Secure; SameSite=Strict; Max-Age=${30 * 24 * 60 * 60}; Path=/`)
-    
-    return true
-  } catch (error) {
-    console.error('Token refresh failed:', error)
-    return false
-  }
-}
 
 /**
  * 認証エラーハンドラー
