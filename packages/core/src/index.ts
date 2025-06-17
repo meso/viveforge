@@ -86,11 +86,11 @@ app.use('*', async (c, next) => {
         }, 401)
       }
       
-      // ブラウザリクエストの場合はログインにリダイレクト
+      // ブラウザリクエストの場合はログイン画面を表示
       const currentPath = new URL(c.req.url).pathname
       const loginUrl = authClient.getLoginUrl(currentPath)
       
-      return c.redirect(loginUrl)
+      return c.html(getLoginHTML(loginUrl))
     }
     
     // ユーザー情報をコンテキストに設定

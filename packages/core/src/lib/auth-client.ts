@@ -346,10 +346,24 @@ export class VibebaseAuthClient {
   /**
    * JWT署名検証 (hono/jwt使用)
    */
-  private async verifyJWTWithHono(token: string, publicKey: string): Promise<any> {
+  private async verifyJWTWithHono(token: string, publicKeyData: string): Promise<any> {
     try {
       // hono/jwtのverify関数を直接使用
       const { verify } = await import('hono/jwt')
+      
+      // 公開鍵のフォーマットを判定
+      let publicKey: any = publicKeyData
+      
+      // JSON文字列の場合はパース（JWK形式）
+      try {
+        const parsed = JSON.parse(publicKeyData)
+        if (parsed.kty) {
+          publicKey = parsed
+        }
+      } catch {
+        // JSON パースに失敗した場合は文字列（PEM形式）のまま使用
+        publicKey = publicKeyData
+      }
       
       // RS256で検証
       const payload = await verify(token, publicKey, 'RS256')
