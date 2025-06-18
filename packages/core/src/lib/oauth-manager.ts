@@ -30,12 +30,12 @@ export class OAuthManager {
     
     if (!result) return null
     
-    const config = result as any
+    const config = result as Record<string, unknown>
     return {
-      clientId: config.client_id,
-      clientSecret: config.client_secret,
-      scopes: config.scopes ? JSON.parse(config.scopes) : [],
-      redirectUri: config.redirect_uri
+      clientId: config.client_id as string,
+      clientSecret: config.client_secret as string,
+      scopes: config.scopes ? JSON.parse(config.scopes as string) : [],
+      redirectUri: config.redirect_uri as string
     }
   }
 
@@ -202,56 +202,56 @@ export class OAuthManager {
     const userData = await response.json()
     
     // Normalize user data across different providers
-    return this.normalizeUserInfo(provider, userData)
+    return this.normalizeUserInfo(provider, userData as Record<string, unknown>)
   }
 
   // Normalize user info from different providers
-  private normalizeUserInfo(provider: string, userData: any): OAuthUserInfo {
+  private normalizeUserInfo(provider: string, userData: Record<string, unknown>): OAuthUserInfo {
     switch (provider) {
       case 'google':
         return {
-          id: userData.id,
-          email: userData.email,
-          name: userData.name,
-          avatar_url: userData.picture
+          id: userData.id as string,
+          email: userData.email as string,
+          name: userData.name as string,
+          avatar_url: userData.picture as string
         }
       
       case 'github':
         return {
-          id: userData.id.toString(),
-          email: userData.email,
-          name: userData.name || userData.login,
-          avatar_url: userData.avatar_url
+          id: (userData.id as number).toString(),
+          email: userData.email as string,
+          name: (userData.name as string) || (userData.login as string),
+          avatar_url: userData.avatar_url as string
         }
       
       case 'facebook':
         return {
-          id: userData.id,
-          email: userData.email,
-          name: userData.name,
-          avatar_url: userData.picture?.data?.url
+          id: userData.id as string,
+          email: userData.email as string,
+          name: userData.name as string,
+          avatar_url: ((userData.picture as Record<string, unknown>)?.data as Record<string, unknown>)?.url as string
         }
       
       case 'linkedin':
-        const firstName = userData.firstName?.localized?.en_US || ''
-        const lastName = userData.lastName?.localized?.en_US || ''
+        const firstName = ((userData.firstName as Record<string, unknown>)?.localized as Record<string, unknown>)?.en_US as string || ''
+        const lastName = ((userData.lastName as Record<string, unknown>)?.localized as Record<string, unknown>)?.en_US as string || ''
         return {
-          id: userData.id,
-          email: userData.emailAddress,
+          id: userData.id as string,
+          email: userData.emailAddress as string,
           name: `${firstName} ${lastName}`.trim() || undefined,
-          avatar_url: userData.profilePicture?.displayImage
+          avatar_url: (userData.profilePicture as Record<string, unknown>)?.displayImage as string
         }
       
       case 'twitter':
         return {
-          id: userData.id,
-          email: userData.email, // Note: Twitter API v2 doesn't include email by default
-          name: userData.name || userData.username,
-          avatar_url: userData.profile_image_url
+          id: userData.id as string,
+          email: userData.email as string, // Note: Twitter API v2 doesn't include email by default
+          name: (userData.name as string) || (userData.username as string),
+          avatar_url: userData.profile_image_url as string
         }
       
       default:
-        return userData
+        return userData as OAuthUserInfo
     }
   }
 

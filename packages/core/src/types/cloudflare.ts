@@ -11,7 +11,7 @@ export interface D1Database {
 }
 
 export interface D1PreparedStatement {
-  bind(...values: any[]): D1PreparedStatement
+  bind(...values: (string | number | boolean | null | undefined)[]): D1PreparedStatement
   first<T = unknown>(): Promise<T | null>
   run(): Promise<D1Result>
   all<T = unknown>(): Promise<D1Result<T>>
@@ -127,7 +127,7 @@ export interface R2Range {
 
 // ExecutionContext type
 export interface ExecutionContext {
-  waitUntil(promise: Promise<any>): void
+  waitUntil(promise: Promise<unknown>): void
   passThroughOnException(): void
 }
 
@@ -163,6 +163,6 @@ export interface OperationResult {
 }
 
 export interface TableDataResult {
-  data: any[]
+  data: Record<string, unknown>[]
   total: number
 }

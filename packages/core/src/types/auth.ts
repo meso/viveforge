@@ -45,11 +45,7 @@ export interface UserAuthContext {
 
 export interface AdminAuthContext {
   type: 'admin'
-  user: {
-    id: string
-    github_id: number
-    is_root: boolean
-  }
+  user: User
 }
 
 export interface APIKeyAuthContext {
@@ -79,7 +75,7 @@ export interface UserToken {
   iss: string
   exp: number
   iat: number
-  [key: string]: any
+  [key: string]: unknown
 }
 
 // OAuth flow interfaces
@@ -104,7 +100,7 @@ export interface OAuthUserInfo {
   email: string
   name?: string
   avatar_url?: string
-  [key: string]: any // Provider-specific fields
+  [key: string]: unknown // Provider-specific fields
 }
 
 // Provider-specific user info interfaces
@@ -140,7 +136,7 @@ export interface FacebookUserInfo extends OAuthUserInfo {
 export interface AuthError {
   code: string
   message: string
-  details?: any
+  details?: string | Record<string, unknown>
 }
 
 export type OAuthProviderType = 'google' | 'github' | 'facebook' | 'linkedin' | 'twitter' | 'apple' | 'microsoft' | 'discord' | 'slack'

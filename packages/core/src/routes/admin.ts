@@ -93,7 +93,7 @@ admin.delete('/:id', async (c) => {
     // Check if admin exists and is not root
     const admin = await db.prepare(
       'SELECT id, github_username, is_root FROM admins WHERE id = ?'
-    ).bind(id).first() as any
+    ).bind(id).first() as Record<string, unknown>
     
     if (!admin) {
       return c.json({ error: 'Admin not found' }, 404)
@@ -108,7 +108,7 @@ admin.delete('/:id', async (c) => {
     
     return c.json({ 
       message: 'Admin removed successfully',
-      github_username: admin.github_username
+      github_username: admin.github_username as string
     })
   } catch (error) {
     console.error('Failed to remove admin:', error)

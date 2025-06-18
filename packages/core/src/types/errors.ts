@@ -107,12 +107,12 @@ export interface ErrorResult {
   error: VibebaseError
 }
 
-export interface SuccessResult<T = any> {
+export interface SuccessResult<T = unknown> {
   success: true
   data: T
 }
 
-export type Result<T = any> = SuccessResult<T> | ErrorResult
+export type Result<T = unknown> = SuccessResult<T> | ErrorResult
 
 // Error factory functions for common error types
 export const createSystemTableError = (tableName: string): VibebaseError =>

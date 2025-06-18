@@ -1,6 +1,8 @@
 import { TableManager } from './lib/table-manager'
 import { Database } from './lib/database'
 import type { VibebaseAuthClient, User } from './lib/auth-client'
+import type { AuthContext } from './types/auth'
+import type { LocalTableInfo } from './lib/table-manager'
 
 export interface Env {
   DB?: D1Database
@@ -38,11 +40,11 @@ export interface Variables {
   user?: User
   userId?: string
   adminId?: string
-  tableInfo?: any
-  apiKeyManager?: any
-  authContext?: any
-  apiKey?: any
-  currentEndUser?: any
+  tableInfo?: LocalTableInfo
+  apiKeyManager?: unknown
+  authContext?: AuthContext | null
+  apiKey?: unknown
+  currentEndUser?: User | null
 }
 
 export interface Admin {

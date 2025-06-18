@@ -8,7 +8,7 @@ export interface ColumnInfo {
   name: string
   type: string
   notnull: number
-  dflt_value: any
+  dflt_value: unknown
   pk: number
 }
 

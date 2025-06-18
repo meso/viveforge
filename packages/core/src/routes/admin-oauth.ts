@@ -52,11 +52,11 @@ adminOAuth.get('/providers/:provider', async (c) => {
       return c.json({ error: `OAuth provider '${provider}' not found` }, 404)
     }
     
-    const providerData = result as any
+    const providerData = result as Record<string, unknown>
     return c.json({
       provider: {
         ...providerData,
-        scopes: providerData.scopes ? JSON.parse(providerData.scopes) : []
+        scopes: providerData.scopes ? JSON.parse(providerData.scopes as string) : []
       }
     })
   } catch (error) {

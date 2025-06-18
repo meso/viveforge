@@ -14,7 +14,7 @@ export class DataManager {
   }
 
   // Create a record in a table
-  async createRecord(tableName: string, data: Record<string, any>): Promise<void> {
+  async createRecord(tableName: string, data: Record<string, unknown>): Promise<void> {
     console.log('Enabling foreign keys before insert...')
     await this.enableForeignKeys()
     
@@ -23,7 +23,7 @@ export class DataManager {
     console.log('Foreign keys status:', pragmaResult)
     
     // Check if table is protected system table (admins table is allowed)
-    if (SYSTEM_TABLES.includes(tableName as any)) {
+    if (SYSTEM_TABLES.includes(tableName as (typeof SYSTEM_TABLES)[number])) {
       throw new Error(`Cannot modify system table: ${tableName}`)
     }
     
@@ -46,7 +46,7 @@ export class DataManager {
     console.log('Executing INSERT with foreign key constraints:', sql, 'Values:', values)
     console.log('Data being inserted:', dataWithTimestamps)
     
-    await this.db.prepare(sql).bind(...values).run()
+    await this.db.prepare(sql).bind(...(values as (string | number | boolean | null)[])).run()
   }
 
   // Delete a record from a table
@@ -54,7 +54,7 @@ export class DataManager {
     await this.enableForeignKeys()
     
     // Check if table is protected system table (admins table is allowed)
-    if (SYSTEM_TABLES.includes(tableName as any)) {
+    if (SYSTEM_TABLES.includes(tableName as (typeof SYSTEM_TABLES)[number])) {
       throw new Error(`Cannot modify system table: ${tableName}`)
     }
     
@@ -85,8 +85,8 @@ export class DataManager {
       .all()
 
     return {
-      data: dataResult.results,
-      total: (countResult as any)?.total as number || 0
+      data: dataResult.results as Record<string, unknown>[],
+      total: (countResult as { total: number })?.total || 0
     }
   }
 
@@ -115,8 +115,8 @@ export class DataManager {
       .all()
 
     return {
-      data: dataResult.results,
-      total: (countResult as any)?.total as number || 0
+      data: dataResult.results as Record<string, unknown>[],
+      total: (countResult as { total: number })?.total || 0
     }
   }
 
@@ -133,7 +133,7 @@ export class DataManager {
     // Build WHERE clause for private tables
     let whereClause = ''
     let countWhereClause = ''
-    const bindings: any[] = []
+    const bindings: (string | number | boolean | null)[] = []
     
     if (accessPolicy === 'private' && userId) {
       whereClause = ' WHERE owner_id = ?'
@@ -165,19 +165,19 @@ export class DataManager {
       .all()
 
     return {
-      data: dataResult.results,
-      total: (countResult as any)?.total as number || 0
+      data: dataResult.results as Record<string, unknown>[],
+      total: (countResult as { total: number })?.total || 0
     }
   }
 
   // Get single record by ID
-  async getRecordById(tableName: string, id: string): Promise<Record<string, any> | null> {
+  async getRecordById(tableName: string, id: string): Promise<Record<string, unknown> | null> {
     const result = await this.db
       .prepare(`SELECT * FROM "${tableName}" WHERE id = ? LIMIT 1`)
       .bind(id)
       .first()
 
-    return result || null
+    return (result as Record<string, unknown>) || null
   }
 
   // Get single record by ID with access control
@@ -186,9 +186,9 @@ export class DataManager {
     id: string, 
     accessPolicy: 'public' | 'private',
     userId?: string
-  ): Promise<Record<string, any> | null> {
+  ): Promise<Record<string, unknown> | null> {
     let whereClause = 'WHERE id = ?'
-    const bindings: any[] = [id]
+    const bindings: (string | number | boolean | null)[] = [id]
 
     if (accessPolicy === 'private' && userId) {
       whereClause += ' AND owner_id = ?'
@@ -200,29 +200,29 @@ export class DataManager {
       .bind(...bindings)
       .first()
 
-    return result || null
+    return (result as Record<string, unknown>) || null
   }
 
   // Create record and return the generated ID
-  async createRecordWithId(tableName: string, data: Record<string, any>): Promise<string> {
+  async createRecordWithId(tableName: string, data: Record<string, unknown>): Promise<string> {
     await this.enableForeignKeys()
     
     // Check if table is protected system table (admins table is allowed)
-    if (SYSTEM_TABLES.includes(tableName as any)) {
+    if (SYSTEM_TABLES.includes(tableName as (typeof SYSTEM_TABLES)[number])) {
       throw new Error(`Cannot modify system table: ${tableName}`)
     }
     
     // Generate ID if not provided
-    const id = data.id || this.generateId()
-    const dataWithId = { ...data, id }
+    const id = (data.id as string) || this.generateId()
+    const dataWithId = { ...data, id } as Record<string, any>
     
     // Add timestamps if not provided
     const now = new Date().toISOString()
-    if (!(dataWithId as any).created_at) {
-      (dataWithId as any).created_at = now
+    if (!dataWithId.created_at) {
+      dataWithId.created_at = now
     }
-    if (!(dataWithId as any).updated_at) {
-      (dataWithId as any).updated_at = now
+    if (!dataWithId.updated_at) {
+      dataWithId.updated_at = now
     }
     
     // Build INSERT statement
@@ -232,40 +232,40 @@ export class DataManager {
     
     const sql = `INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${placeholders})`
     
-    await this.db.prepare(sql).bind(...values).run()
-    return id
+    await this.db.prepare(sql).bind(...(values as (string | number | boolean | null)[])).run()
+    return id as string
   }
 
   // Create record with access control (auto-set owner_id for private tables)
   async createRecordWithAccessControl(
     tableName: string, 
-    data: Record<string, any>,
+    data: Record<string, unknown>,
     accessPolicy: 'public' | 'private',
     userId?: string
   ): Promise<string> {
     await this.enableForeignKeys()
     
     // Check if table is protected system table
-    if (SYSTEM_TABLES.includes(tableName as any)) {
+    if (SYSTEM_TABLES.includes(tableName as (typeof SYSTEM_TABLES)[number])) {
       throw new Error(`Cannot modify system table: ${tableName}`)
     }
     
     // Generate ID if not provided
-    const id = data.id || this.generateId()
-    const dataWithId = { ...data, id }
+    const id = (data.id as string) || this.generateId()
+    const dataWithId = { ...data, id } as Record<string, any>
     
     // Add owner_id for private tables
     if (accessPolicy === 'private' && userId) {
-      (dataWithId as any).owner_id = userId
+      dataWithId.owner_id = userId
     }
     
     // Add timestamps if not provided
     const now = new Date().toISOString()
-    if (!(dataWithId as any).created_at) {
-      (dataWithId as any).created_at = now
+    if (!dataWithId.created_at) {
+      dataWithId.created_at = now
     }
-    if (!(dataWithId as any).updated_at) {
-      (dataWithId as any).updated_at = now
+    if (!dataWithId.updated_at) {
+      dataWithId.updated_at = now
     }
     
     // Build INSERT statement
@@ -275,16 +275,16 @@ export class DataManager {
     
     const sql = `INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${placeholders})`
     
-    await this.db.prepare(sql).bind(...values).run()
-    return id
+    await this.db.prepare(sql).bind(...(values as (string | number | boolean | null)[])).run()
+    return id as string
   }
 
   // Update record
-  async updateRecord(tableName: string, id: string, data: Record<string, any>): Promise<void> {
+  async updateRecord(tableName: string, id: string, data: Record<string, unknown>): Promise<void> {
     await this.enableForeignKeys()
     
     // Check if table is protected system table (admins table is allowed)
-    if (SYSTEM_TABLES.includes(tableName as any)) {
+    if (SYSTEM_TABLES.includes(tableName as (typeof SYSTEM_TABLES)[number])) {
       throw new Error(`Cannot modify system table: ${tableName}`)
     }
     
@@ -302,7 +302,7 @@ export class DataManager {
     
     const sql = `UPDATE ${tableName} SET ${setClause} WHERE id = ?`
     
-    await this.db.prepare(sql).bind(...values, id).run()
+    await this.db.prepare(sql).bind(...(values as (string | number | boolean | null)[]), id).run()
   }
 
   // Generate unique ID (similar to what SQLite's randomblob would generate)
@@ -316,6 +316,6 @@ export class DataManager {
       .prepare(`PRAGMA table_info("${tableName}")`)
       .all()
 
-    return result.results.map((col: any) => ({ name: col.name }))
+    return (result.results as unknown[]).map((col) => ({ name: (col as Record<string, unknown>).name as string }))
   }
 }

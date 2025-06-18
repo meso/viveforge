@@ -141,7 +141,7 @@ tables.post('/:tableName/data', async (c) => {
     const data = await c.req.json()
     
     // Check if table is system table
-    if (SYSTEM_TABLES.includes(tableName as any) || tableName === '_cf_KV') {
+    if (SYSTEM_TABLES.includes(tableName as (typeof SYSTEM_TABLES)[number]) || tableName === '_cf_KV') {
       return c.json({ error: 'Cannot modify system table' }, 403)
     }
     
@@ -170,7 +170,7 @@ tables.put('/:tableName/data/:id', async (c) => {
     const data = await c.req.json()
     
     // Check if table is system table
-    if (SYSTEM_TABLES.includes(tableName as any) || tableName === '_cf_KV') {
+    if (SYSTEM_TABLES.includes(tableName as (typeof SYSTEM_TABLES)[number]) || tableName === '_cf_KV') {
       return c.json({ error: 'Cannot modify system table' }, 403)
     }
     
@@ -353,7 +353,7 @@ tables.post('/:tableName/columns/:columnName/validate', zValidator('json', modif
 // Execute SQL query
 const executeSQLSchema = z.object({
   sql: z.string().min(1),
-  params: z.array(z.any()).optional()
+  params: z.array(z.unknown()).optional()
 })
 
 tables.post('/query', zValidator('json', executeSQLSchema), async (c) => {
@@ -479,7 +479,7 @@ tables.get('/:tableName/search', zValidator('query', searchQuerySchema), async (
     const tableManager = c.get('tableManager')!
 
     // Check if table is a system table
-    if (SYSTEM_TABLES.includes(tableName as any)) {
+    if (SYSTEM_TABLES.includes(tableName as (typeof SYSTEM_TABLES)[number])) {
       return c.json({
         error: {
           code: 'SYSTEM_TABLE_ACCESS_DENIED',
@@ -593,7 +593,7 @@ tables.get('/:tableName/policy', async (c) => {
     const tableManager = c.get('tableManager')!
     
     // Check if table is a system table
-    if (SYSTEM_TABLES.includes(tableName as any)) {
+    if (SYSTEM_TABLES.includes(tableName as (typeof SYSTEM_TABLES)[number])) {
       return c.json({
         table_name: tableName,
         access_policy: 'system',
@@ -629,7 +629,7 @@ tables.put('/:tableName/policy', zValidator('json', policyUpdateSchema), async (
     const tableManager = c.get('tableManager')!
     
     // Check if table is a system table
-    if (SYSTEM_TABLES.includes(tableName as any)) {
+    if (SYSTEM_TABLES.includes(tableName as (typeof SYSTEM_TABLES)[number])) {
       return c.json({
         error: 'Cannot modify access policy for system tables'
       }, 403)
