@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
 import { UserAuthManager } from '../lib/user-auth-manager'
 import { OAuthManager } from '../lib/oauth-manager'
+import { AppSettingsManager } from '../lib/app-settings-manager'
 import { multiAuth, requireUserAuth, getCurrentEndUser, getAuthContext } from '../middleware/auth'
 import type { Env, Variables } from '../types'
 import type { User } from '../types/auth'
@@ -36,9 +37,24 @@ userAuth.get('/login/:provider', async (c) => {
   try {
     const provider = c.req.param('provider')
     const returnUrl = c.req.query('return_url') || '/'
+    const callbackUrl = c.req.query('callback_url')
     
     if (!c.env.DB) {
       return c.json({ error: 'Database not available' }, 503)
+    }
+
+    // Validate callback URL if provided
+    if (callbackUrl) {
+      const appSettingsManager = new AppSettingsManager(c.env.DB)
+      
+      if (!appSettingsManager.isValidCallbackUrlFormat(callbackUrl)) {
+        return c.json({ error: 'Invalid callback URL format' }, 400)
+      }
+      
+      const isAllowed = await appSettingsManager.isCallbackUrlAllowed(callbackUrl)
+      if (!isAllowed) {
+        return c.json({ error: 'Callback URL not allowed' }, 403)
+      }
     }
 
     const oauthManager = new OAuthManager(c.env.DB)
@@ -52,11 +68,12 @@ userAuth.get('/login/:provider', async (c) => {
     const state = oauthManager.generateState()
     const baseUrl = `${c.req.url.split('/api')[0]}`
     
-    // Store state and return URL in secure cookie
+    // Store state, return URL, and callback URL in secure cookie
     const authState = {
       state,
       provider,
       return_url: returnUrl,
+      callback_url: callbackUrl,
       expires: Date.now() + (10 * 60 * 1000) // 10 minutes
     }
     
@@ -153,6 +170,14 @@ userAuth.get('/callback/:provider', async (c) => {
     // Generate JWT tokens
     const tokens = await userAuthManager.generateTokens(user)
     
+    // Check if we should redirect to a callback URL
+    let finalReturnUrl = authState.return_url
+    
+    if (authState.callback_url) {
+      // Callback URL was already validated during login initiation
+      finalReturnUrl = authState.callback_url
+    }
+    
     // Return tokens and user info
     return c.json({
       success: true,
@@ -165,7 +190,7 @@ userAuth.get('/callback/:provider', async (c) => {
         avatar_url: user.avatar_url,
         role: user.role
       },
-      return_url: authState.return_url
+      return_url: finalReturnUrl
     })
   } catch (error) {
     console.error('OAuth callback failed:', error)

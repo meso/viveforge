@@ -1,5 +1,5 @@
 // Auto-generated asset file names
 export const CURRENT_ASSETS = {
-  js: 'index-VrRP0dmd.js',
-  css: 'index-CHGsnAWm.css'
+  js: 'index-CZKJ1x34.js',
+  css: 'index-BCBhehRI.css'
 }
