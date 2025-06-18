@@ -4,6 +4,51 @@ import { apiKeys } from '../../routes/api-keys'
 import { APIKeyManager, API_SCOPES } from '../../lib/api-key-manager'
 import type { Env, Variables } from '../../types'
 
+// Mock auth middleware to bypass authentication
+vi.mock('../../middleware/auth', () => ({
+  requireAuth: vi.fn().mockImplementation(async (c, next) => {
+    // Set a mock user for authentication
+    c.set('user', {
+      id: 123,
+      username: 'testuser',
+      email: 'test@example.com',
+      name: 'Test User',
+      scope: ['admin']
+    })
+    await next()
+  }),
+  getCurrentUser: vi.fn().mockReturnValue({
+    id: 123,
+    username: 'testuser',
+    email: 'test@example.com',
+    name: 'Test User',
+    scope: ['admin']
+  }),
+  getAuthContext: vi.fn(),
+  requireScope: vi.fn(),
+  multiAuth: vi.fn().mockImplementation(async (c, next) => {
+    await next()
+  })
+}))
+
+// Mock the APIKeyManager
+vi.mock('../../lib/api-key-manager', () => ({
+  APIKeyManager: vi.fn(),
+  API_SCOPES: {
+    'data:read': 'Read data from tables',
+    'data:write': 'Create and update data in tables',
+    'data:delete': 'Delete data from tables',
+    'tables:read': 'View table schemas',
+    'tables:write': 'Create and modify table schemas',
+    'tables:delete': 'Delete tables',
+    'storage:read': 'Read files from storage',
+    'storage:write': 'Upload files to storage',
+    'storage:delete': 'Delete files from storage',
+    'admin:read': 'Read administrative data',
+    'admin:write': 'Perform administrative operations'
+  }
+}))
+
 describe('API Keys Routes', () => {
   let app: Hono<{ Bindings: Env; Variables: Variables }>
   let mockEnv: Env
@@ -22,6 +67,9 @@ describe('API Keys Routes', () => {
       deleteAPIKey: vi.fn()
     }
     
+    // Mock the APIKeyManager constructor to return our mock
+    vi.mocked(APIKeyManager).mockImplementation(() => mockAPIKeyManager)
+    
     mockEnv = {
       DB: {} as any,
       SESSIONS: {} as any,
@@ -34,17 +82,9 @@ describe('API Keys Routes', () => {
       ENVIRONMENT: 'development'
     }
 
-    // Mock authentication middleware
+    // Mock authentication middleware - set env and variables
     app.use('*', async (c, next) => {
       c.env = mockEnv
-      c.set('apiKeyManager', mockAPIKeyManager)
-      c.set('user', {
-        id: 123,
-        username: 'testuser',
-        email: 'test@example.com',
-        name: 'Test User',
-        scope: ['admin']
-      })
       await next()
     })
 

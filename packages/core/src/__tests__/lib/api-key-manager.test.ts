@@ -16,14 +16,32 @@ describe('APIKeyManager', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     
+    // Create more flexible mock that returns itself for chaining
+    const createChainableMock = () => {
+      const mockRun = vi.fn().mockResolvedValue({ success: true, meta: { changes: 1 } })
+      const mockFirst = vi.fn().mockResolvedValue(null)
+      const mockAll = vi.fn().mockResolvedValue({ results: [] })
+      
+      const chainable = {
+        bind: vi.fn().mockReturnThis(),
+        run: mockRun,
+        first: mockFirst,
+        all: mockAll
+      }
+      
+      // Make bind return a new chainable object each time
+      chainable.bind = vi.fn().mockImplementation(() => ({
+        ...chainable,
+        run: mockRun,
+        first: mockFirst,
+        all: mockAll
+      }))
+      
+      return chainable
+    }
+    
     mockDB = {
-      prepare: vi.fn().mockReturnValue({
-        bind: vi.fn().mockReturnValue({
-          run: vi.fn().mockResolvedValue({ success: true, meta: { changes: 1 } }),
-          first: vi.fn().mockResolvedValue(null),
-          all: vi.fn().mockResolvedValue({ results: [] })
-        })
-      })
+      prepare: vi.fn().mockImplementation(() => createChainableMock())
     }
     
     apiKeyManager = new APIKeyManager(mockDB)
@@ -181,17 +199,14 @@ describe('APIKeyManager', () => {
     })
 
     it('should return null for inactive key', async () => {
-      const inactiveKey = {
-        id: 'key-123',
-        expires_at: null,
-        is_active: 0, // inactive
-        scopes: '["data:read"]'
-      }
-
-      const firstMock = vi.fn().mockResolvedValue(inactiveKey)
+      // Since the query filters by is_active = 1, inactive keys should return null from DB
+      const firstMock = vi.fn().mockResolvedValue(null)
+      const runMock = vi.fn().mockResolvedValue({ success: true })
+      
       mockDB.prepare.mockReturnValue({
         bind: vi.fn().mockReturnValue({
-          first: firstMock
+          first: firstMock,
+          run: runMock
         })
       })
 

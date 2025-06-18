@@ -211,7 +211,18 @@ export class APIKeyManager {
       WHERE id = ? AND created_by = ?
     `).bind(id, userId).run()
 
-    return (result as any).changes > 0
+    // Check for changes in meta property first (D1 format)
+    if (result.meta && typeof result.meta.changes === 'number') {
+      return result.meta.changes > 0
+    }
+    
+    // Fallback to direct changes property
+    if ((result as any).changes !== undefined) {
+      return (result as any).changes > 0
+    }
+    
+    // If we can't determine, return false
+    return false
   }
 }
 
