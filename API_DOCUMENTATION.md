@@ -10,7 +10,64 @@ https://your-worker.your-domain.workers.dev/api/data
 ```
 
 ### Authentication
-Currently, the Dynamic CRUD API does not require authentication. This will be added in future versions.
+
+The Vibebase API supports multiple authentication methods to accommodate different use cases:
+
+#### 1. Admin Authentication (Dashboard)
+For accessing the management dashboard and administrative functions:
+- **Method**: GitHub OAuth → JWT tokens
+- **Usage**: Dashboard login, admin operations
+- **Token**: Long-lived JWT with admin privileges
+
+#### 2. API Key Authentication (Server-to-Server)
+For backend services and server-side applications:
+- **Method**: API Keys generated in dashboard
+- **Usage**: Server-side integrations, scheduled jobs
+- **Header**: `Authorization: Bearer <api_key>`
+- **Security**: Should only be used in secure server environments
+
+#### 3. End-User OAuth Authentication (Client Applications)
+For mobile apps and frontend applications with end users:
+- **Method**: OAuth (GitHub, Google, Discord, etc.) → Access tokens
+- **Usage**: Mobile apps, SPAs, desktop applications
+- **Token**: Short-lived access tokens (in-memory only)
+- **Security**: Tokens expire automatically, no persistent storage
+
+#### Authentication Flow for Client Applications
+
+1. **User Authentication**:
+   ```javascript
+   // User logs in via OAuth (GitHub/Google/Discord)
+   const { accessToken } = await vibebaseAuth.login('github')
+   ```
+
+2. **API Access**:
+   ```javascript
+   // Use the access token for API calls
+   fetch('/api/data/users', {
+     headers: {
+       'Authorization': `Bearer ${accessToken}`
+     }
+   })
+   ```
+
+3. **Token Management**:
+   - Tokens are kept in memory only (never persisted)
+   - Automatic refresh when needed
+   - App restart requires re-authentication
+
+#### Authorization Levels
+
+**Admin**: Full access to all data and management functions
+**End User**: Access based on user-specific permissions and data ownership
+**API Key**: Configurable scopes (read-only, write, specific tables, etc.)
+
+#### Security Best Practices
+
+- **Never embed API keys in client applications**
+- **Use OAuth flow for end-user facing applications**
+- **Keep access tokens in memory only**
+- **Implement proper logout to clear tokens**
 
 ---
 
@@ -382,11 +439,31 @@ curl "https://vibebase.mesongo.workers.dev/api/tables/users/search?column=email&
 
 ---
 
-## Coming Soon
+---
 
-- Authentication and authorization
-- Field-level permissions
-- **Complex search with multiple conditions**: POST-based search API with support for combining multiple column conditions using AND/OR logic (e.g., `name = 'John' AND age > 25`)
-- Bulk operations
-- Webhooks for data changes
-- Real-time subscriptions
+## Implementation Roadmap
+
+### Phase 1: Multi-Authentication Support (In Progress)
+- ✅ Admin authentication (GitHub OAuth + JWT)
+- 🚧 API Key authentication for server-side applications
+- 🚧 End-user OAuth authentication for client applications
+- 🚧 Multi-level authorization system
+
+### Phase 2: Enhanced Security & Management
+- 📋 API Key management in dashboard (create, revoke, scope configuration)
+- 📋 User management and permissions
+- 📋 Rate limiting and usage analytics
+- 📋 Audit logs for all API access
+
+### Phase 3: Advanced Features
+- 📋 Field-level permissions
+- 📋 **Complex search with multiple conditions**: POST-based search API with support for combining multiple column conditions using AND/OR logic (e.g., `name = 'John' AND age > 25`)
+- 📋 Bulk operations
+- 📋 Webhooks for data changes
+- 📋 Real-time subscriptions
+- 📋 GraphQL API support
+
+### Legend
+- ✅ Completed
+- 🚧 In Development  
+- 📋 Planned
