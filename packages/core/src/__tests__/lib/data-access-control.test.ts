@@ -23,7 +23,10 @@ describe('Data Access Control', () => {
         'test_table',
         'public',
         'user123',
-        { page: 1, limit: 10, sort: 'id', order: 'asc' }
+        10,    // limit
+        0,     // offset
+        'id',  // sortBy
+        'ASC'  // sortOrder
       )
       
       expect(result).toHaveProperty('data')
@@ -36,7 +39,10 @@ describe('Data Access Control', () => {
         'private_table',
         'private',
         'user123',
-        { page: 1, limit: 10, sort: 'id', order: 'asc' }
+        10,    // limit
+        0,     // offset  
+        'id',  // sortBy
+        'ASC'  // sortOrder
       )
       
       expect(result).toHaveProperty('data')
@@ -48,7 +54,10 @@ describe('Data Access Control', () => {
         'public_table',
         'public',
         'user123',
-        { page: 1, limit: 10, sort: 'id', order: 'asc' }
+        10,    // limit
+        0,     // offset  
+        'id',  // sortBy
+        'ASC'  // sortOrder
       )
       
       expect(result).toHaveProperty('data')
@@ -60,7 +69,10 @@ describe('Data Access Control', () => {
         'public_table',
         'public',
         undefined,
-        { page: 1, limit: 10, sort: 'id', order: 'asc' }
+        10,    // limit
+        0,     // offset  
+        'id',  // sortBy
+        'ASC'  // sortOrder
       )
       
       expect(result).toHaveProperty('data')
@@ -73,7 +85,10 @@ describe('Data Access Control', () => {
         'private_table',
         'private',
         undefined,
-        { page: 1, limit: 10, sort: 'id', order: 'asc' }
+        10,    // limit
+        0,     // offset  
+        'id',  // sortBy
+        'ASC'  // sortOrder
       )
       
       expect(result).toHaveProperty('data')
@@ -85,7 +100,10 @@ describe('Data Access Control', () => {
         'test_table',
         'public',
         'user123',
-        { page: 2, limit: 5, sort: 'created_at', order: 'desc' }
+        5,            // limit
+        5,            // offset (page 2 = skip 5)
+        'created_at', // sortBy
+        'DESC'        // sortOrder
       )
       
       expect(result).toHaveProperty('data')
@@ -107,14 +125,18 @@ describe('Data Access Control', () => {
       // Test that both methods can coexist
       const regularResult = await dm.getTableData(
         'test_table',
-        { page: 1, limit: 10, sort: 'id', order: 'asc' }
+        10,    // limit
+        0      // offset
       )
       
       const accessControlResult = await dm.getTableDataWithAccessControl(
         'test_table',
         'public',
         'user123',
-        { page: 1, limit: 10, sort: 'id', order: 'asc' }
+        10,    // limit
+        0,     // offset  
+        'id',  // sortBy
+        'ASC'  // sortOrder
       )
       
       expect(regularResult).toHaveProperty('data')

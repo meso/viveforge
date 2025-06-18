@@ -53,9 +53,11 @@ describe('Table Access Control', () => {
       // Test that the method accepts the expected parameters without throwing
       const result = await tm.getTableDataWithAccessControl(
         'test_table',
-        'public',
-        'user123',
-        { page: 1, limit: 10, sort: 'id', order: 'asc' }
+        'user123',  // userId
+        10,         // limit
+        0,          // offset
+        'id',       // sortBy
+        'ASC'       // sortOrder
       )
       
       expect(result).toHaveProperty('data')
@@ -66,9 +68,11 @@ describe('Table Access Control', () => {
     it('should handle private table access with user ID', async () => {
       const result = await tm.getTableDataWithAccessControl(
         'private_table',
-        'private',
-        'user123',
-        { page: 1, limit: 10, sort: 'id', order: 'asc' }
+        'user123',  // userId
+        10,         // limit
+        0,          // offset
+        'id',       // sortBy
+        'ASC'       // sortOrder
       )
       
       expect(result).toHaveProperty('data')
@@ -78,9 +82,11 @@ describe('Table Access Control', () => {
     it('should handle public table access', async () => {
       const result = await tm.getTableDataWithAccessControl(
         'public_table',
-        'public',
-        'user123',
-        { page: 1, limit: 10, sort: 'id', order: 'asc' }
+        'user123',  // userId
+        10,         // limit
+        0,          // offset
+        'id',       // sortBy
+        'ASC'       // sortOrder
       )
       
       expect(result).toHaveProperty('data')
@@ -100,9 +106,11 @@ describe('Table Access Control', () => {
     it('should handle missing user ID for private access', async () => {
       const result = await tm.getTableDataWithAccessControl(
         'private_table',
-        'private',
-        undefined,
-        { page: 1, limit: 10, sort: 'id', order: 'asc' }
+        undefined,  // userId (undefined for missing user)
+        10,         // limit
+        0,          // offset
+        'id',       // sortBy
+        'ASC'       // sortOrder
       )
       
       expect(result).toHaveProperty('data')

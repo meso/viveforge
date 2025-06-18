@@ -373,7 +373,7 @@ describe('Auth Routes', () => {
       const body = await res.json() as any
       expect(body.user).toEqual({
         id: '12345',
-        username: 'Test User', // This comes from user.name || user.email
+        username: 'testuser', // This comes from user.username || user.email
         email: 'test@example.com',
         name: 'Test User',
         scope: ['admin']
@@ -421,7 +421,7 @@ describe('Auth Routes', () => {
       expect(body.authenticated).toBe(true)
       expect(body.user).toEqual({
         id: '12345',
-        username: 'Test User', // This comes from user.name || user.email
+        username: 'testuser', // This comes from user.username || user.email
         email: 'test@example.com',
         name: 'Test User',
         scope: ['admin']
