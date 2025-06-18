@@ -1,28 +1,25 @@
 import type { Context, Next } from 'hono'
 import { bearerAuth } from 'hono/bearer-auth'
-import { VibebaseAuthClient, type User } from '../lib/auth-client'
+import { VibebaseAuthClient, type User as AdminUser } from '../lib/auth-client'
 import { APIKeyManager, type APIKey } from '../lib/api-key-manager'
+import { UserAuthManager } from '../lib/user-auth-manager'
 import type { Env, Variables } from '../types'
+import type { User, UserSession, AuthContext } from '../types/auth'
 
 export interface AuthError extends Error {
   code: string
   status: number
 }
 
-export interface AuthContext {
-  type: 'admin' | 'api_key'
-  user?: User
-  apiKey?: APIKey
-}
-
 declare module 'hono' {
   interface ContextVariableMap {
     authContext: AuthContext
+    user: AdminUser | undefined  // Legacy support for admin users
   }
 }
 
 /**
- * Multi-authentication middleware (Admin + API Key)
+ * Multi-authentication middleware (Admin + API Key + User)
  */
 export async function multiAuth(c: Context<{ Bindings: Env; Variables: Variables }>, next: Next) {
   const authHeader = c.req.header('Authorization')
@@ -36,12 +33,48 @@ export async function multiAuth(c: Context<{ Bindings: Env; Variables: Variables
       return await handleAPIKeyAuth(c, next, token)
     }
     
-    // If it's not an API key format, try admin JWT
+    // Try user JWT authentication first
+    const userResult = await handleUserJWTAuth(c, next, token)
+    if (userResult !== null) {
+      return userResult
+    }
+    
+    // If not a user token, try admin JWT
     return await handleAdminJWTAuth(c, next, token)
   }
   
   // If no Authorization header, try admin authentication (cookie-based)
   return await handleAdminAuth(c, next)
+}
+
+async function handleUserJWTAuth(c: Context<{ Bindings: Env; Variables: Variables }>, next: Next, token: string): Promise<Response | null> {
+  try {
+    if (!c.env.DB || !c.env.JWT_SECRET) {
+      return null // Let other auth methods handle this
+    }
+    
+    const userAuthManager = new UserAuthManager(c.env.DB, c.env.JWT_SECRET, c.env.DOMAIN || 'localhost')
+    const authResult = await userAuthManager.verifyUserToken(token)
+    
+    if (!authResult) {
+      return null // Not a user token, try other methods
+    }
+    
+    // Set auth context for user
+    c.set('authContext', { 
+      type: 'user', 
+      user: authResult.user, 
+      session: authResult.session 
+    })
+    c.set('user', undefined) // Clear admin user for consistency
+    
+    await next()
+    return c.res // Return the response to indicate successful handling
+  } catch (error) {
+    // If verification fails, it might not be a user token
+    // Return null to let other auth methods try
+    return null
+  }
 }
 
 async function handleAPIKeyAuth(c: Context<{ Bindings: Env; Variables: Variables }>, next: Next, token: string) {
@@ -193,6 +226,11 @@ export function hasScope(c: Context<{ Bindings: Env; Variables: Variables }>, sc
     return authContext.apiKey.scopes.includes(scope)
   }
   
+  if (authContext.type === 'user') {
+    // User has basic user scopes
+    return scope === 'user' || scope.startsWith('data:')
+  }
+  
   return false
 }
 
@@ -215,20 +253,45 @@ export function requireScope(scope: string) {
 /**
  * 管理者権限チェック
  */
-export function requireAdmin(c: Context<{ Bindings: Env; Variables: Variables }>, next: Next) {
-  return async () => {
-    const user = getCurrentUser(c)
+export async function requireAdmin(c: Context<{ Bindings: Env; Variables: Variables }>, next: Next) {
+  const authContext = getAuthContext(c)
+  
+  if (!authContext) {
+    return c.json({ error: 'Authentication required' }, 401)
+  }
+  
+  if (authContext.type !== 'admin') {
+    return c.json({ error: 'Admin access required' }, 403)
+  }
+  
+  await next()
+}
+
+/**
+ * Require user authentication (not admin or API key)
+ */
+export function requireUserAuth() {
+  return async (c: Context<{ Bindings: Env; Variables: Variables }>, next: Next) => {
+    const authContext = getAuthContext(c)
     
-    if (!user) {
+    if (!authContext) {
       return c.json({ error: 'Authentication required' }, 401)
     }
     
-    if (!user.scope.includes('admin')) {
-      return c.json({ error: 'Admin access required' }, 403)
+    if (authContext.type !== 'user') {
+      return c.json({ error: 'User authentication required' }, 403)
     }
     
     await next()
   }
+}
+
+/**
+ * Get current user (for user authentication)
+ */
+export function getCurrentEndUser(c: Context<{ Bindings: Env; Variables: Variables }>): User | null {
+  const authContext = getAuthContext(c)
+  return authContext?.type === 'user' ? authContext.user : null
 }
 
 

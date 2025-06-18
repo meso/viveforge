@@ -1,0 +1,264 @@
+import type { D1Database } from '../types/cloudflare'
+import type { OAuthProvider, OAuthProviderConfig, OAuthUserInfo } from '../types/auth'
+
+export class OAuthManager {
+  constructor(private db: D1Database) {}
+
+  // Get enabled OAuth providers
+  async getEnabledProviders(): Promise<OAuthProvider[]> {
+    const result = await this.db.prepare(`
+      SELECT id, provider, client_id, is_enabled, scopes, redirect_uri, created_at, updated_at
+      FROM oauth_providers 
+      WHERE is_enabled = true
+    `).all()
+    
+    return result.results as OAuthProvider[]
+  }
+
+  // Get specific OAuth provider configuration
+  async getProviderConfig(provider: string): Promise<OAuthProviderConfig | null> {
+    const result = await this.db.prepare(`
+      SELECT client_id, client_secret, scopes, redirect_uri
+      FROM oauth_providers 
+      WHERE provider = ? AND is_enabled = true
+    `).bind(provider).first()
+    
+    if (!result) return null
+    
+    const config = result as any
+    return {
+      clientId: config.client_id,
+      clientSecret: config.client_secret,
+      scopes: config.scopes ? JSON.parse(config.scopes) : [],
+      redirectUri: config.redirect_uri
+    }
+  }
+
+  // Create or update OAuth provider configuration (admin only)
+  async upsertProvider(
+    provider: string,
+    config: {
+      client_id: string
+      client_secret: string
+      is_enabled: boolean
+      scopes?: string[]
+      redirect_uri?: string
+    }
+  ): Promise<void> {
+    const existingProvider = await this.db.prepare(`
+      SELECT id FROM oauth_providers WHERE provider = ?
+    `).bind(provider).first()
+    
+    const scopesJson = config.scopes ? JSON.stringify(config.scopes) : null
+    
+    if (existingProvider) {
+      // Update existing provider
+      await this.db.prepare(`
+        UPDATE oauth_providers 
+        SET client_id = ?, client_secret = ?, is_enabled = ?, scopes = ?, redirect_uri = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE provider = ?
+      `).bind(
+        config.client_id,
+        config.client_secret,
+        config.is_enabled,
+        scopesJson,
+        config.redirect_uri,
+        provider
+      ).run()
+    } else {
+      // Create new provider
+      await this.db.prepare(`
+        INSERT INTO oauth_providers (id, provider, client_id, client_secret, is_enabled, scopes, redirect_uri)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        crypto.randomUUID().replace(/-/g, ''),
+        provider,
+        config.client_id,
+        config.client_secret,
+        config.is_enabled,
+        scopesJson,
+        config.redirect_uri
+      ).run()
+    }
+  }
+
+  // Generate OAuth authorization URL
+  generateAuthUrl(
+    provider: string,
+    config: OAuthProviderConfig,
+    state: string,
+    baseUrl: string
+  ): string {
+    const params = new URLSearchParams({
+      response_type: 'code',
+      client_id: config.clientId,
+      redirect_uri: config.redirectUri || `${baseUrl}/api/auth/callback/${provider}`,
+      scope: config.scopes.join(' '),
+      state: state
+    })
+    
+    const authUrls: Record<string, string> = {
+      google: 'https://accounts.google.com/o/oauth2/v2/auth',
+      github: 'https://github.com/login/oauth/authorize',
+      facebook: 'https://www.facebook.com/v18.0/dialog/oauth',
+      linkedin: 'https://www.linkedin.com/oauth/v2/authorization',
+      twitter: 'https://twitter.com/i/oauth2/authorize'
+    }
+    
+    const authUrl = authUrls[provider]
+    if (!authUrl) {
+      throw new Error(`Unsupported OAuth provider: ${provider}`)
+    }
+    
+    return `${authUrl}?${params.toString()}`
+  }
+
+  // Exchange authorization code for access token
+  async exchangeCodeForToken(
+    provider: string,
+    code: string,
+    config: OAuthProviderConfig,
+    baseUrl: string
+  ): Promise<{ access_token: string; token_type: string; expires_in?: number }> {
+    const tokenUrls: Record<string, string> = {
+      google: 'https://oauth2.googleapis.com/token',
+      github: 'https://github.com/login/oauth/access_token',
+      facebook: 'https://graph.facebook.com/v18.0/oauth/access_token',
+      linkedin: 'https://www.linkedin.com/oauth/v2/accessToken',
+      twitter: 'https://api.twitter.com/2/oauth2/token'
+    }
+    
+    const tokenUrl = tokenUrls[provider]
+    if (!tokenUrl) {
+      throw new Error(`Unsupported OAuth provider: ${provider}`)
+    }
+    
+    const body = new URLSearchParams({
+      grant_type: 'authorization_code',
+      client_id: config.clientId,
+      client_secret: config.clientSecret,
+      code: code,
+      redirect_uri: config.redirectUri || `${baseUrl}/api/auth/callback/${provider}`
+    })
+    
+    const response = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json'
+      },
+      body: body.toString()
+    })
+    
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Token exchange failed: ${errorText}`)
+    }
+    
+    return await response.json()
+  }
+
+  // Get user info from OAuth provider
+  async getUserInfo(provider: string, accessToken: string): Promise<OAuthUserInfo> {
+    const userInfoUrls: Record<string, string> = {
+      google: 'https://www.googleapis.com/oauth2/v2/userinfo',
+      github: 'https://api.github.com/user',
+      facebook: 'https://graph.facebook.com/me?fields=id,name,email,picture',
+      linkedin: 'https://api.linkedin.com/v2/people/~:(id,firstName,lastName,emailAddress,profilePicture)',
+      twitter: 'https://api.twitter.com/2/users/me?user.fields=profile_image_url'
+    }
+    
+    const userInfoUrl = userInfoUrls[provider]
+    if (!userInfoUrl) {
+      throw new Error(`Unsupported OAuth provider: ${provider}`)
+    }
+    
+    const response = await fetch(userInfoUrl, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Accept': 'application/json',
+        'User-Agent': 'Vibebase/1.0'
+      }
+    })
+    
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Failed to get user info: ${errorText}`)
+    }
+    
+    const userData = await response.json()
+    
+    // Normalize user data across different providers
+    return this.normalizeUserInfo(provider, userData)
+  }
+
+  // Normalize user info from different providers
+  private normalizeUserInfo(provider: string, userData: any): OAuthUserInfo {
+    switch (provider) {
+      case 'google':
+        return {
+          id: userData.id,
+          email: userData.email,
+          name: userData.name,
+          avatar_url: userData.picture
+        }
+      
+      case 'github':
+        return {
+          id: userData.id.toString(),
+          email: userData.email,
+          name: userData.name || userData.login,
+          avatar_url: userData.avatar_url
+        }
+      
+      case 'facebook':
+        return {
+          id: userData.id,
+          email: userData.email,
+          name: userData.name,
+          avatar_url: userData.picture?.data?.url
+        }
+      
+      case 'linkedin':
+        const firstName = userData.firstName?.localized?.en_US || ''
+        const lastName = userData.lastName?.localized?.en_US || ''
+        return {
+          id: userData.id,
+          email: userData.emailAddress,
+          name: `${firstName} ${lastName}`.trim() || undefined,
+          avatar_url: userData.profilePicture?.displayImage
+        }
+      
+      case 'twitter':
+        return {
+          id: userData.id,
+          email: userData.email, // Note: Twitter API v2 doesn't include email by default
+          name: userData.name || userData.username,
+          avatar_url: userData.profile_image_url
+        }
+      
+      default:
+        return userData
+    }
+  }
+
+  // Generate secure random state for OAuth flow
+  generateState(): string {
+    const array = new Uint8Array(32)
+    crypto.getRandomValues(array)
+    return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('')
+  }
+
+  // Get default scopes for each provider
+  getDefaultScopes(provider: string): string[] {
+    const defaultScopes: Record<string, string[]> = {
+      google: ['openid', 'email', 'profile'],
+      github: ['user:email'],
+      facebook: ['email', 'public_profile'],
+      linkedin: ['r_liteprofile', 'r_emailaddress'],
+      twitter: ['users.read', 'tweet.read']
+    }
+    
+    return defaultScopes[provider] || []
+  }
+}

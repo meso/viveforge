@@ -10,6 +10,10 @@ export interface Env {
   ASSETS: { fetch: (request: Request) => Promise<Response> }  // Workers Assets
   ENVIRONMENT: 'development' | 'production'
   
+  // User authentication
+  JWT_SECRET?: string
+  DOMAIN?: string
+  
   // Vibebase Auth settings
   VIBEBASE_AUTH_URL?: string
   DEPLOYMENT_ID?: string

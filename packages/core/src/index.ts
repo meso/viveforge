@@ -10,6 +10,8 @@ import { snapshots } from './routes/snapshots'
 import { storage } from './routes/storage'
 import { admin } from './routes/admin'
 import { apiKeys } from './routes/api-keys'
+import userAuth from './routes/user-auth'
+import adminOAuth from './routes/admin-oauth'
 import { VibebaseAuthClient } from './lib/auth-client'
 import { getDashboardHTML, getLoginHTML } from './templates/html'
 import { requireAuth, optionalAuth, multiAuth } from './middleware/auth'
@@ -60,9 +62,9 @@ app.use('*', async (c, next) => {
 app.use('*', async (c, next) => {
   // Skip auth check for auth routes and static assets
   if (c.req.path.startsWith('/auth/') || 
+      c.req.path.startsWith('/api/auth/') ||
       c.req.path.startsWith('/assets/') ||
       c.req.path.startsWith('/favicon.')) {
-    console.log(`Skipping auth for: ${c.req.path}`)
     await next()
     return
   }
@@ -83,6 +85,7 @@ app.get('/', async (c) => {
 
 // Auth routes (public)
 app.route('/auth', auth)
+app.route('/api/auth', userAuth)
 
 // API routes (protected by authentication)
 app.route('/api', api)
@@ -92,37 +95,33 @@ app.route('/api/docs', docs)
 app.route('/api/snapshots', snapshots)
 app.route('/api/storage', storage)
 app.route('/api/admin', admin)
+app.route('/api/admin/oauth', adminOAuth)
 app.route('/api/api-keys', apiKeys)
 
 // Handle static assets
 app.get('/assets/*', async (c) => {
-  console.log(`Asset request for: ${c.req.path}`)
   // Let Workers Assets handle this through env.ASSETS
   return c.env.ASSETS.fetch(c.req.raw)
 })
 
 app.get('/favicon.svg', async (c) => {
-  console.log(`Favicon request`)
   // Let Workers Assets handle this through env.ASSETS
   return c.env.ASSETS.fetch(c.req.raw)
 })
 
 app.get('/favicon.ico', async (c) => {
-  console.log(`Favicon.ico request - redirecting to favicon.svg`)
   // Redirect to SVG favicon
   return c.redirect('/favicon.svg', 301)
 })
 
+
 // Catch-all route for SPA fallback
 app.get('*', async (c) => {
-  console.log(`Catch-all route hit for: ${c.req.path}`)
-  
   // Don't handle API routes, auth routes, or static assets
   if (c.req.path.startsWith('/api/') || 
       c.req.path.startsWith('/auth/') ||
       c.req.path.startsWith('/assets/') ||
       c.req.path.startsWith('/favicon.')) {
-    console.log(`Returning 404 for: ${c.req.path}`)
     return c.json({ error: 'Not Found' }, 404)
   }
   

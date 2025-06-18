@@ -39,6 +39,26 @@ export interface IndexInfo {
   sql: string
 }
 
+export interface OAuthProvider {
+  id: string
+  provider: string
+  client_id: string
+  client_secret: string
+  is_enabled: boolean
+  scopes: string[]
+  redirect_uri?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface SupportedProvider {
+  provider: string
+  name: string
+  default_scopes: string[]
+  setup_instructions: string
+  note?: string
+}
+
 export interface ApiResponse<T> {
   data?: T
   error?: string
@@ -384,6 +404,101 @@ export const api = {
     if (!response.ok) {
       const error = await response.json()
       throw new Error(error.error || 'Failed to drop index')
+    }
+    return response.json()
+  },
+
+  // OAuth Provider management
+  async getOAuthProviders(): Promise<{ providers: OAuthProvider[] }> {
+    const response = await fetch(`${API_BASE}/api/admin/oauth/providers`)
+    if (!response.ok) {
+      let errorMessage = 'Failed to fetch OAuth providers'
+      try {
+        const error = await response.json()
+        if (error.error === 'Authentication required') {
+          errorMessage = 'Admin authentication required. Please log in to access OAuth settings.'
+        } else {
+          errorMessage = error.error || errorMessage
+        }
+      } catch {
+        // If JSON parsing fails, use default message
+      }
+      throw new Error(errorMessage)
+    }
+    return response.json()
+  },
+
+  async getOAuthProvider(provider: string): Promise<{ provider: OAuthProvider }> {
+    const response = await fetch(`${API_BASE}/api/admin/oauth/providers/${provider}`)
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to fetch OAuth provider')
+    }
+    return response.json()
+  },
+
+  async updateOAuthProvider(provider: string, data: {
+    client_id: string
+    client_secret: string
+    is_enabled?: boolean
+    scopes?: string[]
+    redirect_uri?: string
+  }): Promise<{ success: boolean; message: string; provider: any }> {
+    const response = await fetch(`${API_BASE}/api/admin/oauth/providers/${provider}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to update OAuth provider')
+    }
+    return response.json()
+  },
+
+  async toggleOAuthProvider(provider: string, enabled: boolean): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${API_BASE}/api/admin/oauth/providers/${provider}/toggle`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ is_enabled: enabled }),
+    })
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to toggle OAuth provider')
+    }
+    return response.json()
+  },
+
+  async deleteOAuthProvider(provider: string): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${API_BASE}/api/admin/oauth/providers/${provider}`, {
+      method: 'DELETE',
+    })
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to delete OAuth provider')
+    }
+    return response.json()
+  },
+
+  async getSupportedProviders(): Promise<{ supported_providers: SupportedProvider[] }> {
+    const response = await fetch(`${API_BASE}/api/admin/oauth/supported-providers`)
+    if (!response.ok) {
+      let errorMessage = 'Failed to fetch supported providers'
+      try {
+        const error = await response.json()
+        if (error.error === 'Authentication required') {
+          errorMessage = 'Admin authentication required. Please log in to access OAuth settings.'
+        } else {
+          errorMessage = error.error || errorMessage
+        }
+      } catch {
+        // If JSON parsing fails, use default message
+      }
+      throw new Error(errorMessage)
     }
     return response.json()
   },
