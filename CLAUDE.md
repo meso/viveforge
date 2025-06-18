@@ -82,14 +82,34 @@ vibebase/
 - セキュアなクッキー管理（HttpOnly, Secure, SameSite=Strict）
 - 全ルートを保護する認証ミドルウェア
 
+#### 5. API Key認証
+- プログラマティックアクセス用のAPIキー管理
+- スコープベースのアクセス制御
+- セキュアなキー生成と検証
+- 管理者ダッシュボードでのキー管理
+
+#### 6. エンドユーザー認証
+- [vibebase-auth](https://github.com/vibebase/vibebase-auth)統合によるGitHub OAuth
+- ユーザー管理API（CRUD操作）
+- JWTトークンベースの認証
+- ユーザーセッション管理
+
+#### 7. RBAC（Role-Based Access Control）
+- テーブルレベルのアクセスポリシー（public/private）
+- 所有者ベースのデータフィルタリング
+- ユーザー認証時の自動データアクセス制御
+- 管理者・APIキー認証時の全データアクセス
+- usersテーブルの自己参照型アクセス制御
+
+#### 8. アプリケーション設定
+- アプリ名、URL、サポートメール等のカスタマイズ
+- OAuth認証時のUser-Agent設定
+- 設定ページのナビゲーション機能
+
 ### 🚧 開発中
 
-#### ユーザー認証
-- 複数OAuthプロバイダー対応（Google、GitHub、Twitter/X、Discord等）
-- ユーザー登録・ログイン・ログアウト機能
-- ユーザー管理API（CRUD操作）
-- ロールベースのアクセス制御（RBAC）
-- セッション管理
+#### ユーザー認証の拡張
+- 複数OAuthプロバイダー対応（Google、Twitter/X、Discord等）
 
 ### 📋 予定
 

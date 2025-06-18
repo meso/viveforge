@@ -79,6 +79,7 @@ export interface UserToken {
   iss: string
   exp: number
   iat: number
+  [key: string]: any
 }
 
 // OAuth flow interfaces
@@ -117,7 +118,7 @@ export interface GoogleUserInfo extends OAuthUserInfo {
 }
 
 export interface GitHubUserInfo extends OAuthUserInfo {
-  id: number
+  id: string  // Changed from number to string to match OAuthUserInfo
   login: string
   email: string
   name?: string

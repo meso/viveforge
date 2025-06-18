@@ -62,7 +62,7 @@ chmod +x deploy/setup.sh
 
 ## 📋 主要機能
 
-### ✅ 実装済み（v0.1.0 MVP + v0.2.0 一部）
+### ✅ 実装済み（v0.1.0 MVP + v0.2.0）
 
 - 🏗️ **管理ダッシュボード** - Webベースの管理画面
 - 🗄️ **データベース機能（D1）** - SQLiteベースのデータベース
@@ -73,13 +73,20 @@ chmod +x deploy/setup.sh
 - 🔐 **管理者認証** - GitHub OAuthとJWT認証（[vibebase-auth](https://github.com/vibebase/vibebase-auth)統合）
 - 📸 **スキーマスナップショット** - データベーススキーマのバックアップ
 - 🔗 **インデックス管理** - データベースインデックスの作成・削除
+- 🔑 **API Key認証** - プログラマティックアクセス用のAPIキー管理
+- ⚙️ **アプリケーション設定** - アプリ名、URL等のカスタマイズ
+- 🛡️ **RBAC（Role-Based Access Control）** - テーブルレベルのアクセス制御
+  - テーブルポリシー管理（public/private）
+  - ユーザー認証時のデータフィルタリング
+  - 所有者ベースのアクセス制御
 
 ### 🚧 開発予定
 
-- 👥 **ユーザー認証** - 複数OAuth providers（Google、GitHub等）
+- 👥 **エンドユーザー認証の拡張** - 複数OAuth providers（Google、Twitter/X、Discord等）
 - ⚡ **リアルタイム機能** - WebSocket/SSE対応
 - 📱 **Push通知** - Web Push/FCM
 - 🛠️ **CLIツール** - 開発効率化ツール
+- 🌍 **環境管理** - 本番/開発環境の分離
 
 ## 🏗️ 技術スタック
 
@@ -158,16 +165,25 @@ curl https://your-worker.your-subdomain.workers.dev/api/items
 - [x] インデックス管理機能
 - [x] 包括的なテストスイート
 
-### Phase 2: 認証とストレージ (v0.2.0) 🚧 進行中
+### Phase 2: 認証とストレージ (v0.2.0) ✅ 完了
 - [x] **管理者認証実装**（[vibebase-auth](https://github.com/vibebase/vibebase-auth)統合）
   - [x] GitHub OAuth認証
   - [x] JWTトークン検証とセキュリティ
   - [x] 自動トークンリフレッシュ
   - [x] 認証ミドルウェアとルート保護
-- [ ] **ユーザー認証実装**（アプリ利用者向け）
-  - [ ] 複数OAuthプロバイダー対応
-  - [ ] ユーザー管理API
-  - [ ] 権限・ロール管理
+- [x] **API Key認証システム**
+  - [x] APIキー生成・管理
+  - [x] スコープベースのアクセス制御
+  - [x] セキュアなキー検証
+- [x] **エンドユーザー認証基盤**（アプリ利用者向け）
+  - [x] GitHub OAuth対応
+  - [x] ユーザー管理API（CRUD）
+  - [x] RBAC（ロールベースアクセス制御）
+  - [x] テーブルレベルのアクセスポリシー
+  - [x] 所有者ベースのデータフィルタリング
+- [x] **アプリケーション設定**
+  - [x] アプリ名・URL等のカスタマイズ
+  - [x] OAuth User-Agent設定
 - [x] R2ストレージ統合
 - [x] ファイルアップロードAPI
 

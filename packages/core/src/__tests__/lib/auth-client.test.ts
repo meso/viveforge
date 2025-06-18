@@ -94,12 +94,16 @@ describe('VibebaseAuthClient', () => {
 
       const user = await authClient.verifyToken(mockToken)
 
-      expect(user).toEqual({
-        id: 12345,
+      expect(user).toMatchObject({
+        id: '12345',
         username: 'testuser',
         email: 'test@example.com',
         name: 'Test User',
-        scope: ['admin']
+        scope: ['admin'],
+        provider: 'github',
+        provider_id: '12345',
+        role: 'user',
+        is_active: true
       })
     })
 
@@ -282,12 +286,16 @@ describe('VibebaseAuthClient', () => {
 
       const user = await authClient.verifyRequest(mockContext)
 
-      expect(user).toEqual({
-        id: 12345,
+      expect(user).toMatchObject({
+        id: '12345',
         username: 'testuser',
         email: 'test@example.com',
         name: 'Test User',
-        scope: ['admin']
+        scope: ['admin'],
+        provider: 'github',
+        provider_id: '12345',
+        role: 'user',
+        is_active: true
       })
     })
 
@@ -315,12 +323,16 @@ describe('VibebaseAuthClient', () => {
 
       const user = await authClient.verifyRequest(mockContext)
 
-      expect(user).toEqual({
-        id: 12345,
+      expect(user).toMatchObject({
+        id: '12345',
         username: 'testuser',
         email: 'test@example.com',
         name: 'Test User',
-        scope: ['admin']
+        scope: ['admin'],
+        provider: 'github',
+        provider_id: '12345',
+        role: 'user',
+        is_active: true
       })
     })
 
@@ -346,11 +358,17 @@ describe('VibebaseAuthClient', () => {
       const refreshTokenSpy = vi.spyOn(authClient, 'refreshToken').mockResolvedValue(newTokens)
       
       const mockUser = {
-        id: 12345,
+        id: '12345',
         username: 'testuser',
         email: 'test@example.com',
         name: 'Test User',
-        scope: ['admin']
+        scope: ['admin'],
+        provider: 'github',
+        provider_id: '12345',
+        role: 'admin',
+        is_active: true,
+        created_at: '2023-01-01T00:00:00.000Z',
+        updated_at: '2023-01-01T00:00:00.000Z'
       }
 
       // Create a spy for the verifyToken method

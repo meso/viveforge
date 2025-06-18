@@ -1,5 +1,4 @@
 import { sign, verify } from 'hono/jwt'
-import type { JWTPayload } from 'hono/jwt'
 import type { D1Database } from '../types/cloudflare'
 import type { User, UserSession, UserToken } from '../types/auth'
 
@@ -39,8 +38,8 @@ export class UserAuthManager {
       iat: now
     }
     
-    const accessToken = await sign(accessTokenPayload, this.jwtSecret)
-    const refreshToken = await sign(refreshTokenPayload, this.jwtSecret)
+    const accessToken = await sign(accessTokenPayload as any, this.jwtSecret)
+    const refreshToken = await sign(refreshTokenPayload as any, this.jwtSecret)
     
     // Store session in database
     await this.createSession(sessionId, user.id, accessToken, refreshToken, accessTokenPayload.exp)
@@ -51,7 +50,7 @@ export class UserAuthManager {
   // Verify JWT token and return user context
   async verifyUserToken(token: string): Promise<{ user: User; session: UserSession } | null> {
     try {
-      const payload = await verify(token, this.jwtSecret) as UserToken
+      const payload = await verify(token, this.jwtSecret) as unknown as UserToken
       
       // Validate token structure
       if (!payload || payload.iss !== 'vibebase-local' || payload.aud !== this.domain) {
@@ -124,7 +123,7 @@ export class UserAuthManager {
   // Refresh access token using refresh token
   async refreshAccessToken(refreshToken: string): Promise<{ accessToken: string } | null> {
     try {
-      const payload = await verify(refreshToken, this.jwtSecret) as UserToken
+      const payload = await verify(refreshToken, this.jwtSecret) as unknown as UserToken
       
       if (payload.type !== 'refresh' || payload.iss !== 'vibebase-local') {
         return null
@@ -155,7 +154,7 @@ export class UserAuthManager {
         iat: now
       }
       
-      const accessToken = await sign(accessTokenPayload, this.jwtSecret)
+      const accessToken = await sign(accessTokenPayload as any, this.jwtSecret)
       
       // Update session with new access token
       await this.updateSession(payload.session_id, accessToken, accessTokenPayload.exp)

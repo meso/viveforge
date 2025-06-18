@@ -46,11 +46,17 @@ describe('Auth Middleware', () => {
   describe('requireAuth', () => {
     it('should allow authenticated requests', async () => {
       const mockUser = {
-        id: 12345,
+        id: '12345',
         username: 'testuser',
         email: 'test@example.com',
         name: 'Test User',
-        scope: ['admin']
+        scope: ['admin'],
+        provider: 'github',
+        provider_id: '12345',
+        role: 'admin',
+        is_active: true,
+        created_at: '2023-01-01T00:00:00.000Z',
+        updated_at: '2023-01-01T00:00:00.000Z'
       }
 
       mockAuthClient.verifyRequest.mockResolvedValue(mockUser)
@@ -139,11 +145,17 @@ describe('Auth Middleware', () => {
   describe('optionalAuth', () => {
     it('should set user for authenticated requests', async () => {
       const mockUser = {
-        id: 12345,
+        id: '12345',
         username: 'testuser',
         email: 'test@example.com',
         name: 'Test User',
-        scope: ['admin']
+        scope: ['admin'],
+        provider: 'github',
+        provider_id: '12345',
+        role: 'admin',
+        is_active: true,
+        created_at: '2023-01-01T00:00:00.000Z',
+        updated_at: '2023-01-01T00:00:00.000Z'
       }
 
       mockAuthClient.verifyRequest.mockResolvedValue(mockUser)
@@ -212,11 +224,17 @@ describe('Auth Middleware', () => {
   describe('getCurrentUser', () => {
     it('should return user when set in context', async () => {
       const mockUser = {
-        id: 12345,
+        id: '12345',
         username: 'testuser',
         email: 'test@example.com',
         name: 'Test User',
-        scope: ['admin']
+        scope: ['admin'],
+        provider: 'github',
+        provider_id: '12345',
+        role: 'admin',
+        is_active: true,
+        created_at: '2023-01-01T00:00:00.000Z',
+        updated_at: '2023-01-01T00:00:00.000Z'
       }
 
       app.get('/user', (c) => {

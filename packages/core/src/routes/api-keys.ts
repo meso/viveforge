@@ -49,7 +49,7 @@ apiKeys.get('/', async (c) => {
     // Get admin ID from database using GitHub username
     const adminResult = await c.env.DB!.prepare(`
       SELECT id FROM admins WHERE github_username = ?
-    `).bind(user.username).first()
+    `).bind(user.name || user.email).first()
     
     if (!adminResult) {
       return c.json({ error: 'Admin not found in database' }, 404)
@@ -78,7 +78,7 @@ apiKeys.post('/', async (c) => {
     // Get admin ID from database using GitHub username
     const adminResult = await c.env.DB!.prepare(`
       SELECT id FROM admins WHERE github_username = ?
-    `).bind(user.username).first()
+    `).bind(user.name || user.email).first()
     
     if (!adminResult) {
       return c.json({ error: 'Admin not found in database' }, 404)
@@ -137,7 +137,7 @@ apiKeys.patch('/:id/revoke', async (c) => {
     // Get admin ID from database using GitHub username
     const adminResult = await c.env.DB!.prepare(`
       SELECT id FROM admins WHERE github_username = ?
-    `).bind(user.username).first()
+    `).bind(user.name || user.email).first()
     
     if (!adminResult) {
       return c.json({ error: 'Admin not found in database' }, 404)
@@ -191,7 +191,7 @@ apiKeys.delete('/:id', async (c) => {
     // Get admin ID from database using GitHub username
     const adminResult = await c.env.DB!.prepare(`
       SELECT id FROM admins WHERE github_username = ?
-    `).bind(user.username).first()
+    `).bind(user.name || user.email).first()
     
     if (!adminResult) {
       return c.json({ error: 'Admin not found in database' }, 404)

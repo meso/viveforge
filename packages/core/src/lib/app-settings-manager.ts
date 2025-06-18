@@ -74,7 +74,7 @@ export class AppSettingsManager {
           this.db.prepare(`
             INSERT OR REPLACE INTO app_settings (key, value, updated_at)
             VALUES (?, ?, ?)
-          `).bind(key, value, now)
+          `).bind(key, value, now) as any
         )
       }
     }

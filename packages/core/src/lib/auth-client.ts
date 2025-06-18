@@ -2,11 +2,20 @@ import type { Env } from '../types'
 import { jwt } from 'hono/jwt'
 
 export interface User {
-  id: number
-  username: string
+  id: string
   email: string
-  name: string
-  scope: string[]
+  name?: string
+  avatar_url?: string
+  provider: string
+  provider_id: string
+  role: string
+  metadata?: string
+  last_login_at?: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  username?: string  // For compatibility with existing code
+  scope?: string[]   // For compatibility with existing code
 }
 
 export interface TokenPair {
@@ -178,10 +187,16 @@ export class VibebaseAuthClient {
       this.validateTokenPayload(payload)
       
       return {
-        id: payload.github_id,
-        username: payload.github_login,
+        id: String(payload.github_id),
         email: payload.email,
         name: payload.name,
+        provider: 'github',
+        provider_id: String(payload.github_id),
+        role: 'user',
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        username: payload.github_login,
         scope: payload.scope
       }
     } catch (error) {

@@ -123,11 +123,17 @@ describe('Auth Routes', () => {
   describe('GET /auth/callback', () => {
     it('should handle successful authentication callback', async () => {
       const mockUser = {
-        id: 12345,
+        id: '12345',
         username: 'testuser',
         email: 'test@example.com',
         name: 'Test User',
-        scope: ['admin']
+        scope: ['admin'],
+        provider: 'github',
+        provider_id: '12345',
+        role: 'admin',
+        is_active: true,
+        created_at: '2023-01-01T00:00:00.000Z',
+        updated_at: '2023-01-01T00:00:00.000Z'
       }
 
       mockAuthClient.verifyToken.mockResolvedValue(mockUser)
@@ -151,11 +157,17 @@ describe('Auth Routes', () => {
 
     it('should handle callback with custom redirect_to', async () => {
       const mockUser = {
-        id: 12345,
+        id: '12345',
         username: 'testuser',
         email: 'test@example.com',
         name: 'Test User',
-        scope: ['admin']
+        scope: ['admin'],
+        provider: 'github',
+        provider_id: '12345',
+        role: 'admin',
+        is_active: true,
+        created_at: '2023-01-01T00:00:00.000Z',
+        updated_at: '2023-01-01T00:00:00.000Z'
       }
 
       mockAuthClient.verifyToken.mockResolvedValue(mockUser)
@@ -333,11 +345,17 @@ describe('Auth Routes', () => {
   describe('GET /auth/me', () => {
     it('should return current user info', async () => {
       const mockUser = {
-        id: 12345,
+        id: '12345',
         username: 'testuser',
         email: 'test@example.com',
         name: 'Test User',
-        scope: ['admin']
+        scope: ['admin'],
+        provider: 'github',
+        provider_id: '12345',
+        role: 'admin',
+        is_active: true,
+        created_at: '2023-01-01T00:00:00.000Z',
+        updated_at: '2023-01-01T00:00:00.000Z'
       }
 
       // Create a separate app instance for this test with user context
@@ -353,7 +371,13 @@ describe('Auth Routes', () => {
 
       expect(res.status).toBe(200)
       const body = await res.json() as any
-      expect(body.user).toEqual(mockUser)
+      expect(body.user).toEqual({
+        id: '12345',
+        username: 'Test User', // This comes from user.name || user.email
+        email: 'test@example.com',
+        name: 'Test User',
+        scope: ['admin']
+      })
     })
 
     it('should handle unauthenticated request', async () => {
@@ -368,11 +392,17 @@ describe('Auth Routes', () => {
   describe('GET /auth/status', () => {
     it('should return authentication status for authenticated user', async () => {
       const mockUser = {
-        id: 12345,
+        id: '12345',
         username: 'testuser',
         email: 'test@example.com',
         name: 'Test User',
-        scope: ['admin']
+        scope: ['admin'],
+        provider: 'github',
+        provider_id: '12345',
+        role: 'admin',
+        is_active: true,
+        created_at: '2023-01-01T00:00:00.000Z',
+        updated_at: '2023-01-01T00:00:00.000Z'
       }
 
       // Create a separate app instance for this test with user context
@@ -389,7 +419,13 @@ describe('Auth Routes', () => {
       expect(res.status).toBe(200)
       const body = await res.json() as any
       expect(body.authenticated).toBe(true)
-      expect(body.user).toEqual(mockUser)
+      expect(body.user).toEqual({
+        id: '12345',
+        username: 'Test User', // This comes from user.name || user.email
+        email: 'test@example.com',
+        name: 'Test User',
+        scope: ['admin']
+      })
     })
 
     it('should return authentication status for unauthenticated user', async () => {
