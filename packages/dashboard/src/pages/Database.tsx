@@ -9,7 +9,7 @@ const truncateId = (id: string | null): string => {
 }
 
 // System tables that should not be available for FK references
-const SYSTEM_TABLES = ['admins', 'sessions', 'schema_snapshots', 'schema_snapshot_counter', 'd1_migrations']
+const SYSTEM_TABLES = ['admins', 'sessions', 'schema_snapshots', 'schema_snapshot_counter', 'd1_migrations', 'api_keys', 'user_sessions', 'oauth_providers', 'app_settings', 'table_policies']
 
 // Filter out system tables for FK references
 const getUserTables = (tables: TableInfo[]): TableInfo[] => {
@@ -83,6 +83,7 @@ export function DatabasePage() {
     columns: [''], 
     unique: false 
   })
+  const [changingPolicy, setChangingPolicy] = useState<string | null>(null)
 
   // Update index name when columns change
   useEffect(() => {
@@ -333,6 +334,28 @@ export function DatabasePage() {
         }
       }
     })
+  }
+
+  const handleChangeAccessPolicy = async (tableName: string, newPolicy: 'public' | 'private') => {
+    try {
+      setChangingPolicy(tableName)
+      await api.updateTablePolicy(tableName, newPolicy)
+      
+      // Update the local state to reflect the change
+      setTables(prevTables => 
+        prevTables.map(table => 
+          table.name === tableName 
+            ? { ...table, access_policy: newPolicy }
+            : table
+        )
+      )
+      
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update table policy')
+    } finally {
+      setChangingPolicy(null)
+    }
   }
 
   const handleCopyId = async (id: string, rowIndex: number, columnName: string) => {
@@ -1017,7 +1040,18 @@ export function DatabasePage() {
                             class="flex-1 cursor-pointer"
                             onClick={() => setSelectedTable(table.name)}
                           >
-                            <div class="text-sm font-medium text-gray-900">{table.name}</div>
+                            <div class="flex items-center gap-2">
+                              <div class="text-sm font-medium text-gray-900">{table.name}</div>
+                              {table.access_policy && (
+                                <span class={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                  table.access_policy === 'private' 
+                                    ? 'bg-red-100 text-red-800' 
+                                    : 'bg-green-100 text-green-800'
+                                }`}>
+                                  {table.access_policy}
+                                </span>
+                              )}
+                            </div>
                             <div class="text-xs text-gray-500">{table.rowCount || 0} rows</div>
                           </div>
                           {table.type === 'user' && (
@@ -1090,7 +1124,38 @@ export function DatabasePage() {
             <div class="bg-white shadow rounded-lg">
               <div class="px-4 py-5 sm:p-6">
                 <div class="flex items-center justify-between mb-4">
-                  <h3 class="text-lg font-medium text-gray-900">{selectedTable}</h3>
+                  <div class="flex items-center gap-3">
+                    <h3 class="text-lg font-medium text-gray-900">{selectedTable}</h3>
+                    {(() => {
+                      const currentTable = tables.find(t => t.name === selectedTable)
+                      if (currentTable?.type === 'user' && currentTable.access_policy) {
+                        return (
+                          <div class="flex items-center gap-2">
+                            <select
+                              value={currentTable.access_policy}
+                              onChange={(e) => {
+                                const newPolicy = (e.target as HTMLSelectElement).value as 'public' | 'private'
+                                handleChangeAccessPolicy(selectedTable, newPolicy)
+                              }}
+                              disabled={changingPolicy === selectedTable}
+                              class={`text-xs px-2 py-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                                currentTable.access_policy === 'private' 
+                                  ? 'border-red-300 bg-red-50 text-red-800' 
+                                  : 'border-green-300 bg-green-50 text-green-800'
+                              }`}
+                            >
+                              <option value="public">public</option>
+                              <option value="private">private</option>
+                            </select>
+                            {changingPolicy === selectedTable && (
+                              <div class="text-xs text-gray-500">Updating...</div>
+                            )}
+                          </div>
+                        )
+                      }
+                      return null
+                    })()}
+                  </div>
                   {tables.find(t => t.name === selectedTable)?.type === 'user' && (
                     <div class="flex space-x-2">
                       <button

@@ -42,6 +42,7 @@ export interface Variables {
   apiKeyManager?: any
   authContext?: any
   apiKey?: any
+  currentEndUser?: any
 }
 
 export interface Admin {

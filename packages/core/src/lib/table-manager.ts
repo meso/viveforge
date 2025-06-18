@@ -17,7 +17,7 @@ import type {
 } from '../types/cloudflare'
 
 // System tables that cannot be modified by users
-export const SYSTEM_TABLES = ['admins', 'sessions', 'schema_snapshots', 'schema_snapshot_counter', 'd1_migrations', 'api_keys', 'user_sessions', 'oauth_providers', 'app_settings'] as const
+export const SYSTEM_TABLES = ['admins', 'sessions', 'schema_snapshots', 'schema_snapshot_counter', 'd1_migrations', 'api_keys', 'user_sessions', 'oauth_providers', 'app_settings', 'table_policies'] as const
 type SystemTable = typeof SYSTEM_TABLES[number]
 
 export interface LocalTableInfo {
@@ -25,6 +25,7 @@ export interface LocalTableInfo {
   type: 'system' | 'user'
   sql: string // CREATE TABLE statement
   rowCount?: number
+  access_policy?: 'public' | 'private'
 }
 
 
@@ -97,11 +98,27 @@ export class TableManager {
         this.errorHandler.handleStorageWarning(`getRowCountFor${name}`, e)
       }
       
+      // Get access policy for user tables
+      let access_policy: 'public' | 'private' | undefined = undefined
+      if (!isSystem) {
+        try {
+          const policyResult = await this.db
+            .prepare(`SELECT access_policy FROM table_policies WHERE table_name = ?`)
+            .bind(name)
+            .first()
+          access_policy = (policyResult as any)?.access_policy || 'public'
+        } catch (e) {
+          // If table_policies doesn't exist yet, default to public
+          access_policy = 'public'
+        }
+      }
+      
       tables.push({
         name,
         type: isSystem ? 'system' : 'user',
         sql: tableRow.sql,
-        rowCount
+        rowCount,
+        access_policy
       })
     }
 
@@ -179,14 +196,71 @@ export class TableManager {
     return this.dataManager.getTableDataWithSort(tableName, limit, offset, sortBy, sortOrder)
   }
 
+  // Get table data with access control
+  async getTableDataWithAccessControl(
+    tableName: string,
+    userId?: string,
+    limit = 100,
+    offset = 0,
+    sortBy?: string,
+    sortOrder: 'ASC' | 'DESC' = 'DESC'
+  ): Promise<TableDataResult> {
+    // Get access policy for the table
+    const accessPolicy = await this.getTableAccessPolicy(tableName)
+    
+    return this.dataManager.getTableDataWithAccessControl(
+      tableName,
+      accessPolicy,
+      userId,
+      limit,
+      offset,
+      sortBy,
+      sortOrder
+    )
+  }
+
   // Get single record by ID
   async getRecordById(tableName: string, id: string): Promise<Record<string, any> | null> {
     return this.dataManager.getRecordById(tableName, id)
   }
 
+  // Get single record by ID with access control
+  async getRecordByIdWithAccessControl(
+    tableName: string, 
+    id: string, 
+    userId?: string
+  ): Promise<Record<string, any> | null> {
+    // Get access policy for the table
+    const accessPolicy = await this.getTableAccessPolicy(tableName)
+    
+    return this.dataManager.getRecordByIdWithAccessControl(
+      tableName,
+      id,
+      accessPolicy,
+      userId
+    )
+  }
+
   // Create record and return the generated ID
   async createRecordWithId(tableName: string, data: Record<string, any>): Promise<string> {
     return this.dataManager.createRecordWithId(tableName, data)
+  }
+
+  // Create record with access control (auto-set owner_id for private tables)
+  async createRecordWithAccessControl(
+    tableName: string, 
+    data: Record<string, any>,
+    userId?: string
+  ): Promise<string> {
+    // Get access policy for the table
+    const accessPolicy = await this.getTableAccessPolicy(tableName)
+    
+    return this.dataManager.createRecordWithAccessControl(
+      tableName,
+      data,
+      accessPolicy,
+      userId
+    )
   }
 
   // Update record
@@ -658,6 +732,41 @@ export class TableManager {
   
   async getSnapshot(id: string): Promise<Record<string, any> | null> {
     return this.snapshotManager.getSnapshot(id)
+  }
+  
+  // Access policy management
+  async getTableAccessPolicy(tableName: string): Promise<'public' | 'private'> {
+    try {
+      const result = await this.db
+        .prepare(`SELECT access_policy FROM table_policies WHERE table_name = ?`)
+        .bind(tableName)
+        .first()
+      return (result as any)?.access_policy || 'public'
+    } catch (e) {
+      // If table doesn't exist in policies, default to public
+      return 'public'
+    }
+  }
+  
+  async setTableAccessPolicy(tableName: string, policy: 'public' | 'private'): Promise<void> {
+    // Ensure table_policies table exists
+    await this.db.prepare(`
+      CREATE TABLE IF NOT EXISTS table_policies (
+        table_name TEXT PRIMARY KEY,
+        access_policy TEXT NOT NULL DEFAULT 'public' CHECK (access_policy IN ('public', 'private')),
+        created_at DATETIME NOT NULL DEFAULT (datetime('now')),
+        updated_at DATETIME NOT NULL DEFAULT (datetime('now'))
+      )
+    `).run()
+    
+    // Insert or update policy
+    await this.db.prepare(`
+      INSERT INTO table_policies (table_name, access_policy, created_at, updated_at)
+      VALUES (?, ?, datetime('now'), datetime('now'))
+      ON CONFLICT(table_name) DO UPDATE SET
+        access_policy = excluded.access_policy,
+        updated_at = excluded.updated_at
+    `).bind(tableName, policy).run()
   }
   
   async restoreSnapshot(id: string): Promise<OperationResult> {

@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { zValidator } from '@hono/zod-validator'
 import { TableManager } from '../lib/table-manager'
+import { getCurrentEndUser, getAuthContext } from '../middleware/auth'
 import type { Env, Variables } from '../types'
 
 export const data = new Hono<{ Bindings: Env; Variables: Variables }>()
@@ -16,7 +17,7 @@ data.use('*', async (c, next) => {
   await next()
 })
 
-// Middleware to validate table exists and is user table
+// Middleware to validate table exists and check access policies
 data.use('/:tableName/*', async (c, next) => {
   const tm = c.get('tableManager') as TableManager
   const tableName = c.req.param('tableName')
@@ -32,7 +33,15 @@ data.use('/:tableName/*', async (c, next) => {
     // Allow read access to system tables for display purposes
     // (Write operations are still protected in individual endpoints)
     
+    // Get authentication context to determine access control
+    const authContext = getAuthContext(c)
+    const currentUser = getCurrentEndUser(c)
+    
+    // Set table info and user context for later use
     c.set('tableInfo', table)
+    c.set('currentEndUser', currentUser)
+    c.set('authContext', authContext)
+    
     await next()
   } catch (error) {
     console.error('Error validating table:', error)
@@ -44,11 +53,15 @@ data.use('/:tableName/*', async (c, next) => {
 data.get('/:tableName', async (c) => {
   const tm = c.get('tableManager') as TableManager
   const tableName = c.req.param('tableName')
+  const tableInfo = c.get('tableInfo')
+  const authContext = c.get('authContext')
+  const currentUser = c.get('currentEndUser')
   
   try {
     const page = Math.max(1, Number(c.req.query('page') || '1'))
     const limit = Math.min(100, Math.max(1, Number(c.req.query('limit') || '20')))
     const offset = (page - 1) * limit
+    
     // Get table columns to determine default sort field
     const columns = await tm.getTableColumns(tableName)
     const validColumns = columns.map(col => col.name)
@@ -63,8 +76,24 @@ data.get('/:tableName', async (c) => {
       }, 400)
     }
     
-    // Get data with custom sorting
-    const result = await tm.getTableDataWithSort(tableName, limit, offset, sortBy, sortOrder)
+    let result
+    
+    // Apply access control based on authentication type and table policy
+    if (authContext?.type === 'admin') {
+      // Admins can access all data
+      result = await tm.getTableDataWithSort(tableName, limit, offset, sortBy, sortOrder)
+    } else if (authContext?.type === 'user' && currentUser) {
+      // Users get access control applied
+      result = await tm.getTableDataWithAccessControl(tableName, currentUser.id, limit, offset, sortBy, sortOrder)
+    } else if (authContext?.type === 'api_key') {
+      // API keys can access data based on scopes and table policy
+      // For now, treat API keys as admin-level access
+      // TODO: Implement proper API key scoping
+      result = await tm.getTableDataWithSort(tableName, limit, offset, sortBy, sortOrder)
+    } else {
+      return c.json({ error: 'Authentication required' }, 401)
+    }
+    
     const baseUrl = new URL(c.req.url).origin
     
     return c.json({
@@ -78,6 +107,10 @@ data.get('/:tableName', async (c) => {
         hasPrev: page > 1
       },
       sort: { by: sortBy, order: sortOrder },
+      access_info: {
+        table_policy: tableInfo?.access_policy || 'public',
+        auth_type: authContext?.type || 'none'
+      },
       _links: {
         documentation: {
           swagger: `${baseUrl}/api/docs/swagger`,
@@ -99,9 +132,26 @@ data.get('/:tableName/:id', async (c) => {
   const tm = c.get('tableManager') as TableManager
   const tableName = c.req.param('tableName')
   const id = c.req.param('id')
+  const authContext = c.get('authContext')
+  const currentUser = c.get('currentEndUser')
   
   try {
-    const record = await tm.getRecordById(tableName, id)
+    let record
+    
+    // Apply access control based on authentication type
+    if (authContext?.type === 'admin') {
+      // Admins can access all records
+      record = await tm.getRecordById(tableName, id)
+    } else if (authContext?.type === 'user' && currentUser) {
+      // Users get access control applied
+      record = await tm.getRecordByIdWithAccessControl(tableName, id, currentUser.id)
+    } else if (authContext?.type === 'api_key') {
+      // API keys can access records based on scopes and table policy
+      // For now, treat API keys as admin-level access
+      record = await tm.getRecordById(tableName, id)
+    } else {
+      return c.json({ error: 'Authentication required' }, 401)
+    }
     
     if (!record) {
       return c.json({ error: `Record with id '${id}' not found` }, 404)
@@ -120,6 +170,9 @@ data.get('/:tableName/:id', async (c) => {
 data.post('/:tableName', async (c) => {
   const tm = c.get('tableManager') as TableManager
   const tableName = c.req.param('tableName')
+  const authContext = c.get('authContext')
+  const currentUser = c.get('currentEndUser')
+  const tableInfo = c.get('tableInfo')
   
   try {
     const body = await c.req.json()
@@ -137,12 +190,38 @@ data.post('/:tableName', async (c) => {
       return c.json({ error: 'Validation failed', details: errors }, 400)
     }
     
-    const id = await tm.createRecordWithId(tableName, body)
+    let id
+    
+    // Apply access control based on authentication type
+    if (authContext?.type === 'admin') {
+      // Admins can create records normally
+      id = await tm.createRecordWithId(tableName, body)
+    } else if (authContext?.type === 'user' && currentUser) {
+      // Users get owner_id automatically set for private tables
+      id = await tm.createRecordWithAccessControl(tableName, body, currentUser.id)
+    } else if (authContext?.type === 'api_key') {
+      // API keys can create records (for now, treat as admin-level)
+      id = await tm.createRecordWithId(tableName, body)
+    } else {
+      return c.json({ error: 'Authentication required' }, 401)
+    }
+    
+    // Get the created record to return (with access control)
+    let createdRecord
+    if (authContext?.type === 'user' && currentUser) {
+      createdRecord = await tm.getRecordByIdWithAccessControl(tableName, id, currentUser.id)
+    } else {
+      createdRecord = await tm.getRecordById(tableName, id)
+    }
     
     return c.json({ 
       success: true, 
-      data: { id, ...body },
-      message: 'Record created successfully' 
+      data: createdRecord || { id, ...body },
+      message: 'Record created successfully',
+      access_info: {
+        table_policy: tableInfo?.access_policy || 'public',
+        auth_type: authContext?.type || 'none'
+      }
     }, 201)
   } catch (error) {
     console.error('Error creating record:', error)

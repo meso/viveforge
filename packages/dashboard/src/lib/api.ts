@@ -14,6 +14,7 @@ export interface TableInfo {
   type: 'system' | 'user'
   sql: string
   rowCount?: number
+  access_policy?: 'public' | 'private'
 }
 
 export interface ColumnInfo {
@@ -499,6 +500,31 @@ export const api = {
         // If JSON parsing fails, use default message
       }
       throw new Error(errorMessage)
+    }
+    return response.json()
+  },
+
+  // Table access policy management
+  async getTablePolicy(tableName: string): Promise<{ table_name: string; access_policy: 'public' | 'private' | 'system' }> {
+    const response = await fetch(`${API_BASE}/api/tables/${tableName}/policy`)
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to get table policy')
+    }
+    return response.json()
+  },
+
+  async updateTablePolicy(tableName: string, policy: 'public' | 'private'): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${API_BASE}/api/tables/${tableName}/policy`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ access_policy: policy }),
+    })
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to update table policy')
     }
     return response.json()
   },

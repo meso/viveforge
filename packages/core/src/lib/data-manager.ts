@@ -120,11 +120,84 @@ export class DataManager {
     }
   }
 
+  // Get table data with access control for user tables
+  async getTableDataWithAccessControl(
+    tableName: string,
+    accessPolicy: 'public' | 'private',
+    userId?: string,
+    limit = 100,
+    offset = 0,
+    sortBy?: string,
+    sortOrder: 'ASC' | 'DESC' = 'DESC'
+  ): Promise<TableDataResult> {
+    // Build WHERE clause for private tables
+    let whereClause = ''
+    let countWhereClause = ''
+    const bindings: any[] = []
+    
+    if (accessPolicy === 'private' && userId) {
+      whereClause = ' WHERE owner_id = ?'
+      countWhereClause = ' WHERE owner_id = ?'
+      bindings.push(userId)
+    }
+
+    // Get total count with access control
+    const countSql = `SELECT COUNT(*) as total FROM "${tableName}"${countWhereClause}`
+    const countResult = await this.db
+      .prepare(countSql)
+      .bind(...bindings)
+      .first()
+
+    // Determine sortBy if not provided
+    if (!sortBy) {
+      const columns = await this.getTableColumns(tableName)
+      const hasCreatedAt = columns.some(col => col.name === 'created_at')
+      sortBy = hasCreatedAt ? 'created_at' : 'ROWID'
+    }
+
+    // Get data with access control and sorting
+    const dataSql = `SELECT * FROM "${tableName}"${whereClause} ORDER BY "${sortBy}" ${sortOrder} LIMIT ? OFFSET ?`
+    const dataBindings = [...bindings, limit, offset]
+    
+    const dataResult = await this.db
+      .prepare(dataSql)
+      .bind(...dataBindings)
+      .all()
+
+    return {
+      data: dataResult.results,
+      total: (countResult as any)?.total as number || 0
+    }
+  }
+
   // Get single record by ID
   async getRecordById(tableName: string, id: string): Promise<Record<string, any> | null> {
     const result = await this.db
       .prepare(`SELECT * FROM "${tableName}" WHERE id = ? LIMIT 1`)
       .bind(id)
+      .first()
+
+    return result || null
+  }
+
+  // Get single record by ID with access control
+  async getRecordByIdWithAccessControl(
+    tableName: string, 
+    id: string, 
+    accessPolicy: 'public' | 'private',
+    userId?: string
+  ): Promise<Record<string, any> | null> {
+    let whereClause = 'WHERE id = ?'
+    const bindings: any[] = [id]
+
+    if (accessPolicy === 'private' && userId) {
+      whereClause += ' AND owner_id = ?'
+      bindings.push(userId)
+    }
+
+    const result = await this.db
+      .prepare(`SELECT * FROM "${tableName}" ${whereClause} LIMIT 1`)
+      .bind(...bindings)
       .first()
 
     return result || null
@@ -145,11 +218,54 @@ export class DataManager {
     
     // Add timestamps if not provided
     const now = new Date().toISOString()
-    if (!dataWithId.created_at) {
-      dataWithId.created_at = now
+    if (!(dataWithId as any).created_at) {
+      (dataWithId as any).created_at = now
     }
-    if (!dataWithId.updated_at) {
-      dataWithId.updated_at = now
+    if (!(dataWithId as any).updated_at) {
+      (dataWithId as any).updated_at = now
+    }
+    
+    // Build INSERT statement
+    const columns = Object.keys(dataWithId)
+    const values = Object.values(dataWithId)
+    const placeholders = columns.map(() => '?').join(', ')
+    
+    const sql = `INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${placeholders})`
+    
+    await this.db.prepare(sql).bind(...values).run()
+    return id
+  }
+
+  // Create record with access control (auto-set owner_id for private tables)
+  async createRecordWithAccessControl(
+    tableName: string, 
+    data: Record<string, any>,
+    accessPolicy: 'public' | 'private',
+    userId?: string
+  ): Promise<string> {
+    await this.enableForeignKeys()
+    
+    // Check if table is protected system table
+    if (SYSTEM_TABLES.includes(tableName as any)) {
+      throw new Error(`Cannot modify system table: ${tableName}`)
+    }
+    
+    // Generate ID if not provided
+    const id = data.id || this.generateId()
+    const dataWithId = { ...data, id }
+    
+    // Add owner_id for private tables
+    if (accessPolicy === 'private' && userId) {
+      (dataWithId as any).owner_id = userId
+    }
+    
+    // Add timestamps if not provided
+    const now = new Date().toISOString()
+    if (!(dataWithId as any).created_at) {
+      (dataWithId as any).created_at = now
+    }
+    if (!(dataWithId as any).updated_at) {
+      (dataWithId as any).updated_at = now
     }
     
     // Build INSERT statement

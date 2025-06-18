@@ -585,3 +585,77 @@ tables.get('/:tableName/search', zValidator('query', searchQuerySchema), async (
     }, 500)
   }
 })
+
+// Get table access policy
+tables.get('/:tableName/policy', async (c) => {
+  try {
+    const tableName = c.req.param('tableName')
+    const tableManager = c.get('tableManager')!
+    
+    // Check if table is a system table
+    if (SYSTEM_TABLES.includes(tableName as any)) {
+      return c.json({
+        table_name: tableName,
+        access_policy: 'system',
+        message: 'System tables have fixed access policies'
+      })
+    }
+    
+    const policy = await tableManager.getTableAccessPolicy(tableName)
+    
+    return c.json({
+      table_name: tableName,
+      access_policy: policy
+    })
+  } catch (error) {
+    console.error('Error getting table policy:', error)
+    return c.json({ 
+      error: error instanceof Error ? error.message : 'Failed to get table policy' 
+    }, 500)
+  }
+})
+
+// Update table access policy (admin only)
+const policyUpdateSchema = z.object({
+  access_policy: z.enum(['public', 'private'], {
+    errorMap: () => ({ message: 'Access policy must be either "public" or "private"' })
+  })
+})
+
+tables.put('/:tableName/policy', zValidator('json', policyUpdateSchema), async (c) => {
+  try {
+    const tableName = c.req.param('tableName')
+    const { access_policy } = c.req.valid('json')
+    const tableManager = c.get('tableManager')!
+    
+    // Check if table is a system table
+    if (SYSTEM_TABLES.includes(tableName as any)) {
+      return c.json({
+        error: 'Cannot modify access policy for system tables'
+      }, 403)
+    }
+    
+    // Verify table exists
+    const tables = await tableManager.getTables()
+    const table = tables.find(t => t.name === tableName)
+    if (!table) {
+      return c.json({
+        error: `Table '${tableName}' not found`
+      }, 404)
+    }
+    
+    await tableManager.setTableAccessPolicy(tableName, access_policy)
+    
+    return c.json({
+      success: true,
+      table_name: tableName,
+      access_policy: access_policy,
+      message: `Access policy for table '${tableName}' updated to '${access_policy}'`
+    })
+  } catch (error) {
+    console.error('Error updating table policy:', error)
+    return c.json({ 
+      error: error instanceof Error ? error.message : 'Failed to update table policy' 
+    }, 500)
+  }
+})

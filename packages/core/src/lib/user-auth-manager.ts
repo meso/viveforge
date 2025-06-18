@@ -225,8 +225,8 @@ export class UserAuthManager {
     const now = new Date().toISOString()
     
     await this.db.prepare(`
-      INSERT INTO users (id, email, name, avatar_url, provider, provider_id, role, metadata, last_login_at, is_active, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO users (id, email, name, avatar_url, provider, provider_id, role, metadata, last_login_at, is_active, owner_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       userData.id,
       userData.email,
@@ -238,6 +238,7 @@ export class UserAuthManager {
       userData.metadata,
       userData.last_login_at,
       userData.is_active,
+      userData.id, // owner_id = user's own id
       now,
       now
     ).run()
