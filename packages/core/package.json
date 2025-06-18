@@ -14,7 +14,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@hono/oauth-providers": "^0.2.0",
     "@hono/zod-validator": "^0.2.0",
     "hono": "^4.7.11",
     "nanoid": "^5.1.5",

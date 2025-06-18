@@ -224,32 +224,22 @@ adminOAuth.get('/supported-providers', async (c) => {
       setup_instructions: 'Go to Twitter Developer Portal → Projects & Apps → Create App'
     },
     {
-      provider: 'apple',
-      name: 'Apple',
-      default_scopes: ['email', 'name'],
-      setup_instructions: 'Go to Apple Developer → Certificates, IDs & Profiles → Sign In with Apple',
-      note: 'Requires custom implementation'
-    },
-    {
       provider: 'microsoft',
       name: 'Microsoft',
       default_scopes: ['openid', 'email', 'profile'],
-      setup_instructions: 'Go to Azure Portal → App registrations → New registration',
-      note: 'Requires custom implementation'
+      setup_instructions: 'Go to Azure Portal → App registrations → New registration'
     },
     {
       provider: 'discord',
       name: 'Discord',
       default_scopes: ['identify', 'email'],
-      setup_instructions: 'Go to Discord Developer Portal → Applications → New Application → OAuth2',
-      note: 'Requires custom implementation'
+      setup_instructions: 'Go to Discord Developer Portal → Applications → New Application → OAuth2'
     },
     {
       provider: 'slack',
       name: 'Slack',
       default_scopes: ['identity.basic', 'identity.email'],
-      setup_instructions: 'Go to Slack API → Your Apps → Create New App → OAuth & Permissions',
-      note: 'Requires custom implementation'
+      setup_instructions: 'Go to Slack API → Your Apps → Create New App → OAuth & Permissions'
     }
     ]
     

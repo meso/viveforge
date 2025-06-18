@@ -136,7 +136,7 @@ vibebase/
 pnpm dev         # 全ての開発サーバーを並列起動
 pnpm build       # 全てのパッケージをビルド
 pnpm run deploy  # プロジェクト全体をデプロイ（推奨：ダッシュボードビルド→アセットクリーンアップ・コピー→coreのCloudflareデプロイまで全自動実行）
-pnpm test        # 全てのテストを実行
+pnpm test run    # 全てのテストを実行（watchモードを無効化）
 pnpm lint        # 全てのパッケージでリンティング実行
 pnpm typecheck   # 全てのパッケージで型チェック実行
 ```
@@ -146,7 +146,7 @@ pnpm typecheck   # 全てのパッケージで型チェック実行
 pnpm dev         # Wrangler開発サーバーを起動
 pnpm run deploy  # Cloudflareにデプロイ
 pnpm db:init     # D1データベースを初期化
-pnpm test        # Vitestテストを実行
+pnpm test run    # Vitestテストを実行（watchモードを無効化）
 pnpm typecheck   # TypeScript型チェックを実行
 ```
 

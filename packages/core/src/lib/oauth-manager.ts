@@ -111,7 +111,10 @@ export class OAuthManager {
       github: 'https://github.com/login/oauth/authorize',
       facebook: 'https://www.facebook.com/v18.0/dialog/oauth',
       linkedin: 'https://www.linkedin.com/oauth/v2/authorization',
-      twitter: 'https://twitter.com/i/oauth2/authorize'
+      twitter: 'https://twitter.com/i/oauth2/authorize',
+      microsoft: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+      slack: 'https://slack.com/oauth/v2/authorize',
+      discord: 'https://discord.com/api/oauth2/authorize'
     }
     
     const authUrl = authUrls[provider]
@@ -134,7 +137,10 @@ export class OAuthManager {
       github: 'https://github.com/login/oauth/access_token',
       facebook: 'https://graph.facebook.com/v18.0/oauth/access_token',
       linkedin: 'https://www.linkedin.com/oauth/v2/accessToken',
-      twitter: 'https://api.twitter.com/2/oauth2/token'
+      twitter: 'https://api.twitter.com/2/oauth2/token',
+      microsoft: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
+      slack: 'https://slack.com/api/oauth.v2.access',
+      discord: 'https://discord.com/api/oauth2/token'
     }
     
     const tokenUrl = tokenUrls[provider]
@@ -170,11 +176,14 @@ export class OAuthManager {
   // Get user info from OAuth provider
   async getUserInfo(provider: string, accessToken: string): Promise<OAuthUserInfo> {
     const userInfoUrls: Record<string, string> = {
-      google: 'https://www.googleapis.com/oauth2/v2/userinfo',
+      google: 'https://www.googleapis.com/oauth2/userinfo',
       github: 'https://api.github.com/user',
       facebook: 'https://graph.facebook.com/me?fields=id,name,email,picture',
       linkedin: 'https://api.linkedin.com/v2/people/~:(id,firstName,lastName,emailAddress,profilePicture)',
-      twitter: 'https://api.twitter.com/2/users/me?user.fields=profile_image_url'
+      twitter: 'https://api.twitter.com/2/users/me?user.fields=profile_image_url',
+      microsoft: 'https://graph.microsoft.com/v1.0/me',
+      slack: 'https://slack.com/api/users.identity',
+      discord: 'https://discord.com/api/users/@me'
     }
     
     const userInfoUrl = userInfoUrls[provider]
@@ -250,6 +259,33 @@ export class OAuthManager {
           avatar_url: userData.profile_image_url as string
         }
       
+      case 'microsoft':
+        return {
+          id: userData.id as string,
+          email: userData.mail as string || userData.userPrincipalName as string,
+          name: userData.displayName as string,
+          avatar_url: undefined // Microsoft Graph doesn't provide avatar URL in basic profile
+        }
+      
+      case 'slack':
+        const slackUser = (userData.user as Record<string, unknown>) || {}
+        return {
+          id: slackUser.id as string,
+          email: slackUser.email as string,
+          name: slackUser.name as string,
+          avatar_url: slackUser.image_192 as string || slackUser.image_72 as string
+        }
+      
+      case 'discord':
+        return {
+          id: userData.id as string,
+          email: userData.email as string,
+          name: userData.username as string,
+          avatar_url: userData.avatar 
+            ? `https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.png`
+            : undefined
+        }
+      
       default:
         return userData as OAuthUserInfo
     }
@@ -269,7 +305,10 @@ export class OAuthManager {
       github: ['user:email'],
       facebook: ['email', 'public_profile'],
       linkedin: ['r_liteprofile', 'r_emailaddress'],
-      twitter: ['users.read', 'tweet.read']
+      twitter: ['users.read', 'tweet.read'],
+      microsoft: ['openid', 'profile', 'email'],
+      slack: ['identity.basic', 'identity.email'],
+      discord: ['identify', 'email']
     }
     
     return defaultScopes[provider] || []
