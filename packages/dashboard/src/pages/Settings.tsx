@@ -33,7 +33,16 @@ interface CreateAPIKeyResponse {
   expires_at: string | null
 }
 
+interface AppSetting {
+  key: string
+  value: string
+  updated_at: string
+}
+
 export function SettingsPage() {
+  // Navigation state
+  const [activeSection, setActiveSection] = useState<'app-settings' | 'admins' | 'api-keys'>('app-settings')
+  
   const [admins, setAdmins] = useState<Admin[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -58,6 +67,14 @@ export function SettingsPage() {
     'storage:read', 'storage:write', 'storage:delete'
   ])
   const [revokeConfirm, setRevokeConfirm] = useState<{ id: string; name: string } | null>(null)
+  
+  // App Settings state
+  const [appSettings, setAppSettings] = useState<AppSetting[]>([])
+  const [appSettingsLoading, setAppSettingsLoading] = useState(false)
+  const [appSettingsError, setAppSettingsError] = useState<string | null>(null)
+  const [editingAppSettings, setEditingAppSettings] = useState(false)
+  const [appSettingsForm, setAppSettingsForm] = useState<Record<string, string>>({})
+  const [appSettingsSaving, setAppSettingsSaving] = useState(false)
 
   // Load admins
   const loadAdmins = async () => {
@@ -265,166 +282,387 @@ export function SettingsPage() {
     }))
   }
 
+  // Load app settings
+  const loadAppSettings = async () => {
+    try {
+      setAppSettingsLoading(true)
+      setAppSettingsError(null)
+      const response = await fetch('/api/app-settings', {
+        credentials: 'include'
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to load app settings')
+      }
+      
+      const data = await response.json()
+      setAppSettings(data.settings)
+      
+      // Initialize form data
+      const formData: Record<string, string> = {}
+      data.settings.forEach((setting: AppSetting) => {
+        formData[setting.key] = setting.value
+      })
+      setAppSettingsForm(formData)
+    } catch (err) {
+      console.error('Failed to load app settings:', err)
+      setAppSettingsError(err instanceof Error ? err.message : 'Failed to load app settings')
+    } finally {
+      setAppSettingsLoading(false)
+    }
+  }
+  
+  // Save app settings
+  const saveAppSettings = async () => {
+    try {
+      setAppSettingsSaving(true)
+      setAppSettingsError(null)
+      
+      const response = await fetch('/api/app-settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(appSettingsForm)
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to save app settings')
+      }
+      
+      const data = await response.json()
+      setAppSettings(data.settings)
+      setEditingAppSettings(false)
+    } catch (err) {
+      console.error('Failed to save app settings:', err)
+      setAppSettingsError(err instanceof Error ? err.message : 'Failed to save app settings')
+    } finally {
+      setAppSettingsSaving(false)
+    }
+  }
+
   useEffect(() => {
     loadAdmins()
     loadApiKeys()
+    loadAppSettings()
   }, [])
 
   return (
     <div>
       <h2 class="text-2xl font-bold text-gray-900 mb-6">Settings</h2>
       
-      {/* Admin Management Section */}
-      <div class="bg-white shadow rounded-lg mb-6">
-        <div class="px-4 py-5 sm:p-6">
-          <h3 class="text-lg font-medium text-gray-900 mb-4">Admin Management</h3>
-          
-          {error && (
-            <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
-              <p class="text-sm text-red-600">{error}</p>
-            </div>
-          )}
-
-          {/* Add Admin Form */}
-          <form onSubmit={addAdmin} class="mb-6">
-            <div class="flex gap-2">
-              <input
-                type="text"
-                value={newUsername}
-                onInput={(e) => setNewUsername((e.target as HTMLInputElement).value)}
-                placeholder="GitHub username (e.g., meso)"
-                class="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                disabled={adding}
-              />
-              <button
-                type="submit"
-                disabled={adding || !newUsername.trim()}
-                class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {adding ? 'Adding...' : 'Add Admin'}
-              </button>
-            </div>
-          </form>
-
-          {/* Admins List */}
-          {loading ? (
-            <div class="text-center py-4">
-              <p class="text-gray-500">Loading admins...</p>
-            </div>
-          ) : (
-            <div class="space-y-2">
-              <h4 class="text-sm font-medium text-gray-700 mb-2">Current Admins</h4>
-              {admins.length === 0 ? (
-                <p class="text-sm text-gray-500">No admins found</p>
-              ) : (
-                <div class="space-y-2">
-                  {admins.map((admin) => (
-                    <div key={admin.id} class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div class="flex items-center space-x-3">
-                        <div>
-                          <p class="text-sm font-medium text-gray-900">
-                            {admin.github_username}
-                            {admin.is_root && (
-                              <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                Root Admin
-                              </span>
-                            )}
-                          </p>
-                          <p class="text-xs text-gray-500">
-                            Added {new Date(admin.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                      {!admin.is_root && (
+      <div class="flex gap-6">
+        {/* Navigation Sidebar */}
+        <div class="w-64 flex-shrink-0">
+          <nav class="space-y-1">
+            <button
+              onClick={() => setActiveSection('app-settings')}
+              class={`w-full text-left px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                activeSection === 'app-settings'
+                  ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-700'
+                  : 'text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              Application Settings
+            </button>
+            <button
+              onClick={() => setActiveSection('admins')}
+              class={`w-full text-left px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                activeSection === 'admins'
+                  ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-700'
+                  : 'text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              Admin Management
+            </button>
+            <button
+              onClick={() => setActiveSection('api-keys')}
+              class={`w-full text-left px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                activeSection === 'api-keys'
+                  ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-700'
+                  : 'text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              API Keys
+            </button>
+          </nav>
+        </div>
+        
+        {/* Content Area */}
+        <div class="flex-1">
+          {/* Application Settings Section */}
+          {activeSection === 'app-settings' && (
+            <div class="bg-white shadow rounded-lg">
+              <div class="px-4 py-5 sm:p-6">
+                <div class="flex justify-between items-center mb-4">
+                  <h3 class="text-lg font-medium text-gray-900">Application Settings</h3>
+                  {!editingAppSettings && (
+                    <button
+                      onClick={() => setEditingAppSettings(true)}
+                      class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    >
+                      Edit Settings
+                    </button>
+                  )}
+                </div>
+                
+                {appSettingsError && (
+                  <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+                    <p class="text-sm text-red-600">{appSettingsError}</p>
+                  </div>
+                )}
+                
+                {appSettingsLoading ? (
+                  <p class="text-gray-500">Loading app settings...</p>
+                ) : (
+                  <div class="space-y-4">
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Application Name
+                      </label>
+                      <input
+                        type="text"
+                        value={appSettingsForm.app_name || ''}
+                        onChange={(e) => setAppSettingsForm(prev => ({ ...prev, app_name: (e.target as HTMLInputElement).value }))}
+                        disabled={!editingAppSettings}
+                        class={`w-full px-3 py-2 border ${editingAppSettings ? 'border-gray-300' : 'border-gray-200 bg-gray-50'} rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
+                        placeholder="My Vibebase App"
+                      />
+                      <p class="mt-1 text-sm text-gray-500">
+                        Used as User-Agent for OAuth providers
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Application URL (optional)
+                      </label>
+                      <input
+                        type="url"
+                        value={appSettingsForm.app_url || ''}
+                        onChange={(e) => setAppSettingsForm(prev => ({ ...prev, app_url: (e.target as HTMLInputElement).value }))}
+                        disabled={!editingAppSettings}
+                        class={`w-full px-3 py-2 border ${editingAppSettings ? 'border-gray-300' : 'border-gray-200 bg-gray-50'} rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
+                        placeholder="https://myapp.com"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Support Email (optional)
+                      </label>
+                      <input
+                        type="email"
+                        value={appSettingsForm.support_email || ''}
+                        onChange={(e) => setAppSettingsForm(prev => ({ ...prev, support_email: (e.target as HTMLInputElement).value }))}
+                        disabled={!editingAppSettings}
+                        class={`w-full px-3 py-2 border ${editingAppSettings ? 'border-gray-300' : 'border-gray-200 bg-gray-50'} rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
+                        placeholder="support@myapp.com"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Application Description (optional)
+                      </label>
+                      <textarea
+                        value={appSettingsForm.app_description || ''}
+                        onChange={(e) => setAppSettingsForm(prev => ({ ...prev, app_description: (e.target as HTMLTextAreaElement).value }))}
+                        disabled={!editingAppSettings}
+                        rows={3}
+                        class={`w-full px-3 py-2 border ${editingAppSettings ? 'border-gray-300' : 'border-gray-200 bg-gray-50'} rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
+                        placeholder="A brief description of your application"
+                      />
+                    </div>
+                    
+                    {editingAppSettings && (
+                      <div class="flex gap-3 pt-4">
                         <button
-                          onClick={() => setRemoveConfirm({ id: admin.id, username: admin.github_username })}
-                          class="text-red-600 hover:text-red-800 text-sm font-medium"
+                          onClick={() => {
+                            setEditingAppSettings(false)
+                            // Reset form to original values
+                            const formData: Record<string, string> = {}
+                            appSettings.forEach(setting => {
+                              formData[setting.key] = setting.value
+                            })
+                            setAppSettingsForm(formData)
+                          }}
+                          disabled={appSettingsSaving}
+                          class="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-300"
                         >
-                          Remove
+                          Cancel
                         </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* API Keys Management Section */}
-      <div class="bg-white shadow rounded-lg mb-6">
-        <div class="px-4 py-5 sm:p-6">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-medium text-gray-900">API Keys</h3>
-            <div class="flex items-center space-x-2">
-              <button
-                onClick={() => setShowCreateKey(true)}
-                class="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
-              >
-                Create API Key
-              </button>
-            </div>
-          </div>
-          
-          {apiKeysError && (
-            <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
-              <p class="text-sm text-red-600">{apiKeysError}</p>
-            </div>
-          )}
-
-          {/* API Keys List */}
-          {apiKeysLoading ? (
-            <div class="text-center py-4">
-              <p class="text-gray-500">Loading API keys...</p>
-            </div>
-          ) : (
-            <div class="space-y-2">
-              {apiKeys.length === 0 ? (
-                <p class="text-sm text-gray-500">No API keys found. Create one to get started.</p>
-              ) : (
-                <div class="space-y-3">
-                  {apiKeys.map((key) => (
-                    <div key={key.id} class="border border-gray-200 rounded-lg p-4">
-                      <div class="flex items-start justify-between">
-                        <div class="flex-1">
-                          <div class="flex items-center space-x-2 mb-2">
-                            <h4 class="text-sm font-medium text-gray-900">{key.name}</h4>
-                            <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              key.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                            }`}>
-                              {key.is_active ? 'Active' : 'Revoked'}
-                            </span>
-                          </div>
-                          <div class="text-sm text-gray-600 space-y-1">
-                            <p><span class="font-medium">Key:</span> {key.key_prefix}</p>
-                            <p><span class="font-medium">Scopes:</span> {key.scopes.join(', ')}</p>
-                            <p><span class="font-medium">Created:</span> {new Date(key.created_at).toLocaleDateString()}</p>
-                            {key.expires_at && (
-                              <p><span class="font-medium">Expires:</span> {new Date(key.expires_at).toLocaleDateString()}</p>
-                            )}
-                            {key.last_used_at && (
-                              <p><span class="font-medium">Last used:</span> {new Date(key.last_used_at).toLocaleDateString()}</p>
-                            )}
-                          </div>
-                        </div>
-                        {key.is_active && (
-                          <button
-                            onClick={() => setRevokeConfirm({ id: key.id, name: key.name })}
-                            class="text-red-600 hover:text-red-800 text-sm font-medium"
-                          >
-                            Revoke
-                          </button>
-                        )}
+                        <button
+                          onClick={saveAppSettings}
+                          disabled={appSettingsSaving}
+                          class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:opacity-50"
+                        >
+                          {appSettingsSaving ? 'Saving...' : 'Save Settings'}
+                        </button>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
-        </div>
-      </div>
+      
+          {/* Admin Management Section */}
+          {activeSection === 'admins' && (
+            <div class="bg-white shadow rounded-lg">
+              <div class="px-4 py-5 sm:p-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Admin Management</h3>
+                
+                {error && (
+                  <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+                    <p class="text-sm text-red-600">{error}</p>
+                  </div>
+                )}
+
+                {/* Add Admin Form */}
+                <form onSubmit={addAdmin} class="mb-6">
+                  <div class="flex gap-2">
+                    <input
+                      type="text"
+                      value={newUsername}
+                      onInput={(e) => setNewUsername((e.target as HTMLInputElement).value)}
+                      placeholder="GitHub username (e.g., meso)"
+                      class="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      disabled={adding}
+                    />
+                    <button
+                      type="submit"
+                      disabled={adding || !newUsername.trim()}
+                      class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {adding ? 'Adding...' : 'Add Admin'}
+                    </button>
+                  </div>
+                </form>
+
+                {/* Admins List */}
+                {loading ? (
+                  <div class="text-center py-4">
+                    <p class="text-gray-500">Loading admins...</p>
+                  </div>
+                ) : (
+                  <div class="space-y-2">
+                    <h4 class="text-sm font-medium text-gray-700 mb-2">Current Admins</h4>
+                    {admins.length === 0 ? (
+                      <p class="text-sm text-gray-500">No admins found</p>
+                    ) : (
+                      <div class="space-y-2">
+                        {admins.map((admin) => (
+                          <div key={admin.id} class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div class="flex items-center space-x-3">
+                              <div>
+                                <p class="text-sm font-medium text-gray-900">
+                                  {admin.github_username}
+                                  {admin.is_root && (
+                                    <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                      Root Admin
+                                    </span>
+                                  )}
+                                </p>
+                                <p class="text-xs text-gray-500">
+                                  Added {new Date(admin.created_at).toLocaleDateString()}
+                                </p>
+                              </div>
+                            </div>
+                            {!admin.is_root && (
+                              <button
+                                onClick={() => setRemoveConfirm({ id: admin.id, username: admin.github_username })}
+                                class="text-red-600 hover:text-red-800 text-sm font-medium"
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+      
+          {/* API Keys Section */}
+          {activeSection === 'api-keys' && (
+            <div class="bg-white shadow rounded-lg">
+              <div class="px-4 py-5 sm:p-6">
+                <div class="flex items-center justify-between mb-4">
+                  <h3 class="text-lg font-medium text-gray-900">API Keys</h3>
+                  <div class="flex items-center space-x-2">
+                    <button
+                      onClick={() => setShowCreateKey(true)}
+                      class="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    >
+                      Create API Key
+                    </button>
+                  </div>
+                </div>
+                
+                {apiKeysError && (
+                  <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+                    <p class="text-sm text-red-600">{apiKeysError}</p>
+                  </div>
+                )}
+
+                {/* API Keys List */}
+                {apiKeysLoading ? (
+                  <div class="text-center py-4">
+                    <p class="text-gray-500">Loading API keys...</p>
+                  </div>
+                ) : (
+                  <div class="space-y-2">
+                    {apiKeys.length === 0 ? (
+                      <p class="text-sm text-gray-500">No API keys found. Create one to get started.</p>
+                    ) : (
+                      <div class="space-y-3">
+                        {apiKeys.map((key) => (
+                          <div key={key.id} class="border border-gray-200 rounded-lg p-4">
+                            <div class="flex items-start justify-between">
+                              <div class="flex-1">
+                                <div class="flex items-center space-x-2 mb-2">
+                                  <h4 class="text-sm font-medium text-gray-900">{key.name}</h4>
+                                  <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                    key.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                  }`}>
+                                    {key.is_active ? 'Active' : 'Revoked'}
+                                  </span>
+                                </div>
+                                <div class="text-sm text-gray-600 space-y-1">
+                                  <p><span class="font-medium">Key:</span> {key.key_prefix}</p>
+                                  <p><span class="font-medium">Scopes:</span> {key.scopes.join(', ')}</p>
+                                  <p><span class="font-medium">Created:</span> {new Date(key.created_at).toLocaleDateString()}</p>
+                                  {key.expires_at && (
+                                    <p><span class="font-medium">Expires:</span> {new Date(key.expires_at).toLocaleDateString()}</p>
+                                  )}
+                                  {key.last_used_at && (
+                                    <p><span class="font-medium">Last used:</span> {new Date(key.last_used_at).toLocaleDateString()}</p>
+                                  )}
+                                </div>
+                              </div>
+                              {key.is_active && (
+                                <button
+                                  onClick={() => setRevokeConfirm({ id: key.id, name: key.name })}
+                                  class="text-red-600 hover:text-red-800 text-sm font-medium"
+                                >
+                                  Revoke
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
       {/* Create API Key Modal */}
       {showCreateKey && (
@@ -502,7 +740,11 @@ export function SettingsPage() {
           </div>
         </div>
       )}
+        </div>
+      </div>
 
+      {/* Modals */}
+      
       {/* Created Key Display Modal */}
       {createdKey && (
         <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">

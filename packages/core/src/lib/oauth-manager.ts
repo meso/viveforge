@@ -1,8 +1,13 @@
 import type { D1Database } from '../types/cloudflare'
 import type { OAuthProvider, OAuthProviderConfig, OAuthUserInfo } from '../types/auth'
+import { AppSettingsManager } from './app-settings-manager'
 
 export class OAuthManager {
-  constructor(private db: D1Database) {}
+  private appSettingsManager: AppSettingsManager
+  
+  constructor(private db: D1Database) {
+    this.appSettingsManager = new AppSettingsManager(db)
+  }
 
   // Get enabled OAuth providers
   async getEnabledProviders(): Promise<OAuthProvider[]> {
@@ -177,11 +182,15 @@ export class OAuthManager {
       throw new Error(`Unsupported OAuth provider: ${provider}`)
     }
     
+    // Get app name for User-Agent
+    const appName = await this.appSettingsManager.getSetting('app_name') || 'My Vibebase App'
+    const userAgent = `${appName.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '-')}/1.0 (Powered by Vibebase)`
+    
     const response = await fetch(userInfoUrl, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Accept': 'application/json',
-        'User-Agent': 'Vibebase/1.0'
+        'User-Agent': userAgent
       }
     })
     

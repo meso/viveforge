@@ -17,7 +17,7 @@ import type {
 } from '../types/cloudflare'
 
 // System tables that cannot be modified by users
-export const SYSTEM_TABLES = ['admins', 'sessions', 'schema_snapshots', 'schema_snapshot_counter', 'd1_migrations', 'api_keys', 'user_sessions', 'oauth_providers'] as const
+export const SYSTEM_TABLES = ['admins', 'sessions', 'schema_snapshots', 'schema_snapshot_counter', 'd1_migrations', 'api_keys', 'user_sessions', 'oauth_providers', 'app_settings'] as const
 type SystemTable = typeof SYSTEM_TABLES[number]
 
 export interface LocalTableInfo {

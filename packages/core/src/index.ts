@@ -12,6 +12,7 @@ import { admin } from './routes/admin'
 import { apiKeys } from './routes/api-keys'
 import userAuth from './routes/user-auth'
 import adminOAuth from './routes/admin-oauth'
+import appSettings from './routes/app-settings'
 import { VibebaseAuthClient } from './lib/auth-client'
 import { getDashboardHTML, getLoginHTML } from './templates/html'
 import { requireAuth, optionalAuth, multiAuth } from './middleware/auth'
@@ -97,6 +98,7 @@ app.route('/api/storage', storage)
 app.route('/api/admin', admin)
 app.route('/api/admin/oauth', adminOAuth)
 app.route('/api/api-keys', apiKeys)
+app.route('/api/app-settings', appSettings)
 
 // Handle static assets
 app.get('/assets/*', async (c) => {
