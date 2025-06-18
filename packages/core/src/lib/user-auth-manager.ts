@@ -196,9 +196,9 @@ export class UserAuthManager {
     
     await this.db.prepare(`
       UPDATE user_sessions 
-      SET access_token_hash = ?, expires_at = ?, updated_at = CURRENT_TIMESTAMP
+      SET access_token_hash = ?, expires_at = ?, updated_at = ?
       WHERE id = ?
-    `).bind(accessTokenHash, new Date(expiresAt * 1000).toISOString(), id).run()
+    `).bind(accessTokenHash, new Date(expiresAt * 1000).toISOString(), new Date().toISOString(), id).run()
   }
 
   private async deleteSession(id: string): Promise<void> {

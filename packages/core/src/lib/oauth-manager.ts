@@ -55,7 +55,7 @@ export class OAuthManager {
       // Update existing provider
       await this.db.prepare(`
         UPDATE oauth_providers 
-        SET client_id = ?, client_secret = ?, is_enabled = ?, scopes = ?, redirect_uri = ?, updated_at = CURRENT_TIMESTAMP
+        SET client_id = ?, client_secret = ?, is_enabled = ?, scopes = ?, redirect_uri = ?, updated_at = ?
         WHERE provider = ?
       `).bind(
         config.client_id,
@@ -63,13 +63,15 @@ export class OAuthManager {
         config.is_enabled,
         scopesJson,
         config.redirect_uri,
+        new Date().toISOString(),
         provider
       ).run()
     } else {
       // Create new provider
+      const now = new Date().toISOString()
       await this.db.prepare(`
-        INSERT INTO oauth_providers (id, provider, client_id, client_secret, is_enabled, scopes, redirect_uri)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO oauth_providers (id, provider, client_id, client_secret, is_enabled, scopes, redirect_uri, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
         crypto.randomUUID().replace(/-/g, ''),
         provider,
@@ -77,7 +79,9 @@ export class OAuthManager {
         config.client_secret,
         config.is_enabled,
         scopesJson,
-        config.redirect_uri
+        config.redirect_uri,
+        now,
+        now
       ).run()
     }
   }

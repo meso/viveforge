@@ -138,9 +138,9 @@ adminOAuth.patch('/providers/:provider/toggle', async (c) => {
 
     const result = await c.env.DB.prepare(`
       UPDATE oauth_providers 
-      SET is_enabled = ?, updated_at = CURRENT_TIMESTAMP
+      SET is_enabled = ?, updated_at = ?
       WHERE provider = ?
-    `).bind(body.is_enabled, provider).run()
+    `).bind(body.is_enabled, new Date().toISOString(), provider).run()
     
     if (result.meta.changes === 0) {
       return c.json({ error: `OAuth provider '${provider}' not found` }, 404)

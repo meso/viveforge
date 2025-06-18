@@ -45,7 +45,7 @@ export class APIKeyManager {
           key_prefix TEXT NOT NULL,
           scopes TEXT NOT NULL,
           created_by TEXT NOT NULL,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          created_at DATETIME NOT NULL,
           last_used_at DATETIME,
           expires_at DATETIME,
           is_active INTEGER DEFAULT 1,
@@ -98,10 +98,11 @@ export class APIKeyManager {
 
     // Generate ID manually since D1 might not support RETURNING
     const id = nanoid()
+    const now = new Date().toISOString()
 
     await this.db.prepare(`
-      INSERT INTO api_keys (id, name, key_hash, key_prefix, scopes, created_by, expires_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO api_keys (id, name, key_hash, key_prefix, scopes, created_by, created_at, expires_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       id,
       request.name,
@@ -109,6 +110,7 @@ export class APIKeyManager {
       prefix,
       JSON.stringify(request.scopes),
       createdBy,
+      now,
       expiresAt
     ).run()
 
@@ -143,8 +145,8 @@ export class APIKeyManager {
 
     // Update last used timestamp
     await this.db.prepare(`
-      UPDATE api_keys SET last_used_at = CURRENT_TIMESTAMP WHERE id = ?
-    `).bind(result.id).run()
+      UPDATE api_keys SET last_used_at = ? WHERE id = ?
+    `).bind(new Date().toISOString(), result.id).run()
 
     // Parse scopes
     result.scopes = JSON.parse(result.scopes as any)

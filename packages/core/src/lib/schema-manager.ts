@@ -74,8 +74,8 @@ export class SchemaManager {
     const sql = `CREATE TABLE ${tableName} (
       id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
       ${columnDefs},
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP${foreignKeys ? `, ${foreignKeys}` : ''}
+      created_at DATETIME NOT NULL,
+      updated_at DATETIME NOT NULL${foreignKeys ? `, ${foreignKeys}` : ''}
     )`
 
     console.log('Creating table with SQL:', sql)

@@ -27,14 +27,24 @@ export class DataManager {
       throw new Error(`Cannot modify system table: ${tableName}`)
     }
     
+    // Add timestamps if not provided
+    const dataWithTimestamps = { ...data }
+    const now = new Date().toISOString()
+    if (!dataWithTimestamps.created_at) {
+      dataWithTimestamps.created_at = now
+    }
+    if (!dataWithTimestamps.updated_at) {
+      dataWithTimestamps.updated_at = now
+    }
+    
     // Build INSERT statement
-    const columns = Object.keys(data)
-    const values = Object.values(data)
+    const columns = Object.keys(dataWithTimestamps)
+    const values = Object.values(dataWithTimestamps)
     const placeholders = columns.map(() => '?').join(', ')
     
     const sql = `INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${placeholders})`
     console.log('Executing INSERT with foreign key constraints:', sql, 'Values:', values)
-    console.log('Data being inserted:', data)
+    console.log('Data being inserted:', dataWithTimestamps)
     
     await this.db.prepare(sql).bind(...values).run()
   }
@@ -132,6 +142,15 @@ export class DataManager {
     // Generate ID if not provided
     const id = data.id || this.generateId()
     const dataWithId = { ...data, id }
+    
+    // Add timestamps if not provided
+    const now = new Date().toISOString()
+    if (!dataWithId.created_at) {
+      dataWithId.created_at = now
+    }
+    if (!dataWithId.updated_at) {
+      dataWithId.updated_at = now
+    }
     
     // Build INSERT statement
     const columns = Object.keys(dataWithId)

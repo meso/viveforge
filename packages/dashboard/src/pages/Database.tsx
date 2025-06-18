@@ -95,8 +95,9 @@ export function DatabasePage() {
   // Format date from SQLite DATETIME to user timezone
   const formatDateTime = (dateString: string) => {
     if (!dateString) return '-'
-    const utcDate = new Date(dateString + 'Z') // Add 'Z' to interpret as UTC
-    return utcDate.toLocaleString(undefined, {
+    // All dates are now in ISO format with timezone info
+    const date = new Date(dateString)
+    return date.toLocaleString(undefined, {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',

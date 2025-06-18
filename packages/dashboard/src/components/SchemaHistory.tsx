@@ -120,10 +120,10 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
   }
 
   const formatDate = (dateString: string) => {
-    // SQLiteのDATETIME文字列をUTC時刻として解釈
-    const utcDate = new Date(dateString + 'Z') // 'Z'を追加してUTCとして解釈
+    // All dates are now in ISO format with timezone info
+    const date = new Date(dateString)
     
-    return utcDate.toLocaleString(undefined, {
+    return date.toLocaleString(undefined, {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -136,7 +136,7 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
   }
 
   const getRelativeTime = (dateString: string) => {
-    const date = new Date(dateString + 'Z') // UTC時刻として解釈
+    const date = new Date(dateString)
     const now = new Date()
     const diff = now.getTime() - date.getTime()
     const days = Math.floor(diff / (1000 * 60 * 60 * 24))
