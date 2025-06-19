@@ -1,4 +1,5 @@
 import { VibebaseError, ErrorCode, ErrorDetails, createSystemTableError, createInvalidNameError, createNotFoundError, createDuplicateError, createValidationError } from '../types/errors'
+import { SYSTEM_TABLES } from './table-manager'
 
 /**
  * Centralized error handling manager for Vibebase
@@ -65,8 +66,7 @@ export class ErrorHandler {
    * Validate system table operations
    */
   public validateSystemTable(tableName: string): void {
-    const SYSTEM_TABLES = ['admins', 'sessions', 'schema_snapshots', 'schema_snapshot_counter', 'd1_migrations']
-    if (SYSTEM_TABLES.includes(tableName)) {
+    if (SYSTEM_TABLES.includes(tableName as (typeof SYSTEM_TABLES)[number])) {
       this.throwError({
         code: ErrorCode.SYSTEM_TABLE_MODIFICATION,
         message: `Cannot modify system table: ${tableName}`,

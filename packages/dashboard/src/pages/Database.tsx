@@ -9,6 +9,7 @@ const truncateId = (id: string | null): string => {
 }
 
 // System tables that should not be available for FK references
+// NOTE: Keep this in sync with SYSTEM_TABLES in packages/core/src/lib/table-manager.ts
 const SYSTEM_TABLES = ['admins', 'sessions', 'schema_snapshots', 'schema_snapshot_counter', 'd1_migrations', 'api_keys', 'user_sessions', 'oauth_providers', 'app_settings', 'table_policies']
 
 // Filter out system tables for FK references
