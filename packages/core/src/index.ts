@@ -16,6 +16,7 @@ import appSettings from './routes/app-settings'
 import { VibebaseAuthClient } from './lib/auth-client'
 import { getDashboardHTML, getLoginHTML } from './templates/html'
 import { requireAuth, optionalAuth, multiAuth } from './middleware/auth'
+import { securityHeaders } from './middleware/security-headers'
 import { getOrGenerateJWTSecret, logSecurityWarnings } from './lib/security-utils'
 import { CURRENT_ASSETS } from './templates/assets'
 import type { Env, Variables } from './types'
@@ -33,6 +34,9 @@ app.onError((err, c) => {
 })
 
 app.use('*', logger())
+
+// Apply security headers to all responses
+app.use('*', securityHeaders())
 
 app.use('/api/*', cors())
 
