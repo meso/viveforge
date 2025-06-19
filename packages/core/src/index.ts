@@ -16,6 +16,7 @@ import appSettings from './routes/app-settings'
 import { VibebaseAuthClient } from './lib/auth-client'
 import { getDashboardHTML, getLoginHTML } from './templates/html'
 import { requireAuth, optionalAuth, multiAuth } from './middleware/auth'
+import { getOrGenerateJWTSecret, logSecurityWarnings } from './lib/security-utils'
 import { CURRENT_ASSETS } from './templates/assets'
 import type { Env, Variables } from './types'
 
@@ -34,6 +35,22 @@ app.onError((err, c) => {
 app.use('*', logger())
 
 app.use('/api/*', cors())
+
+// Initialize JWT_SECRET with security validation
+app.use('*', async (c, next) => {
+  // Initialize and validate JWT_SECRET
+  const jwtSecretResult = getOrGenerateJWTSecret(c.env.JWT_SECRET, c.env.ENVIRONMENT)
+  
+  // Log security warnings if any
+  if (jwtSecretResult.warnings.length > 0) {
+    logSecurityWarnings(jwtSecretResult.warnings, 'JWT Secret')
+  }
+  
+  // Update environment with the validated/generated secret
+  c.env.JWT_SECRET = jwtSecretResult.secret
+  
+  await next()
+})
 
 // 認証クライアントを初期化してコンテキストに設定
 app.use('*', async (c, next) => {

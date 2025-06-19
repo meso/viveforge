@@ -68,7 +68,32 @@ wrangler deploy
 Cloudflare Dashboardで「Workers & Pages」→ 「Custom domains」
 
 ### 3. 環境変数の設定
+
+#### JWT_SECRET（必須：本番環境）
+ユーザー認証用のJWTトークン署名に使用される秘密鍵です。
+
 ```bash
+# 本番環境用のセキュアなJWT秘密鍵を設定
+wrangler secret put JWT_SECRET
+```
+
+**重要：**
+- 本番環境では必ずこの設定が必要です
+- 開発環境では自動的に安全な一時キーが生成されます
+- 32文字以上のランダムな文字列を使用してください
+- 以下のコマンドで安全な秘密鍵を生成できます：
+
+```bash
+# 安全なJWT秘密鍵を生成（Linux/macOS）
+openssl rand -base64 32
+
+# または、Nodeで生成
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+#### その他のシークレット
+```bash
+# 必要に応じて他のシークレットも設定
 wrangler secret put SECRET_NAME
 ```
 
