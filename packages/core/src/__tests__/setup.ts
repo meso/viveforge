@@ -103,11 +103,28 @@ export function createMockD1Database(): MockD1Database {
   
   // Helper to extract table name from various SQL statements
   function getTableNameFromSql(sql: string): string | null {
-    const createTableMatch = sql.match(/CREATE\s+TABLE\s+(\w+)/i)
-    const alterTableMatch = sql.match(/ALTER\s+TABLE\s+(\w+)/i)
-    const insertIntoMatch = sql.match(/INSERT\s+INTO\s+(\w+)/i)
-    const pragmaMatch = sql.match(/PRAGMA\s+\w+\s*\(\s*"?(\w+)"?\s*\)/i)
+    // Handle both quoted and unquoted table names
+    const createTableMatch = sql.match(/CREATE\s+TABLE\s+["']?(\w+)["']?/i)
+    const alterTableMatch = sql.match(/ALTER\s+TABLE\s+["']?(\w+)["']?/i)
+    const insertIntoMatch = sql.match(/INSERT\s+INTO\s+["']?(\w+)["']?/i)
+    const pragmaMatch = sql.match(/PRAGMA\s+\w+\s*\(\s*["']?(\w+)["']?\s*\)/i)
     return createTableMatch?.[1] || alterTableMatch?.[1] || insertIntoMatch?.[1] || pragmaMatch?.[1] || null
+  }
+  
+  // Helper to normalize table names by removing quotes
+  function normalizeTableName(tableName: string): string {
+    return tableName.replace(/["\'`]/g, '')
+  }
+  
+  // Helper to find table with normalized name lookup
+  function findTable(tableName: string): string | null {
+    const normalizedName = normalizeTableName(tableName)
+    for (const [key] of tables.entries()) {
+      if (normalizeTableName(key) === normalizedName) {
+        return key
+      }
+    }
+    return null
   }
   
   const createMockStatement = (sql: string, bindings: any[] = []): MockD1PreparedStatement => {
@@ -120,57 +137,126 @@ export function createMockD1Database(): MockD1Database {
         if (normalizedSql.startsWith('CREATE TABLE')) {
           const tableName = getTableNameFromSql(sql)
           if (tableName) {
-            tables.set(tableName, [])
-            schemas.set(tableName, sql)
+            const normalizedName = normalizeTableName(tableName)
+            tables.set(normalizedName, [])
+            schemas.set(normalizedName, sql)
             
-            // Parse columns from CREATE TABLE statement
-            const columnsMatch = sql.match(/\((.*)\)/s)
-            if (columnsMatch) {
-              const columnDefs = columnsMatch[1].split(',').map(col => {
-                const parts = col.trim().split(/\s+/)
-                return {
-                  cid: 0,
-                  name: parts[0],
-                  type: parts[1] || 'TEXT',
-                  notnull: col.includes('NOT NULL') ? 1 : 0,
-                  dflt_value: null,
-                  pk: col.includes('PRIMARY KEY') ? 1 : 0
+            // Parse columns from CREATE TABLE statement more robustly
+            // Handle nested parentheses properly
+            const createTableMatch = sql.match(/CREATE\s+TABLE\s+[^(]+\((.*)\)/s)
+            if (createTableMatch) {
+              const columnStr = createTableMatch[1]
+              // Parse the actual user-defined columns from the SQL
+              const userColumnDefs: any[] = []
+              
+              // Split by comma and parse each column definition
+              const columnParts = columnStr.split(',').map(c => c.trim())
+              let cidCounter = 1 // Start after the auto-generated id column
+              
+              for (const col of columnParts) {
+                const trimmedCol = col.trim()
+                
+                // Skip auto-generated columns that are already handled by the table manager
+                if (trimmedCol.startsWith('id TEXT PRIMARY KEY') || 
+                    trimmedCol.includes('created_at DATETIME') || 
+                    trimmedCol.includes('updated_at DATETIME')) {
+                  continue
                 }
-              })
-              tableColumns.set(tableName, columnDefs)
+                
+                // Parse column definition
+                const parts = trimmedCol.split(/\s+/)
+                let colName = parts[0]?.replace(/["\'`]/g, '')
+                
+                if (colName && !['id', 'created_at', 'updated_at'].includes(colName)) {
+                  userColumnDefs.push({
+                    cid: cidCounter++,
+                    name: colName,
+                    type: parts[1] || 'TEXT',
+                    notnull: trimmedCol.includes('NOT NULL') ? 1 : 0,
+                    dflt_value: null,
+                    pk: trimmedCol.includes('PRIMARY KEY') ? 1 : 0
+                  })
+                }
+              }
+              
+              // Always add the auto-generated columns in the expected order
+              const allColumns = [
+                {
+                  cid: 0,
+                  name: 'id',
+                  type: 'TEXT',
+                  notnull: 0,
+                  dflt_value: null,
+                  pk: 1
+                },
+                ...userColumnDefs,
+                {
+                  cid: cidCounter,
+                  name: 'created_at',
+                  type: 'DATETIME',
+                  notnull: 1,
+                  dflt_value: null,
+                  pk: 0
+                },
+                {
+                  cid: cidCounter + 1,
+                  name: 'updated_at',
+                  type: 'DATETIME',
+                  notnull: 1,
+                  dflt_value: null,
+                  pk: 0
+                }
+              ]
+              
+              tableColumns.set(normalizedName, allColumns)
             }
-            tableIndexes.set(tableName, [])
+            tableIndexes.set(normalizedName, [])
           }
         } else if (normalizedSql.startsWith('DROP TABLE')) {
           const tableName = getTableNameFromSql(sql)
           if (tableName) {
-            tables.delete(tableName)
-            schemas.delete(tableName)
-            tableColumns.delete(tableName)
-            tableIndexes.delete(tableName)
+            const normalizedName = normalizeTableName(tableName)
+            const actualTableName = findTable(normalizedName)
+            if (actualTableName) {
+              tables.delete(actualTableName)
+              schemas.delete(actualTableName)
+              tableColumns.delete(actualTableName)
+              tableIndexes.delete(actualTableName)
+            }
           }
         } else if (normalizedSql.startsWith('CREATE') && normalizedSql.includes('INDEX')) {
-          const indexMatch = sql.match(/CREATE\s+(?:UNIQUE\s+)?INDEX\s+(\w+)/i)
-          const tableMatch = sql.match(/ON\s+(\w+)/i)
+          const indexMatch = sql.match(/CREATE\s+(?:UNIQUE\s+)?INDEX\s+["']?(\w+)["']?/i)
+          const tableMatch = sql.match(/ON\s+["']?(\w+)["']?/i)
           const columnsMatch = sql.match(/\(([^)]+)\)/i)
           if (indexMatch && tableMatch && columnsMatch) {
             const indexName = indexMatch[1]
-            const tableName = tableMatch[1]
+            const tableName = normalizeTableName(tableMatch[1])
             const unique = sql.toUpperCase().includes('UNIQUE')
-            const columns = columnsMatch[1].split(',').map(col => col.trim())
+            const columns = columnsMatch[1].split(',').map(col => col.trim().replace(/["\'`]/g, ''))
             
-            if (!tableIndexes.has(tableName)) {
-              tableIndexes.set(tableName, [])
+            // Find the actual table name
+            const actualTableName = findTable(tableName)
+            if (actualTableName) {
+              if (!tableIndexes.has(actualTableName)) {
+                tableIndexes.set(actualTableName, [])
+              }
+              const existingIndexes = tableIndexes.get(actualTableName)!
+              
+              // Check for duplicate index name
+              if (existingIndexes.some(idx => idx.name === indexName)) {
+                throw new Error(`Index "${indexName}" already exists`)
+              }
+              
+              existingIndexes.push({
+                name: indexName,
+                unique: unique ? 1 : 0,
+                sql: sql,
+                columns: columns
+              })
             }
-            tableIndexes.get(tableName)!.push({
-              name: indexName,
-              unique: unique ? 1 : 0,
-              sql: sql,
-              columns: columns
-            })
           }
         } else if (normalizedSql.startsWith('DROP INDEX')) {
-          const indexMatch = sql.match(/DROP\s+INDEX\s+(\w+)/i)
+          const indexMatch = sql.match(/DROP\s+INDEX\s+["']?(\w+)["']?/i)
           if (indexMatch) {
             const indexName = indexMatch[1]
             // Find and remove index from all tables
@@ -178,7 +264,41 @@ export function createMockD1Database(): MockD1Database {
               const indexIndex = indexes.findIndex((idx: any) => idx.name === indexName)
               if (indexIndex !== -1) {
                 indexes.splice(indexIndex, 1)
-                break
+                return { 
+                  results: [], 
+                  success: true, 
+                  meta: { 
+                    changes: 1, 
+                    last_row_id: 0, 
+                    duration: 1, 
+                    size_after: 100, 
+                    rows_read: 0, 
+                    rows_written: 0 
+                  } 
+                }
+              }
+            }
+          }
+        } else if (normalizedSql.startsWith('ALTER TABLE') && normalizedSql.includes('ADD COLUMN')) {
+          const tableName = getTableNameFromSql(sql)
+          if (tableName) {
+            const normalizedName = normalizeTableName(tableName)
+            const actualTableName = findTable(normalizedName)
+            if (actualTableName && tableColumns.has(actualTableName)) {
+              // Parse the new column from ALTER TABLE statement
+              const addColumnMatch = sql.match(/ADD\s+COLUMN\s+["']?(\w+)["']?\s+(\w+)/i)
+              if (addColumnMatch) {
+                const [, columnName, columnType] = addColumnMatch
+                const columns = tableColumns.get(actualTableName)!
+                const newColumn = {
+                  cid: columns.length,
+                  name: columnName.replace(/["'`]/g, ''),
+                  type: columnType,
+                  notnull: sql.includes('NOT NULL') ? 1 : 0,
+                  dflt_value: null,
+                  pk: 0
+                }
+                columns.push(newColumn)
               }
             }
           }
@@ -205,29 +325,33 @@ export function createMockD1Database(): MockD1Database {
           } else {
             // Regular table insert
             const tableName = getTableNameFromSql(sql)
-            if (tableName && tables.has(tableName)) {
-              // Parse column names from INSERT statement
-              const columnsMatch = sql.match(/\(([^)]+)\)\s*VALUES/i)
-              if (columnsMatch) {
-                const columns = columnsMatch[1].split(',').map(col => col.trim().replace(/["`]/g, ''))
-                
-                // Create record with bound parameters
-                const record: any = { 
-                  id: Math.random().toString(36).substring(2, 18) // Generate random ID
-                }
-                
-                // Map parameters to columns
-                columns.forEach((column, index) => {
-                  if (bindings[index] !== undefined) {
-                    record[column] = bindings[index]
+            if (tableName) {
+              const normalizedName = normalizeTableName(tableName)
+              const actualTableName = findTable(normalizedName)
+              if (actualTableName && tables.has(actualTableName)) {
+                // Parse column names from INSERT statement
+                const columnsMatch = sql.match(/\(([^)]+)\)\s*VALUES/i)
+                if (columnsMatch) {
+                  const columns = columnsMatch[1].split(',').map(col => col.trim().replace(/["`]/g, ''))
+                  
+                  // Create record with bound parameters
+                  const record: any = { 
+                    id: Math.random().toString(36).substring(2, 18) // Generate random ID
                   }
-                })
-                
-                // Add timestamp fields if they don't exist
-                record.created_at = record.created_at || new Date().toISOString()
-                record.updated_at = record.updated_at || new Date().toISOString()
-                
-                tables.get(tableName)!.push(record)
+                  
+                  // Map parameters to columns
+                  columns.forEach((column, index) => {
+                    if (bindings[index] !== undefined) {
+                      record[column] = bindings[index]
+                    }
+                  })
+                  
+                  // Add timestamp fields if they don't exist
+                  record.created_at = record.created_at || new Date().toISOString()
+                  record.updated_at = record.updated_at || new Date().toISOString()
+                  
+                  tables.get(actualTableName)!.push(record)
+                }
               }
             }
           }
@@ -293,18 +417,22 @@ export function createMockD1Database(): MockD1Database {
           }
         } else if (normalizedSql.startsWith('PRAGMA TABLE_INFO')) {
           const tableName = getTableNameFromSql(sql)
-          if (tableName && tableColumns.has(tableName)) {
-            const columns = tableColumns.get(tableName) || []
-            return { 
-              results: columns,
-              success: true,
-              meta: {
-                changes: 0,
-                last_row_id: 0,
-                duration: 1,
-                size_after: 100,
-                rows_read: columns.length,
-                rows_written: 0
+          if (tableName) {
+            const normalizedName = normalizeTableName(tableName)
+            const actualTableName = findTable(normalizedName)
+            if (actualTableName && tableColumns.has(actualTableName)) {
+              const columns = tableColumns.get(actualTableName) || []
+              return { 
+                results: columns,
+                success: true,
+                meta: {
+                  changes: 0,
+                  last_row_id: 0,
+                  duration: 1,
+                  size_after: 100,
+                  rows_read: columns.length,
+                  rows_written: 0
+                }
               }
             }
           }
@@ -335,18 +463,22 @@ export function createMockD1Database(): MockD1Database {
           }
         } else if (normalizedSql.startsWith('PRAGMA INDEX_LIST')) {
           const tableName = getTableNameFromSql(sql)
-          if (tableName && tableIndexes.has(tableName)) {
-            const indexes = tableIndexes.get(tableName) || []
-            return { 
-              results: indexes,
-              success: true,
-              meta: {
-                changes: 0,
-                last_row_id: 0,
-                duration: 1,
-                size_after: 100,
-                rows_read: indexes.length,
-                rows_written: 0
+          if (tableName) {
+            const normalizedName = normalizeTableName(tableName)
+            const actualTableName = findTable(normalizedName)
+            if (actualTableName && tableIndexes.has(actualTableName)) {
+              const indexes = tableIndexes.get(actualTableName) || []
+              return { 
+                results: indexes,
+                success: true,
+                meta: {
+                  changes: 0,
+                  last_row_id: 0,
+                  duration: 1,
+                  size_after: 100,
+                  rows_read: indexes.length,
+                  rows_written: 0
+                }
               }
             }
           }
@@ -421,8 +553,9 @@ export function createMockD1Database(): MockD1Database {
           // Handle COUNT(*) for other tables
           const tableMatch = sql.match(/FROM\s+["']?(\w+)["']?/i)
           if (tableMatch) {
-            const tableName = tableMatch[1]
-            const tableData = tables.get(tableName) || []
+            const tableName = normalizeTableName(tableMatch[1])
+            const actualTableName = findTable(tableName)
+            const tableData = actualTableName ? (tables.get(actualTableName) || []) : []
             
             // Handle WHERE clauses in COUNT queries
             if (normalizedSql.includes('WHERE')) {
@@ -488,8 +621,9 @@ export function createMockD1Database(): MockD1Database {
           // Handle general SELECT queries
           const tableMatch = sql.match(/FROM\s+["']?(\w+)["']?/i)
           if (tableMatch) {
-            const tableName = tableMatch[1]
-            let tableData = tables.get(tableName) || []
+            const tableName = normalizeTableName(tableMatch[1])
+            const actualTableName = findTable(tableName)
+            let tableData = actualTableName ? (tables.get(actualTableName) || []) : []
             
             // Handle WHERE clauses for search functionality
             if (normalizedSql.includes('WHERE')) {
@@ -557,8 +691,27 @@ export function createMockD1Database(): MockD1Database {
           const snapshotId = bindings[0]
           return snapshots.get(snapshotId) || null
         } else if (normalizedSql.includes('FROM sqlite_master') && normalizedSql.includes('WHERE type=') && normalizedSql.includes('AND name =')) {
-          const tableName = bindings[0]
-          return schemas.has(tableName) ? { sql: schemas.get(tableName) } : null
+          const targetName = bindings[0]
+          const normalizedName = normalizeTableName(targetName)
+          
+          // Check if this is a table lookup
+          if (bindings.length > 0 && bindings[0] && typeof bindings[0] === 'string') {
+            if (normalizedSql.includes("TYPE='table'")) {
+              const actualTableName = findTable(normalizedName)
+              return actualTableName && schemas.has(actualTableName) ? { sql: schemas.get(actualTableName) } : null
+            } else if (normalizedSql.includes("TYPE = 'index'")) {
+              // Find index across all tables
+              for (const indexes of tableIndexes.values()) {
+                const index = indexes.find((idx: any) => idx.name === targetName)
+                if (index) {
+                  return { sql: index.sql }
+                }
+              }
+              return null
+            }
+          }
+          
+          return schemas.has(targetName) ? { sql: schemas.get(targetName) } : null
         }
         
         const result = await createMockStatement(sql, bindings).all()

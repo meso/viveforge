@@ -1,4 +1,5 @@
 import { SYSTEM_TABLES } from './table-manager'
+import { validateAndEscapeTableName, validateAndEscapeColumnName, createColumnList, validateNotSystemTable } from './sql-utils'
 import type { D1Database, TableDataResult } from '../types/cloudflare'
 import type { CountResult } from '../types/database'
 
@@ -22,10 +23,9 @@ export class DataManager {
     const pragmaResult = await this.db.prepare('PRAGMA foreign_keys').first()
     console.log('Foreign keys status:', pragmaResult)
     
-    // Check if table is protected system table (admins table is allowed)
-    if (SYSTEM_TABLES.includes(tableName as (typeof SYSTEM_TABLES)[number])) {
-      throw new Error(`Cannot modify system table: ${tableName}`)
-    }
+    // Validate table name and check if it's a system table
+    validateNotSystemTable(tableName, SYSTEM_TABLES)
+    const safeTableName = validateAndEscapeTableName(tableName)
     
     // Add timestamps if not provided
     const dataWithTimestamps = { ...data }
@@ -41,8 +41,9 @@ export class DataManager {
     const columns = Object.keys(dataWithTimestamps)
     const values = Object.values(dataWithTimestamps)
     const placeholders = columns.map(() => '?').join(', ')
+    const safeColumns = createColumnList(columns)
     
-    const sql = `INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${placeholders})`
+    const sql = `INSERT INTO ${safeTableName} (${safeColumns}) VALUES (${placeholders})`
     console.log('Executing INSERT with foreign key constraints:', sql, 'Values:', values)
     console.log('Data being inserted:', dataWithTimestamps)
     
@@ -53,18 +54,18 @@ export class DataManager {
   async deleteRecord(tableName: string, id: string): Promise<void> {
     await this.enableForeignKeys()
     
-    // Check if table is protected system table (admins table is allowed)
-    if (SYSTEM_TABLES.includes(tableName as (typeof SYSTEM_TABLES)[number])) {
-      throw new Error(`Cannot modify system table: ${tableName}`)
-    }
+    // Validate table name and check if it's a system table
+    validateNotSystemTable(tableName, SYSTEM_TABLES)
+    const safeTableName = validateAndEscapeTableName(tableName)
     
-    await this.db.prepare(`DELETE FROM ${tableName} WHERE id = ?`).bind(id).run()
+    await this.db.prepare(`DELETE FROM ${safeTableName} WHERE id = ?`).bind(id).run()
   }
 
   // Get data from any table
   async getTableData(tableName: string, limit = 100, offset = 0): Promise<TableDataResult> {
+    const safeTableName = validateAndEscapeTableName(tableName)
     const countResult = await this.db
-      .prepare(`SELECT COUNT(*) as total FROM "${tableName}"`)
+      .prepare(`SELECT COUNT(*) as total FROM ${safeTableName}`)
       .first()
 
     // Check if table has created_at column for ordering
@@ -80,7 +81,7 @@ export class DataManager {
     }
 
     const dataResult = await this.db
-      .prepare(`SELECT * FROM "${tableName}" ${orderClause} LIMIT ? OFFSET ?`)
+      .prepare(`SELECT * FROM ${safeTableName} ${orderClause} LIMIT ? OFFSET ?`)
       .bind(limit, offset)
       .all()
 
@@ -98,8 +99,9 @@ export class DataManager {
     sortBy?: string, 
     sortOrder: 'ASC' | 'DESC' = 'DESC'
   ): Promise<TableDataResult> {
+    const safeTableName = validateAndEscapeTableName(tableName)
     const countResult = await this.db
-      .prepare(`SELECT COUNT(*) as total FROM "${tableName}"`)
+      .prepare(`SELECT COUNT(*) as total FROM ${safeTableName}`)
       .first()
 
     // Determine sortBy if not provided
@@ -109,8 +111,11 @@ export class DataManager {
       sortBy = hasCreatedAt ? 'created_at' : 'ROWID'
     }
 
+    // Validate sortBy column name if provided
+    const safeSortBy = sortBy && sortBy !== 'ROWID' ? validateAndEscapeColumnName(sortBy) : sortBy
+
     const dataResult = await this.db
-      .prepare(`SELECT * FROM "${tableName}" ORDER BY "${sortBy}" ${sortOrder} LIMIT ? OFFSET ?`)
+      .prepare(`SELECT * FROM ${safeTableName} ORDER BY ${safeSortBy === 'ROWID' ? 'ROWID' : safeSortBy} ${sortOrder} LIMIT ? OFFSET ?`)
       .bind(limit, offset)
       .all()
 
@@ -130,6 +135,8 @@ export class DataManager {
     sortBy?: string,
     sortOrder: 'ASC' | 'DESC' = 'DESC'
   ): Promise<TableDataResult> {
+    const safeTableName = validateAndEscapeTableName(tableName)
+    
     // Build WHERE clause for private tables
     let whereClause = ''
     let countWhereClause = ''
@@ -142,7 +149,7 @@ export class DataManager {
     }
 
     // Get total count with access control
-    const countSql = `SELECT COUNT(*) as total FROM "${tableName}"${countWhereClause}`
+    const countSql = `SELECT COUNT(*) as total FROM ${safeTableName}${countWhereClause}`
     const countResult = await this.db
       .prepare(countSql)
       .bind(...bindings)
@@ -155,8 +162,11 @@ export class DataManager {
       sortBy = hasCreatedAt ? 'created_at' : 'ROWID'
     }
 
+    // Validate sortBy column name if provided
+    const safeSortBy = sortBy && sortBy !== 'ROWID' ? validateAndEscapeColumnName(sortBy) : sortBy
+    
     // Get data with access control and sorting
-    const dataSql = `SELECT * FROM "${tableName}"${whereClause} ORDER BY "${sortBy}" ${sortOrder} LIMIT ? OFFSET ?`
+    const dataSql = `SELECT * FROM ${safeTableName}${whereClause} ORDER BY ${safeSortBy === 'ROWID' ? 'ROWID' : safeSortBy} ${sortOrder} LIMIT ? OFFSET ?`
     const dataBindings = [...bindings, limit, offset]
     
     const dataResult = await this.db
@@ -172,8 +182,9 @@ export class DataManager {
 
   // Get single record by ID
   async getRecordById(tableName: string, id: string): Promise<Record<string, unknown> | null> {
+    const safeTableName = validateAndEscapeTableName(tableName)
     const result = await this.db
-      .prepare(`SELECT * FROM "${tableName}" WHERE id = ? LIMIT 1`)
+      .prepare(`SELECT * FROM ${safeTableName} WHERE id = ? LIMIT 1`)
       .bind(id)
       .first()
 
@@ -195,8 +206,9 @@ export class DataManager {
       bindings.push(userId)
     }
 
+    const safeTableName = validateAndEscapeTableName(tableName)
     const result = await this.db
-      .prepare(`SELECT * FROM "${tableName}" ${whereClause} LIMIT 1`)
+      .prepare(`SELECT * FROM ${safeTableName} ${whereClause} LIMIT 1`)
       .bind(...bindings)
       .first()
 
@@ -207,10 +219,9 @@ export class DataManager {
   async createRecordWithId(tableName: string, data: Record<string, unknown>): Promise<string> {
     await this.enableForeignKeys()
     
-    // Check if table is protected system table (admins table is allowed)
-    if (SYSTEM_TABLES.includes(tableName as (typeof SYSTEM_TABLES)[number])) {
-      throw new Error(`Cannot modify system table: ${tableName}`)
-    }
+    // Validate table name and check if it's a system table
+    validateNotSystemTable(tableName, SYSTEM_TABLES)
+    const safeTableName = validateAndEscapeTableName(tableName)
     
     // Generate ID if not provided
     const id = (data.id as string) || this.generateId()
@@ -229,8 +240,9 @@ export class DataManager {
     const columns = Object.keys(dataWithId)
     const values = Object.values(dataWithId)
     const placeholders = columns.map(() => '?').join(', ')
+    const safeColumns = createColumnList(columns)
     
-    const sql = `INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${placeholders})`
+    const sql = `INSERT INTO ${safeTableName} (${safeColumns}) VALUES (${placeholders})`
     
     await this.db.prepare(sql).bind(...(values as (string | number | boolean | null)[])).run()
     return id as string
@@ -245,10 +257,9 @@ export class DataManager {
   ): Promise<string> {
     await this.enableForeignKeys()
     
-    // Check if table is protected system table
-    if (SYSTEM_TABLES.includes(tableName as (typeof SYSTEM_TABLES)[number])) {
-      throw new Error(`Cannot modify system table: ${tableName}`)
-    }
+    // Validate table name and check if it's a system table
+    validateNotSystemTable(tableName, SYSTEM_TABLES)
+    const safeTableName = validateAndEscapeTableName(tableName)
     
     // Generate ID if not provided
     const id = (data.id as string) || this.generateId()
@@ -272,8 +283,9 @@ export class DataManager {
     const columns = Object.keys(dataWithId)
     const values = Object.values(dataWithId)
     const placeholders = columns.map(() => '?').join(', ')
+    const safeColumns = createColumnList(columns)
     
-    const sql = `INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${placeholders})`
+    const sql = `INSERT INTO ${safeTableName} (${safeColumns}) VALUES (${placeholders})`
     
     await this.db.prepare(sql).bind(...(values as (string | number | boolean | null)[])).run()
     return id as string
@@ -283,10 +295,9 @@ export class DataManager {
   async updateRecord(tableName: string, id: string, data: Record<string, unknown>): Promise<void> {
     await this.enableForeignKeys()
     
-    // Check if table is protected system table (admins table is allowed)
-    if (SYSTEM_TABLES.includes(tableName as (typeof SYSTEM_TABLES)[number])) {
-      throw new Error(`Cannot modify system table: ${tableName}`)
-    }
+    // Validate table name and check if it's a system table
+    validateNotSystemTable(tableName, SYSTEM_TABLES)
+    const safeTableName = validateAndEscapeTableName(tableName)
     
     // Remove system fields from update data
     const updateData = { ...data }
@@ -298,9 +309,10 @@ export class DataManager {
     
     const columns = Object.keys(updateData)
     const values = Object.values(updateData)
-    const setClause = columns.map(col => `${col} = ?`).join(', ')
+    const safeColumns = columns.map(col => validateAndEscapeColumnName(col))
+    const setClause = safeColumns.map(col => `${col} = ?`).join(', ')
     
-    const sql = `UPDATE ${tableName} SET ${setClause} WHERE id = ?`
+    const sql = `UPDATE ${safeTableName} SET ${setClause} WHERE id = ?`
     
     await this.db.prepare(sql).bind(...(values as (string | number | boolean | null)[]), id).run()
   }
@@ -312,8 +324,9 @@ export class DataManager {
 
   // Helper method to get table columns (simplified version)
   private async getTableColumns(tableName: string): Promise<{ name: string }[]> {
+    const safeTableName = validateAndEscapeTableName(tableName)
     const result = await this.db
-      .prepare(`PRAGMA table_info("${tableName}")`)
+      .prepare(`PRAGMA table_info(${safeTableName})`)
       .all()
 
     return (result.results as unknown[]).map((col) => ({ name: (col as Record<string, unknown>).name as string }))

@@ -3,6 +3,7 @@ import { SchemaManager } from './schema-manager'
 import { DataManager } from './data-manager'
 import { IndexManager } from './index-manager'
 import { ErrorHandler } from './error-handler'
+import { validateAndEscapeTableName, validateAndEscapeColumnName, validateNotSystemTable } from './sql-utils'
 import type { ColumnDefinition, ColumnInfo } from './schema-manager'
 import type { IndexInfo } from './index-manager'
 import type { TableInfo, CountResult, IndexColumnInfo } from '../types/database'
@@ -91,7 +92,7 @@ export class TableManager {
       let rowCount = 0
       try {
         const countResult = await this.db
-          .prepare(`SELECT COUNT(*) as count FROM "${name}"`)
+          .prepare(`SELECT COUNT(*) as count FROM ${validateAndEscapeTableName(name)}`)
           .first()
         rowCount = (countResult as CountResult)?.count || 0
       } catch (e) {
@@ -286,7 +287,7 @@ export class TableManager {
     this.errorHandler.validateNameFormat(column.name, 'column')
 
     // Build ALTER TABLE statement
-    let alterSQL = `ALTER TABLE ${tableName} ADD COLUMN ${column.name} ${column.type}`
+    let alterSQL = `ALTER TABLE ${validateAndEscapeTableName(tableName)} ADD COLUMN ${validateAndEscapeColumnName(column.name)} ${column.type}`
     if (column.constraints) {
       alterSQL += ` ${column.constraints}`
     }
@@ -333,9 +334,9 @@ export class TableManager {
     // Use batch operation for atomic transaction
     const statements = [
       this.db.prepare(modifiedSQL),
-      this.db.prepare(`INSERT INTO ${tempTableName} SELECT * FROM ${tableName}`),
-      this.db.prepare(`DROP TABLE ${tableName}`),
-      this.db.prepare(`ALTER TABLE ${tempTableName} RENAME TO ${tableName}`)
+      this.db.prepare(`INSERT INTO ${validateAndEscapeTableName(tempTableName)} SELECT * FROM ${validateAndEscapeTableName(tableName)}`),
+      this.db.prepare(`DROP TABLE ${validateAndEscapeTableName(tableName)}`),
+      this.db.prepare(`ALTER TABLE ${validateAndEscapeTableName(tempTableName)} RENAME TO ${validateAndEscapeTableName(tableName)}`)
     ]
     
     await this.db.batch(statements)
@@ -349,11 +350,11 @@ export class TableManager {
     newTableName: string
   ): string {
     // Replace table name
-    let modifiedSQL = sql.replace(/CREATE TABLE\s+(\w+)/i, `CREATE TABLE ${newTableName}`)
+    let modifiedSQL = sql.replace(/CREATE TABLE\s+(\w+)/i, `CREATE TABLE ${validateAndEscapeTableName(newTableName)}`)
     
     // Find the closing parenthesis and add foreign key before it
     const lastParen = modifiedSQL.lastIndexOf(')')
-    const fkConstraint = `, FOREIGN KEY (${columnName}) REFERENCES ${foreignKey.table}(${foreignKey.column})`
+    const fkConstraint = `, FOREIGN KEY (${validateAndEscapeColumnName(columnName)}) REFERENCES ${validateAndEscapeTableName(foreignKey.table)}(${validateAndEscapeColumnName(foreignKey.column)})`
     
     modifiedSQL = modifiedSQL.slice(0, lastParen) + fkConstraint + modifiedSQL.slice(lastParen)
     
@@ -373,7 +374,7 @@ export class TableManager {
     })
     
     // SQLite 3.25.0+ supports ALTER TABLE RENAME COLUMN
-    const sql = `ALTER TABLE ${tableName} RENAME COLUMN ${oldName} TO ${newName}`
+    const sql = `ALTER TABLE ${validateAndEscapeTableName(tableName)} RENAME COLUMN ${validateAndEscapeColumnName(oldName)} TO ${validateAndEscapeColumnName(newName)}`
     console.log('Renaming column with SQL:', sql)
     await this.db.prepare(sql).run()
   }
@@ -391,7 +392,7 @@ export class TableManager {
     })
     
     // SQLite 3.35.0+ supports ALTER TABLE DROP COLUMN
-    const sql = `ALTER TABLE ${tableName} DROP COLUMN ${columnName}`
+    const sql = `ALTER TABLE ${validateAndEscapeTableName(tableName)} DROP COLUMN ${validateAndEscapeColumnName(columnName)}`
     console.log('Dropping column with SQL:', sql)
     await this.db.prepare(sql).run()
   }
@@ -426,7 +427,7 @@ export class TableManager {
     // Check for NOT NULL constraint violations
     if (changes.notNull === true) {
       const nullCheckResult = await this.db
-        .prepare(`SELECT COUNT(*) as count FROM "${tableName}" WHERE "${columnName}" IS NULL`)
+        .prepare(`SELECT COUNT(*) as count FROM ${validateAndEscapeTableName(tableName)} WHERE ${validateAndEscapeColumnName(columnName)} IS NULL`)
         .first()
       
       const nullCount = (nullCheckResult as CountResult)?.count || 0
@@ -441,11 +442,11 @@ export class TableManager {
       const fkCheckResult = await this.db
         .prepare(`
           SELECT COUNT(*) as count 
-          FROM "${tableName}" t1 
-          WHERE t1."${columnName}" IS NOT NULL 
+          FROM ${validateAndEscapeTableName(tableName)} t1 
+          WHERE t1.${validateAndEscapeColumnName(columnName)} IS NOT NULL 
           AND NOT EXISTS (
-            SELECT 1 FROM "${changes.foreignKey.table}" t2 
-            WHERE t2."${changes.foreignKey.column}" = t1."${columnName}"
+            SELECT 1 FROM ${validateAndEscapeTableName(changes.foreignKey.table)} t2 
+            WHERE t2.${validateAndEscapeColumnName(changes.foreignKey.column)} = t1.${validateAndEscapeColumnName(columnName)}
           )
         `)
         .first()
@@ -460,7 +461,7 @@ export class TableManager {
     // Check for type conversion issues
     if (changes.type) {
       const currentColumn = await this.db
-        .prepare(`PRAGMA table_info("${tableName}")`)
+        .prepare(`PRAGMA table_info(${validateAndEscapeTableName(tableName)})`)
         .all()
       
       const column = currentColumn.results.find((col: any) => col.name === columnName)
@@ -470,11 +471,11 @@ export class TableManager {
           const invalidIntegerResult = await this.db
             .prepare(`
               SELECT COUNT(*) as count 
-              FROM "${tableName}" 
-              WHERE "${columnName}" IS NOT NULL 
-              AND CAST("${columnName}" AS INTEGER) = 0 
-              AND "${columnName}" != '0' 
-              AND "${columnName}" != 0
+              FROM ${validateAndEscapeTableName(tableName)} 
+              WHERE ${validateAndEscapeColumnName(columnName)} IS NOT NULL 
+              AND CAST(${validateAndEscapeColumnName(columnName)} AS INTEGER) = 0 
+              AND ${validateAndEscapeColumnName(columnName)} != '0' 
+              AND ${validateAndEscapeColumnName(columnName)} != 0
             `)
             .first()
           
@@ -487,13 +488,13 @@ export class TableManager {
           const invalidRealResult = await this.db
             .prepare(`
               SELECT COUNT(*) as count 
-              FROM "${tableName}" 
-              WHERE "${columnName}" IS NOT NULL 
-              AND CAST("${columnName}" AS REAL) = 0.0 
-              AND "${columnName}" != '0' 
-              AND "${columnName}" != '0.0' 
-              AND "${columnName}" != 0 
-              AND "${columnName}" != 0.0
+              FROM ${validateAndEscapeTableName(tableName)} 
+              WHERE ${validateAndEscapeColumnName(columnName)} IS NOT NULL 
+              AND CAST(${validateAndEscapeColumnName(columnName)} AS REAL) = 0.0 
+              AND ${validateAndEscapeColumnName(columnName)} != '0' 
+              AND ${validateAndEscapeColumnName(columnName)} != '0.0' 
+              AND ${validateAndEscapeColumnName(columnName)} != 0 
+              AND ${validateAndEscapeColumnName(columnName)} != 0.0
             `)
             .first()
           
@@ -576,9 +577,9 @@ export class TableManager {
     // Use batch operation for atomic transaction
     const statements = [
       this.db.prepare(modifiedSQL),
-      this.db.prepare(`INSERT INTO "${tempTableName}" SELECT * FROM "${tableName}"`),
-      this.db.prepare(`DROP TABLE "${tableName}"`),
-      this.db.prepare(`ALTER TABLE "${tempTableName}" RENAME TO "${tableName}"`)
+      this.db.prepare(`INSERT INTO ${validateAndEscapeTableName(tempTableName)} SELECT * FROM ${validateAndEscapeTableName(tableName)}`),
+      this.db.prepare(`DROP TABLE ${validateAndEscapeTableName(tableName)}`),
+      this.db.prepare(`ALTER TABLE ${validateAndEscapeTableName(tempTableName)} RENAME TO ${validateAndEscapeTableName(tableName)}`)
     ]
     
     await this.db.batch(statements)
@@ -600,7 +601,7 @@ export class TableManager {
     const columnDefs = columns.map(col => {
       if (col.name === columnName) {
         // Apply changes to this column
-        let def = `"${col.name}" ${changes.type || col.type}`
+        let def = `${validateAndEscapeColumnName(col.name)} ${changes.type || col.type}`
         const shouldBeNotNull = changes.notNull !== undefined ? changes.notNull : (col.notnull === 1)
         if (col.pk) def += ' PRIMARY KEY'
         if (col.dflt_value !== null && col.dflt_value !== undefined) {
@@ -624,7 +625,7 @@ export class TableManager {
         return def
       } else {
         // Keep existing column definition
-        let def = `"${col.name}" ${col.type}`
+        let def = `${validateAndEscapeColumnName(col.name)} ${col.type}`
         if (col.pk) def += ' PRIMARY KEY'
         if (col.dflt_value !== null && col.dflt_value !== undefined) {
           // Handle different default value types
@@ -653,7 +654,7 @@ export class TableManager {
     
     // Add new foreign key if specified
     if (changes.foreignKey) {
-      foreignKeys.push(`FOREIGN KEY ("${columnName}") REFERENCES "${changes.foreignKey.table}"("${changes.foreignKey.column}")`)
+      foreignKeys.push(`FOREIGN KEY (${validateAndEscapeColumnName(columnName)}) REFERENCES ${validateAndEscapeTableName(changes.foreignKey.table)}(${validateAndEscapeColumnName(changes.foreignKey.column)})`)
     }
     
     // Extract existing foreign keys from original SQL (simple approach)
@@ -664,7 +665,7 @@ export class TableManager {
       const [fullMatch, fkColumn, refTable, refColumn] = match
       // Only keep if it's not the column we're modifying
       if (fkColumn !== columnName) {
-        foreignKeys.push(`FOREIGN KEY ("${fkColumn}") REFERENCES "${refTable}"("${refColumn}")`)
+        foreignKeys.push(`FOREIGN KEY (${validateAndEscapeColumnName(fkColumn)}) REFERENCES ${validateAndEscapeTableName(refTable)}(${validateAndEscapeColumnName(refColumn)})`)
       }
     }
     
@@ -675,7 +676,7 @@ export class TableManager {
     
     // Build final SQL
     const fkClause = foreignKeys.length > 0 ? `, ${foreignKeys.join(', ')}` : ''
-    const modifiedSQL = `CREATE TABLE "${newTableName}" (${columnDefs}${fkClause})`
+    const modifiedSQL = `CREATE TABLE ${validateAndEscapeTableName(newTableName)} (${columnDefs}${fkClause})`
     
     return modifiedSQL
   }
@@ -819,7 +820,7 @@ export class TableManager {
       async () => {
         // Get all columns for the table
         const columnsResult = await this.db
-          .prepare(`PRAGMA table_info("${tableName}")`)
+          .prepare(`PRAGMA table_info(${validateAndEscapeTableName(tableName)})`)
           .all()
 
         const columns = columnsResult.results as Array<{
@@ -832,7 +833,7 @@ export class TableManager {
 
         // Get all indexes for the table
         const indexesResult = await this.db
-          .prepare(`PRAGMA index_list("${tableName}")`)
+          .prepare(`PRAGMA index_list(${validateAndEscapeTableName(tableName)})`)
           .all()
 
         const searchableColumns: Array<{name: string, type: string}> = []
@@ -847,7 +848,7 @@ export class TableManager {
 
           // Get columns in this index
           const indexColumnsResult = await this.db
-            .prepare(`PRAGMA index_info("${indexName}")`)
+            .prepare(`PRAGMA index_info(${validateAndEscapeTableName(indexName)})`)
             .all()
 
           for (const indexColumnRow of indexColumnsResult.results) {
@@ -897,35 +898,35 @@ export class TableManager {
 
         switch (operator) {
           case 'eq':
-            whereClause = `"${column}" = ?`
+            whereClause = `${validateAndEscapeColumnName(column)} = ?`
             params = [value]
             break
           case 'lt':
-            whereClause = `"${column}" < ?`
+            whereClause = `${validateAndEscapeColumnName(column)} < ?`
             params = [value]
             break
           case 'le':
-            whereClause = `"${column}" <= ?`
+            whereClause = `${validateAndEscapeColumnName(column)} <= ?`
             params = [value]
             break
           case 'gt':
-            whereClause = `"${column}" > ?`
+            whereClause = `${validateAndEscapeColumnName(column)} > ?`
             params = [value]
             break
           case 'ge':
-            whereClause = `"${column}" >= ?`
+            whereClause = `${validateAndEscapeColumnName(column)} >= ?`
             params = [value]
             break
           case 'ne':
-            whereClause = `"${column}" != ?`
+            whereClause = `${validateAndEscapeColumnName(column)} != ?`
             params = [value]
             break
           case 'is_null':
-            whereClause = `"${column}" IS NULL`
+            whereClause = `${validateAndEscapeColumnName(column)} IS NULL`
             params = []
             break
           case 'is_not_null':
-            whereClause = `"${column}" IS NOT NULL`
+            whereClause = `${validateAndEscapeColumnName(column)} IS NOT NULL`
             params = []
             break
           default:
@@ -934,14 +935,14 @@ export class TableManager {
 
         // Get total count
         const countResult = await this.db
-          .prepare(`SELECT COUNT(*) as total FROM "${tableName}" WHERE ${whereClause}`)
+          .prepare(`SELECT COUNT(*) as total FROM ${validateAndEscapeTableName(tableName)} WHERE ${whereClause}`)
           .bind(...params)
           .first()
 
         const total = (countResult as CountResult)?.total || 0
 
         // Build data query
-        let dataQuery = `SELECT * FROM "${tableName}" WHERE ${whereClause}`
+        let dataQuery = `SELECT * FROM ${validateAndEscapeTableName(tableName)} WHERE ${whereClause}`
         let dataParams = [...params]
 
         if (limit !== undefined) {

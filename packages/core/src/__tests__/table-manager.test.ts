@@ -42,7 +42,7 @@ describe('TableManager', () => {
       const columns = [{ name: 'test', type: 'TEXT' }]
 
       await expect(tableManager.createTable(systemTableName, columns))
-        .rejects.toThrow('Cannot create system table')
+        .rejects.toThrow('Cannot modify system table')
     })
 
     it('should validate table names', async () => {
@@ -61,7 +61,7 @@ describe('TableManager', () => {
     it('should not drop system tables', async () => {
       const systemTableName = 'admins'
       await expect(tableManager.dropTable(systemTableName))
-        .rejects.toThrow('Cannot drop system table')
+        .rejects.toThrow('Cannot modify system table')
     })
   })
 
@@ -224,7 +224,7 @@ describe('TableManager', () => {
       const columns = ['title']
       
       await expect(tableManager.createIndex(invalidIndexName, testTableName, columns))
-        .rejects.toThrow('Invalid index name format')
+        .rejects.toThrow('Invalid index name')
     })
 
     it('should prevent duplicate index names', async () => {
@@ -265,13 +265,13 @@ describe('TableManager', () => {
 
       it('should reject invalid index name formats', async () => {
         await expect(tableManager.createIndex('123invalid', testTableName, ['title']))
-          .rejects.toThrow('Invalid index name format')
+          .rejects.toThrow('Invalid index name')
           
         await expect(tableManager.createIndex('idx-invalid', testTableName, ['title']))
-          .rejects.toThrow('Invalid index name format')
+          .rejects.toThrow('Invalid index name')
           
         await expect(tableManager.createIndex('idx invalid', testTableName, ['title']))
-          .rejects.toThrow('Invalid index name format')
+          .rejects.toThrow('Invalid index name')
       })
 
       it('should create multi-column indexes', async () => {

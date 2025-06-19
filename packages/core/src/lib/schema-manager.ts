@@ -1,4 +1,5 @@
 import { SYSTEM_TABLES } from './table-manager'
+import { validateAndEscapeTableName, validateAndEscapeColumnName, validateNotSystemTable, validateSQLDataType, validateAndNormalizeSQLDataType } from './sql-utils'
 import type { SchemaSnapshotManager } from './schema-snapshot'
 import type { D1Database } from '../types/cloudflare'
 import type { CountResult, TableInfo } from '../types/database'
@@ -49,18 +50,15 @@ export class SchemaManager {
       snapshotType: 'pre_change'
     })
 
-    // Validate table name
-    if (SYSTEM_TABLES.includes(tableName as any)) {
-      throw new Error(`Cannot create system table: ${tableName}`)
-    }
-
-    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
-      throw new Error('Invalid table name. Use only letters, numbers, and underscores.')
-    }
+    // Validate table name and check if it's a system table
+    validateNotSystemTable(tableName, SYSTEM_TABLES)
+    const safeTableName = validateAndEscapeTableName(tableName)
 
     // Build CREATE TABLE statement
     const columnDefs = columns.map(col => {
-      let def = `${col.name} ${col.type}`
+      const safeColumnName = validateAndEscapeColumnName(col.name)
+      const safeType = validateAndNormalizeSQLDataType(col.type)
+      let def = `${safeColumnName} ${safeType}`
       if (col.constraints) def += ` ${col.constraints}`
       return def
     }).join(', ')
@@ -68,10 +66,15 @@ export class SchemaManager {
     // Build foreign key constraints
     const foreignKeys = columns
       .filter(col => col.foreignKey)
-      .map(col => `FOREIGN KEY (${col.name}) REFERENCES ${col.foreignKey!.table}(${col.foreignKey!.column})`)
+      .map(col => {
+        const safeColumnName = validateAndEscapeColumnName(col.name)
+        const safeRefTable = validateAndEscapeTableName(col.foreignKey!.table)
+        const safeRefColumn = validateAndEscapeColumnName(col.foreignKey!.column)
+        return `FOREIGN KEY (${safeColumnName}) REFERENCES ${safeRefTable}(${safeRefColumn})`
+      })
       .join(', ')
 
-    const sql = `CREATE TABLE ${tableName} (
+    const sql = `CREATE TABLE ${safeTableName} (
       id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
       ${columnDefs},
       created_at DATETIME NOT NULL,
@@ -84,10 +87,9 @@ export class SchemaManager {
 
   // Drop a user table
   async dropTable(tableName: string): Promise<void> {
-    // Prevent dropping system tables
-    if (SYSTEM_TABLES.includes(tableName as any)) {
-      throw new Error(`Cannot drop system table: ${tableName}`)
-    }
+    // Validate table name and check if it's a system table
+    validateNotSystemTable(tableName, SYSTEM_TABLES)
+    const safeTableName = validateAndEscapeTableName(tableName)
     
     // Create pre-change snapshot asynchronously
     this.createAsyncSnapshot({
@@ -95,13 +97,14 @@ export class SchemaManager {
       snapshotType: 'pre_change'
     })
 
-    await this.db.prepare(`DROP TABLE IF EXISTS ${tableName}`).run()
+    await this.db.prepare(`DROP TABLE IF EXISTS ${safeTableName}`).run()
   }
 
   // Get columns for a specific table
   async getTableColumns(tableName: string): Promise<ColumnInfo[]> {
+    const safeTableName = validateAndEscapeTableName(tableName)
     const result = await this.db
-      .prepare(`PRAGMA table_info("${tableName}")`)
+      .prepare(`PRAGMA table_info(${safeTableName})`)
       .all()
 
     return result.results as ColumnInfo[]
@@ -109,8 +112,9 @@ export class SchemaManager {
 
   // Get foreign key constraints for a specific table
   async getForeignKeys(tableName: string): Promise<{ from: string; table: string; to: string }[]> {
+    const safeTableName = validateAndEscapeTableName(tableName)
     const result = await this.db
-      .prepare(`PRAGMA foreign_key_list("${tableName}")`)
+      .prepare(`PRAGMA foreign_key_list(${safeTableName})`)
       .all()
 
     return result.results.map((fk: any) => ({
@@ -124,17 +128,14 @@ export class SchemaManager {
   async addColumn(tableName: string, column: ColumnDefinition): Promise<void> {
     await this.enableForeignKeys()
     
-    // Validate table name
-    if (SYSTEM_TABLES.includes(tableName as any)) {
-      throw new Error(`Cannot modify system table: ${tableName}`)
-    }
-
-    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(column.name)) {
-      throw new Error('Invalid column name. Use only letters, numbers, and underscores.')
-    }
+    // Validate table name and check if it's a system table
+    validateNotSystemTable(tableName, SYSTEM_TABLES)
+    const safeTableName = validateAndEscapeTableName(tableName)
+    const safeColumnName = validateAndEscapeColumnName(column.name)
+    const safeType = validateAndNormalizeSQLDataType(column.type)
 
     // Build ALTER TABLE statement
-    let alterSQL = `ALTER TABLE ${tableName} ADD COLUMN ${column.name} ${column.type}`
+    let alterSQL = `ALTER TABLE ${safeTableName} ADD COLUMN ${safeColumnName} ${safeType}`
     if (column.constraints) {
       alterSQL += ` ${column.constraints}`
     }
@@ -158,9 +159,10 @@ export class SchemaManager {
   async renameColumn(tableName: string, oldName: string, newName: string): Promise<void> {
     await this.enableForeignKeys()
     
-    if (SYSTEM_TABLES.includes(tableName as any)) {
-      throw new Error(`Cannot modify system table: ${tableName}`)
-    }
+    validateNotSystemTable(tableName, SYSTEM_TABLES)
+    const safeTableName = validateAndEscapeTableName(tableName)
+    const safeOldName = validateAndEscapeColumnName(oldName)
+    const safeNewName = validateAndEscapeColumnName(newName)
 
     // Create pre-change snapshot asynchronously
     this.createAsyncSnapshot({
@@ -169,7 +171,7 @@ export class SchemaManager {
     })
     
     // SQLite 3.25.0+ supports ALTER TABLE RENAME COLUMN
-    const sql = `ALTER TABLE ${tableName} RENAME COLUMN ${oldName} TO ${newName}`
+    const sql = `ALTER TABLE ${safeTableName} RENAME COLUMN ${safeOldName} TO ${safeNewName}`
     console.log('Renaming column with SQL:', sql)
     await this.db.prepare(sql).run()
   }
@@ -178,9 +180,9 @@ export class SchemaManager {
   async dropColumn(tableName: string, columnName: string): Promise<void> {
     await this.enableForeignKeys()
     
-    if (SYSTEM_TABLES.includes(tableName as any)) {
-      throw new Error(`Cannot modify system table: ${tableName}`)
-    }
+    validateNotSystemTable(tableName, SYSTEM_TABLES)
+    const safeTableName = validateAndEscapeTableName(tableName)
+    const safeColumnName = validateAndEscapeColumnName(columnName)
 
     // Create pre-change snapshot asynchronously
     this.createAsyncSnapshot({
@@ -189,7 +191,7 @@ export class SchemaManager {
     })
     
     // SQLite 3.35.0+ supports ALTER TABLE DROP COLUMN
-    const sql = `ALTER TABLE ${tableName} DROP COLUMN ${columnName}`
+    const sql = `ALTER TABLE ${safeTableName} DROP COLUMN ${safeColumnName}`
     console.log('Dropping column with SQL:', sql)
     await this.db.prepare(sql).run()
   }
@@ -204,13 +206,15 @@ export class SchemaManager {
       foreignKey?: { table: string; column: string } | null
     }
   ): Promise<{ valid: boolean; errors: string[]; conflictingRows: number }> {
+    const safeTableName = validateAndEscapeTableName(tableName)
+    const safeColumnName = validateAndEscapeColumnName(columnName)
     const errors: string[] = []
     let conflictingRows = 0
 
     // Check for NOT NULL constraint violations
     if (changes.notNull === true) {
       const nullCheckResult = await this.db
-        .prepare(`SELECT COUNT(*) as count FROM "${tableName}" WHERE "${columnName}" IS NULL`)
+        .prepare(`SELECT COUNT(*) as count FROM ${safeTableName} WHERE ${safeColumnName} IS NULL`)
         .first()
       
       const nullCount = (nullCheckResult as CountResult)?.count || 0
@@ -222,14 +226,17 @@ export class SchemaManager {
 
     // Check for foreign key constraint violations
     if (changes.foreignKey) {
+      const safeRefTable = validateAndEscapeTableName(changes.foreignKey.table)
+      const safeRefColumn = validateAndEscapeColumnName(changes.foreignKey.column)
+      
       const fkCheckResult = await this.db
         .prepare(`
           SELECT COUNT(*) as count 
-          FROM "${tableName}" t1 
-          WHERE t1."${columnName}" IS NOT NULL 
+          FROM ${safeTableName} t1 
+          WHERE t1.${safeColumnName} IS NOT NULL 
           AND NOT EXISTS (
-            SELECT 1 FROM "${changes.foreignKey.table}" t2 
-            WHERE t2."${changes.foreignKey.column}" = t1."${columnName}"
+            SELECT 1 FROM ${safeRefTable} t2 
+            WHERE t2.${safeRefColumn} = t1.${safeColumnName}
           )
         `)
         .first()
@@ -244,7 +251,7 @@ export class SchemaManager {
     // Check for type conversion issues
     if (changes.type) {
       const currentColumn = await this.db
-        .prepare(`PRAGMA table_info("${tableName}")`)
+        .prepare(`PRAGMA table_info(${safeTableName})`)
         .all()
       
       const column = currentColumn.results.find((col: any) => col.name === columnName)
@@ -254,11 +261,11 @@ export class SchemaManager {
           const invalidIntegerResult = await this.db
             .prepare(`
               SELECT COUNT(*) as count 
-              FROM "${tableName}" 
-              WHERE "${columnName}" IS NOT NULL 
-              AND CAST("${columnName}" AS INTEGER) = 0 
-              AND "${columnName}" != '0' 
-              AND "${columnName}" != 0
+              FROM ${safeTableName} 
+              WHERE ${safeColumnName} IS NOT NULL 
+              AND CAST(${safeColumnName} AS INTEGER) = 0 
+              AND ${safeColumnName} != '0' 
+              AND ${safeColumnName} != 0
             `)
             .first()
           
@@ -271,13 +278,13 @@ export class SchemaManager {
           const invalidRealResult = await this.db
             .prepare(`
               SELECT COUNT(*) as count 
-              FROM "${tableName}" 
-              WHERE "${columnName}" IS NOT NULL 
-              AND CAST("${columnName}" AS REAL) = 0.0 
-              AND "${columnName}" != '0' 
-              AND "${columnName}" != '0.0' 
-              AND "${columnName}" != 0 
-              AND "${columnName}" != 0.0
+              FROM ${safeTableName} 
+              WHERE ${safeColumnName} IS NOT NULL 
+              AND CAST(${safeColumnName} AS REAL) = 0.0 
+              AND ${safeColumnName} != '0' 
+              AND ${safeColumnName} != '0.0' 
+              AND ${safeColumnName} != 0 
+              AND ${safeColumnName} != 0.0
             `)
             .first()
           
@@ -309,9 +316,8 @@ export class SchemaManager {
   ): Promise<void> {
     await this.enableForeignKeys()
     
-    if (SYSTEM_TABLES.includes(tableName as any)) {
-      throw new Error(`Cannot modify system table: ${tableName}`)
-    }
+    validateNotSystemTable(tableName, SYSTEM_TABLES)
+    const safeTableName = validateAndEscapeTableName(tableName)
 
     // Validate changes before proceeding
     const validation = await this.validateColumnChanges(tableName, columnName, changes)
@@ -339,6 +345,7 @@ export class SchemaManager {
 
     // Create temp table with modifications
     const tempTableName = `${tableName}_temp_${Date.now()}`
+    const safeTempTableName = validateAndEscapeTableName(tempTableName)
     const modifiedSQL = this.modifyCreateStatementForColumn(
       (tableInfo as TableInfo).sql,
       columnName,
@@ -360,9 +367,9 @@ export class SchemaManager {
     // Use batch operation for atomic transaction
     const statements = [
       this.db.prepare(modifiedSQL),
-      this.db.prepare(`INSERT INTO "${tempTableName}" SELECT * FROM "${tableName}"`),
-      this.db.prepare(`DROP TABLE "${tableName}"`),
-      this.db.prepare(`ALTER TABLE "${tempTableName}" RENAME TO "${tableName}"`)
+      this.db.prepare(`INSERT INTO ${safeTempTableName} SELECT * FROM ${safeTableName}`),
+      this.db.prepare(`DROP TABLE ${safeTableName}`),
+      this.db.prepare(`ALTER TABLE ${safeTempTableName} RENAME TO ${safeTableName}`)
     ]
     
     await this.db.batch(statements)
@@ -391,12 +398,15 @@ export class SchemaManager {
     // Parse and modify the CREATE TABLE statement to add foreign key
     const modifiedSQL = this.addForeignKeyToCreateStatement(originalSQL, columnName, foreignKey, tempTableName)
     
+    const safeTableName = validateAndEscapeTableName(tableName)
+    const safeTempTableName = validateAndEscapeTableName(tempTableName)
+    
     // Use batch operation for atomic transaction
     const statements = [
       this.db.prepare(modifiedSQL),
-      this.db.prepare(`INSERT INTO ${tempTableName} SELECT * FROM ${tableName}`),
-      this.db.prepare(`DROP TABLE ${tableName}`),
-      this.db.prepare(`ALTER TABLE ${tempTableName} RENAME TO ${tableName}`)
+      this.db.prepare(`INSERT INTO ${safeTempTableName} SELECT * FROM ${safeTableName}`),
+      this.db.prepare(`DROP TABLE ${safeTableName}`),
+      this.db.prepare(`ALTER TABLE ${safeTempTableName} RENAME TO ${safeTableName}`)
     ]
     
     await this.db.batch(statements)
@@ -409,12 +419,17 @@ export class SchemaManager {
     foreignKey: { table: string; column: string },
     newTableName: string
   ): string {
+    const safeNewTableName = validateAndEscapeTableName(newTableName)
+    const safeColumnName = validateAndEscapeColumnName(columnName)
+    const safeRefTable = validateAndEscapeTableName(foreignKey.table)
+    const safeRefColumn = validateAndEscapeColumnName(foreignKey.column)
+    
     // Replace table name
-    let modifiedSQL = sql.replace(/CREATE TABLE\s+(\w+)/i, `CREATE TABLE ${newTableName}`)
+    let modifiedSQL = sql.replace(/CREATE TABLE\s+(\w+)/i, `CREATE TABLE ${safeNewTableName}`)
     
     // Find the closing parenthesis and add foreign key before it
     const lastParen = modifiedSQL.lastIndexOf(')')
-    const fkConstraint = `, FOREIGN KEY (${columnName}) REFERENCES ${foreignKey.table}(${foreignKey.column})`
+    const fkConstraint = `, FOREIGN KEY (${safeColumnName}) REFERENCES ${safeRefTable}(${safeRefColumn})`
     
     modifiedSQL = modifiedSQL.slice(0, lastParen) + fkConstraint + modifiedSQL.slice(lastParen)
     
@@ -433,11 +448,14 @@ export class SchemaManager {
     newTableName: string,
     columns: ColumnInfo[]
   ): string {
+    const safeNewTableName = validateAndEscapeTableName(newTableName)
+    
     // Always rebuild the entire CREATE statement to avoid parsing issues
     const columnDefs = columns.map(col => {
       if (col.name === columnName) {
         // Apply changes to this column
-        let def = `"${col.name}" ${changes.type || col.type}`
+        const safeColName = validateAndEscapeColumnName(col.name)
+        let def = `${safeColName} ${changes.type || col.type}`
         const shouldBeNotNull = changes.notNull !== undefined ? changes.notNull : (col.notnull === 1)
         if (col.pk) def += ' PRIMARY KEY'
         if (col.dflt_value !== null && col.dflt_value !== undefined) {
@@ -461,7 +479,8 @@ export class SchemaManager {
         return def
       } else {
         // Keep existing column definition
-        let def = `"${col.name}" ${col.type}`
+        const safeColName = validateAndEscapeColumnName(col.name)
+        let def = `${safeColName} ${col.type}`
         if (col.pk) def += ' PRIMARY KEY'
         if (col.dflt_value !== null && col.dflt_value !== undefined) {
           // Handle different default value types
@@ -490,7 +509,10 @@ export class SchemaManager {
     
     // Add new foreign key if specified
     if (changes.foreignKey) {
-      foreignKeys.push(`FOREIGN KEY ("${columnName}") REFERENCES "${changes.foreignKey.table}"("${changes.foreignKey.column}")`)
+      const safeColumnName = validateAndEscapeColumnName(columnName)
+      const safeRefTable = validateAndEscapeTableName(changes.foreignKey.table)
+      const safeRefColumn = validateAndEscapeColumnName(changes.foreignKey.column)
+      foreignKeys.push(`FOREIGN KEY (${safeColumnName}) REFERENCES ${safeRefTable}(${safeRefColumn})`)
     }
     
     // Extract existing foreign keys from original SQL (simple approach)
@@ -501,7 +523,10 @@ export class SchemaManager {
       const [fullMatch, fkColumn, refTable, refColumn] = match
       // Only keep if it's not the column we're modifying
       if (fkColumn !== columnName) {
-        foreignKeys.push(`FOREIGN KEY ("${fkColumn}") REFERENCES "${refTable}"("${refColumn}")`)
+        const safeFkColumn = validateAndEscapeColumnName(fkColumn)
+        const safeRefTable = validateAndEscapeTableName(refTable)
+        const safeRefColumn = validateAndEscapeColumnName(refColumn)
+        foreignKeys.push(`FOREIGN KEY (${safeFkColumn}) REFERENCES ${safeRefTable}(${safeRefColumn})`)
       }
     }
     
@@ -512,7 +537,7 @@ export class SchemaManager {
     
     // Build final SQL
     const fkClause = foreignKeys.length > 0 ? `, ${foreignKeys.join(', ')}` : ''
-    const modifiedSQL = `CREATE TABLE "${newTableName}" (${columnDefs}${fkClause})`
+    const modifiedSQL = `CREATE TABLE ${safeNewTableName} (${columnDefs}${fkClause})`
     
     return modifiedSQL
   }

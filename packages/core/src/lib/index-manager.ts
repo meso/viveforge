@@ -1,3 +1,4 @@
+import { validateAndEscapeTableName, validateAndEscapeIndexName, validateAndEscapeColumnName } from './sql-utils'
 import type { D1Database } from '../types/cloudflare'
 import type { IndexInfo as DBIndexInfo, IndexColumnInfo } from '../types/database'
 
@@ -33,8 +34,9 @@ export class IndexManager {
     
     try {
       // Get index list for the table
+      const safeTableName = validateAndEscapeTableName(tableName)
       const indexListResult = await this.db
-        .prepare(`PRAGMA index_list("${tableName}")`)
+        .prepare(`PRAGMA index_list(${safeTableName})`)
         .all()
 
       const indexes: IndexInfo[] = []
@@ -49,8 +51,9 @@ export class IndexManager {
         }
 
         // Get detailed info about this index
+        const safeIndexName = validateAndEscapeIndexName(indexName)
         const indexInfoResult = await this.db
-          .prepare(`PRAGMA index_info("${indexName}")`)
+          .prepare(`PRAGMA index_info(${safeIndexName})`)
           .all()
 
         const columns = indexInfoResult.results
@@ -93,10 +96,10 @@ export class IndexManager {
       throw new Error('Index name, table name, and columns are required')
     }
 
-    // Validate index name format
-    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(indexName)) {
-      throw new Error('Invalid index name format')
-    }
+    // Validate index name format (this will be done by validateAndEscapeIndexName)
+    const safeIndexName = validateAndEscapeIndexName(indexName)
+    const safeTableName = validateAndEscapeTableName(tableName)
+    const safeColumns = columns.map(col => validateAndEscapeColumnName(col))
 
     // Check if index already exists
     const existingIndexes = await this.getTableIndexes(tableName)
@@ -113,8 +116,8 @@ export class IndexManager {
 
     try {
       const uniqueClause = options.unique ? 'UNIQUE ' : ''
-      const columnsList = columns.join(', ')
-      const sql = `CREATE ${uniqueClause}INDEX ${indexName} ON ${tableName} (${columnsList})`
+      const columnsList = safeColumns.join(', ')
+      const sql = `CREATE ${uniqueClause}INDEX ${safeIndexName} ON ${safeTableName} (${columnsList})`
       
       await this.db.prepare(sql).run()
     } catch (error) {
@@ -153,7 +156,8 @@ export class IndexManager {
     })
 
     try {
-      await this.db.prepare(`DROP INDEX ${indexName}`).run()
+      const safeIndexName = validateAndEscapeIndexName(indexName)
+      await this.db.prepare(`DROP INDEX ${safeIndexName}`).run()
     } catch (error) {
       console.error('Error dropping index:', error)
       throw new Error(`Failed to drop index: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -185,8 +189,9 @@ export class IndexManager {
         const tableName = (dbIndex as any).tbl_name
 
         // Get detailed info about this index
+        const safeIndexName = validateAndEscapeIndexName(indexName)
         const indexInfoResult = await this.db
-          .prepare(`PRAGMA index_info("${indexName}")`)
+          .prepare(`PRAGMA index_info(${safeIndexName})`)
           .all()
 
         const columns = indexInfoResult.results
@@ -194,8 +199,9 @@ export class IndexManager {
           .map((col: any) => col.name)
 
         // Check if index is unique by parsing SQL or using PRAGMA
+        const safeTableName = validateAndEscapeTableName(tableName)
         const indexListResult = await this.db
-          .prepare(`PRAGMA index_list("${tableName}")`)
+          .prepare(`PRAGMA index_list(${safeTableName})`)
           .all()
 
         const indexDetails = indexListResult.results.find((idx: any) => idx.name === indexName)
