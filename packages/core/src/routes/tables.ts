@@ -649,6 +649,18 @@ tables.put('/:tableName/policy', zValidator('json', policyUpdateSchema), async (
       }, 404)
     }
     
+    // When changing from public to private, verify owner_id column exists
+    if (table.access_policy === 'public' && access_policy === 'private') {
+      const columns = await tableManager.getTableColumns(tableName)
+      const hasOwnerIdColumn = columns.some(col => col.name === 'owner_id')
+      
+      if (!hasOwnerIdColumn) {
+        return c.json({
+          error: `Cannot change table '${tableName}' to private: missing owner_id column. Private tables require an owner_id column for access control.`
+        }, 400)
+      }
+    }
+    
     await tableManager.setTableAccessPolicy(tableName, access_policy)
     
     return c.json({
