@@ -22,6 +22,7 @@ import { securityHeaders } from './middleware/security-headers'
 import { getOrGenerateJWTSecret, logSecurityWarnings } from './lib/security-utils'
 import { CURRENT_ASSETS } from './templates/assets'
 import type { Env, Variables } from './types'
+import type { ExecutionContext } from '@cloudflare/workers-types'
 
 // Export Durable Object class
 export { RealtimeConnectionManager } from './durable-objects/realtime-connection'
@@ -162,4 +163,33 @@ app.get('*', async (c) => {
   return c.html(getDashboardHTML(user, CURRENT_ASSETS.js, CURRENT_ASSETS.css))
 })
 
-export default app
+// Export default handler with both fetch and scheduled handlers
+export default {
+  async scheduled(event: any, env: Env, ctx: ExecutionContext): Promise<void> {
+    console.log('Cron trigger executed:', event.cron)
+    
+    try {
+      // Call the process-events endpoint internally
+      const url = `https://${env.DOMAIN}/api/realtime/process-events`
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${env.JWT_SECRET}` // Use internal auth
+        }
+      })
+      
+      if (!response.ok) {
+        console.error('Failed to process events via cron:', response.status, await response.text())
+      } else {
+        console.log('Cron event processing completed successfully')
+      }
+    } catch (error) {
+      console.error('Error in cron handler:', error)
+    }
+  },
+  
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    return app.fetch(request, env, ctx)
+  }
+}

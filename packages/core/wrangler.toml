@@ -53,3 +53,7 @@ class_name = "RealtimeConnectionManager"
 [[migrations]]
 tag = "v1"
 new_classes = [ "RealtimeConnectionManager" ]
+
+# Cron Triggers for realtime event processing
+[triggers]
+crons = ["*/5 * * * *"]  # 5分ごとに実行
