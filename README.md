@@ -230,6 +230,7 @@ eventSource.onmessage = (event) => {
   - [x] アクセス制御（owner_idベースのフィルタリング）
 
 ### Phase 4: 開発体験向上 (v0.4.0)
+- [ ] **Webhook Cron機能** - 開発者が指定したURLに定期的にHTTPリクエストを送信
 - [ ] Push通知実装（Web Push/FCM）
 - [ ] CLIツール
 - [ ] 各種フレームワーク用SDK
