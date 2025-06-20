@@ -13,6 +13,8 @@ import { apiKeys } from './routes/api-keys'
 import userAuth from './routes/user-auth'
 import adminOAuth from './routes/admin-oauth'
 import appSettings from './routes/app-settings'
+import { hooks } from './routes/hooks'
+import { realtime } from './routes/realtime'
 import { VibebaseAuthClient } from './lib/auth-client'
 import { getDashboardHTML, getLoginHTML } from './templates/html'
 import { requireAuth, optionalAuth, multiAuth } from './middleware/auth'
@@ -20,6 +22,9 @@ import { securityHeaders } from './middleware/security-headers'
 import { getOrGenerateJWTSecret, logSecurityWarnings } from './lib/security-utils'
 import { CURRENT_ASSETS } from './templates/assets'
 import type { Env, Variables } from './types'
+
+// Export Durable Object class
+export { RealtimeConnectionManager } from './durable-objects/realtime-connection'
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>()
 
@@ -120,6 +125,8 @@ app.route('/api/admin', admin)
 app.route('/api/admin/oauth', adminOAuth)
 app.route('/api/api-keys', apiKeys)
 app.route('/api/app-settings', appSettings)
+app.route('/api/hooks', hooks)
+app.route('/api/realtime', realtime)
 
 // Handle static assets
 app.get('/assets/*', async (c) => {

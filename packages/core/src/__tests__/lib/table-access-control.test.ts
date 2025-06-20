@@ -13,7 +13,12 @@ describe('Table Access Control', () => {
     mockDb = createMockD1Database()
     mockStorage = createMockR2Bucket()
     mockCtx = createMockExecutionContext()
-    tm = new TableManager(mockDb as any, mockStorage as any, mockCtx as any)
+    tm = new TableManager(
+      mockDb as any, 
+      mockStorage as any, 
+      mockCtx as any,
+      { REALTIME: undefined }
+    )
   })
 
   describe('Access Policy Management', () => {

@@ -1,10 +1,23 @@
 import { SYSTEM_TABLES } from './table-manager'
 import { validateAndEscapeTableName, validateAndEscapeColumnName, createColumnList, validateNotSystemTable } from './sql-utils'
+import { HookManager } from './hook-manager'
 import type { D1Database, TableDataResult } from '../types/cloudflare'
 import type { CountResult } from '../types/database'
 
+interface DataManagerEnvironment {
+  REALTIME?: any
+}
+
 export class DataManager {
-  constructor(private db: D1Database) {}
+  private hookManager: HookManager
+
+  constructor(
+    private db: D1Database,
+    private env?: DataManagerEnvironment,
+    private executionCtx?: any
+  ) {
+    this.hookManager = new HookManager(db)
+  }
 
   private async enableForeignKeys(): Promise<void> {
     try {
@@ -58,7 +71,18 @@ export class DataManager {
     validateNotSystemTable(tableName, SYSTEM_TABLES)
     const safeTableName = validateAndEscapeTableName(tableName)
     
+    // Get record data before deletion for hooks
+    const record = await this.db.prepare(`SELECT * FROM ${safeTableName} WHERE id = ?`).bind(id).first()
+    
     await this.db.prepare(`DELETE FROM ${safeTableName} WHERE id = ?`).bind(id).run()
+    
+    // Process hooks after successful delete
+    if (record) {
+      await this.hookManager.processDataEvent(tableName, id, 'delete', record as Record<string, any>, {
+        env: this.env,
+        executionCtx: this.executionCtx
+      })
+    }
   }
 
   // Get data from any table
@@ -245,6 +269,13 @@ export class DataManager {
     const sql = `INSERT INTO ${safeTableName} (${safeColumns}) VALUES (${placeholders})`
     
     await this.db.prepare(sql).bind(...(values as (string | number | boolean | null)[])).run()
+    
+    // Process hooks after successful insert
+    await this.hookManager.processDataEvent(tableName, id as string, 'insert', dataWithId, {
+      env: this.env,
+      executionCtx: this.executionCtx
+    })
+    
     return id as string
   }
 
@@ -288,6 +319,13 @@ export class DataManager {
     const sql = `INSERT INTO ${safeTableName} (${safeColumns}) VALUES (${placeholders})`
     
     await this.db.prepare(sql).bind(...(values as (string | number | boolean | null)[])).run()
+    
+    // Process hooks after successful insert
+    await this.hookManager.processDataEvent(tableName, id as string, 'insert', dataWithId, {
+      env: this.env,
+      executionCtx: this.executionCtx
+    })
+    
     return id as string
   }
 
@@ -315,6 +353,12 @@ export class DataManager {
     const sql = `UPDATE ${safeTableName} SET ${setClause} WHERE id = ?`
     
     await this.db.prepare(sql).bind(...(values as (string | number | boolean | null)[]), id).run()
+    
+    // Process hooks after successful update
+    await this.hookManager.processDataEvent(tableName, id, 'update', updateData, {
+      env: this.env,
+      executionCtx: this.executionCtx
+    })
   }
 
   // Generate unique ID (similar to what SQLite's randomblob would generate)

@@ -13,7 +13,12 @@ describe('Search Functionality', () => {
     mockDb = createMockD1Database()
     mockStorage = createMockR2Bucket()
     mockCtx = createMockExecutionContext()
-    tableManager = new TableManager(mockDb as any, mockStorage as any, mockCtx as any)
+    tableManager = new TableManager(
+      mockDb as any, 
+      mockStorage as any, 
+      mockCtx as any,
+      { REALTIME: undefined }
+    )
 
     // Create a test table with some indexed columns
     await tableManager.createTable('searchtable', [

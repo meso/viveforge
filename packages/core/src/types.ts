@@ -3,6 +3,7 @@ import { Database } from './lib/database'
 import type { VibebaseAuthClient, User } from './lib/auth-client'
 import type { AuthContext } from './types/auth'
 import type { LocalTableInfo } from './lib/table-manager'
+import type { DurableObjectNamespace } from './types/cloudflare'
 
 export interface Env {
   DB?: D1Database
@@ -30,6 +31,9 @@ export interface Env {
   GOOGLE_CLIENT_SECRET?: string
   GITHUB_CLIENT_ID?: string
   GITHUB_CLIENT_SECRET?: string
+  
+  // Durable Objects
+  REALTIME?: DurableObjectNamespace
 }
 
 // Hono Context Variables
@@ -45,6 +49,7 @@ export interface Variables {
   authContext?: AuthContext | null
   apiKey?: unknown
   currentEndUser?: User | null
+  hookManager?: unknown
 }
 
 export interface Admin {

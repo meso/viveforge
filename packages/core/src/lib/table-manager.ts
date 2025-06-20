@@ -17,8 +17,12 @@ import type {
   TableDataResult
 } from '../types/cloudflare'
 
+interface TableManagerEnvironment {
+  REALTIME?: any
+}
+
 // System tables that cannot be modified by users
-export const SYSTEM_TABLES = ['admins', 'sessions', 'schema_snapshots', 'schema_snapshot_counter', 'd1_migrations', 'api_keys', 'user_sessions', 'oauth_providers', 'app_settings', 'table_policies'] as const
+export const SYSTEM_TABLES = ['admins', 'sessions', 'schema_snapshots', 'schema_snapshot_counter', 'd1_migrations', 'api_keys', 'user_sessions', 'oauth_providers', 'app_settings', 'table_policies', 'hooks', 'event_queue', 'realtime_subscriptions'] as const
 type SystemTable = typeof SYSTEM_TABLES[number]
 
 export interface LocalTableInfo {
@@ -40,13 +44,14 @@ export class TableManager {
   constructor(
     private db: D1Database, 
     private systemStorage?: R2Bucket, 
-    private executionCtx?: ExecutionContext
+    private executionCtx?: any,
+    private env?: TableManagerEnvironment
   ) {
     this.errorHandler = ErrorHandler.getInstance()
     // Only initialize snapshotManager if R2 is available
     this.snapshotManager = new SchemaSnapshotManager(db, systemStorage)
     this.schemaManager = new SchemaManager(db, this.snapshotManager, this.createAsyncSnapshot.bind(this))
-    this.dataManager = new DataManager(db)
+    this.dataManager = new DataManager(db, env, executionCtx)
     this.indexManager = new IndexManager(db, this.createAsyncSnapshot.bind(this))
   }
 

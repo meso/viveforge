@@ -106,17 +106,22 @@ vibebase/
 - OAuth認証時のUser-Agent設定
 - 設定ページのナビゲーション機能
 
+#### 9. リアルタイム機能
+- データ変更イベントのフック機能（insert/update/delete）
+- Server-Sent Events（SSE）によるリアルタイム通知
+- Durable Objectsを使用した接続管理
+- 即時ブロードキャスト（waitUntil + 自動フォールバック）
+- フック管理API（作成・削除・有効/無効切り替え）
+- イベントキューによる信頼性保証
+- 認証統合（Admin/User/API Key対応）
+- アクセス制御（owner_idベースのフィルタリング）
+
 ### 🚧 開発中
 
 #### ユーザー認証の拡張
 - 複数OAuthプロバイダー対応（Google、Twitter/X、Discord等）
 
 ### 📋 予定
-
-#### リアルタイム機能
-- レコードの追加/更新/削除をトリガーとしたタスク実行
-- WebSocketまたはServer-Sent Eventsによるリアルタイム通知
-- カスタムフック・イベントハンドラー
 
 #### Push通知
 - Web Push / FCMを使用したプッシュ通知
@@ -156,6 +161,43 @@ pnpm dev         # Vite開発サーバーを起動
 pnpm build       # ダッシュボードをビルドしてcoreにアセットをコピー
 pnpm typecheck   # TypeScript型チェックを実行
 ```
+
+## リアルタイム機能の使用方法
+
+### フック作成
+```bash
+# テーブルのinsertイベントにフックを作成
+curl -X POST https://vibebase.mesongo.workers.dev/api/hooks \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"table_name": "users", "event_type": "insert"}'
+```
+
+### SSE接続（JavaScript/React Native）
+```javascript
+const eventSource = new EventSource('https://vibebase.mesongo.workers.dev/api/realtime/sse', {
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN'
+  }
+});
+
+eventSource.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  console.log('リアルタイムイベント:', data);
+};
+```
+
+### イベント処理（Cron推奨）
+```bash
+# 失敗したイベントの再送信（5分ごとに実行推奨）
+curl -X POST https://vibebase.mesongo.workers.dev/api/realtime/process-events \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### 動作フロー
+1. **データ変更** → 即座にSSEクライアントに配信（数百ms）
+2. **フォールバック** → 失敗時はイベントキューに記録
+3. **再送信** → Cronで定期的な失敗イベント再送信
 
 ## 開発ガイドライン
 

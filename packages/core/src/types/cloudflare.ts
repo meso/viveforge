@@ -131,6 +131,24 @@ export interface ExecutionContext {
   passThroughOnException(): void
 }
 
+// Durable Objects types
+export interface DurableObjectNamespace {
+  idFromName(name: string): DurableObjectId
+  idFromString(id: string): DurableObjectId
+  newUniqueId(options?: { jurisdiction?: string }): DurableObjectId
+  get(id: DurableObjectId): DurableObjectStub
+}
+
+export interface DurableObjectId {
+  toString(): string
+  equals(other: DurableObjectId): boolean
+}
+
+export interface DurableObjectStub {
+  fetch(request: RequestInfo, init?: RequestInit): Promise<Response>
+  [key: string]: any // Allow arbitrary method calls
+}
+
 // Common result types for our application
 export interface ValidationResult {
   valid: boolean

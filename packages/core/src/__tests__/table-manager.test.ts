@@ -13,7 +13,12 @@ describe('TableManager', () => {
     mockDb = createMockD1Database()
     mockStorage = createMockR2Bucket()
     mockCtx = createMockExecutionContext()
-    tableManager = new TableManager(mockDb as any, mockStorage as any, mockCtx as any)
+    tableManager = new TableManager(
+      mockDb as any, 
+      mockStorage as any, 
+      mockCtx as any,
+      { REALTIME: undefined }
+    )
   })
 
   describe('Table Operations', () => {

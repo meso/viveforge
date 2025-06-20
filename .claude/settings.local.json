@@ -1,7 +1,15 @@
 {
   "permissions": {
     "allow": [
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(pnpm db:init:*)",
+      "Bash(pnpm test:*)",
+      "Bash(pnpm typecheck:*)",
+      "Bash(rg:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(pnpm run:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }
