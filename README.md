@@ -79,11 +79,16 @@ chmod +x deploy/setup.sh
   - テーブルポリシー管理（public/private）
   - ユーザー認証時のデータフィルタリング
   - 所有者ベースのアクセス制御
+- ⚡ **リアルタイム機能** - 真のリアルタイム通知
+  - Server-Sent Events（SSE）による即座なデータ配信
+  - データ変更イベントのフック機能（insert/update/delete）
+  - Durable Objectsを使用した接続管理
+  - 即時ブロードキャスト（waitUntil + 自動フォールバック）
+  - 認証統合とアクセス制御対応
 
 ### 🚧 開発予定
 
 - 👥 **エンドユーザー認証の拡張** - 複数OAuth providers（Google、Twitter/X、Discord等）
-- ⚡ **リアルタイム機能** - WebSocket/SSE対応
 - 📱 **Push通知** - Web Push/FCM
 - 🛠️ **CLIツール** - 開発効率化ツール
 - 🌍 **環境管理** - 本番/開発環境の分離
@@ -138,15 +143,41 @@ pnpm dev
 curl https://your-worker.your-subdomain.workers.dev/api/health
 ```
 
-### アイテム管理
+### データ操作
 ```bash
-# アイテム作成
-curl -X POST https://your-worker.your-subdomain.workers.dev/api/items \
+# レコード作成
+curl -X POST https://your-worker.your-subdomain.workers.dev/api/data/users \
   -H "Content-Type: application/json" \
-  -d '{"name": "Test Item", "description": "A test item"}'
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{"name": "John Doe", "email": "john@example.com"}'
 
-# アイテム一覧
-curl https://your-worker.your-subdomain.workers.dev/api/items
+# レコード一覧
+curl https://your-worker.your-subdomain.workers.dev/api/data/users \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### リアルタイム機能
+```bash
+# フック作成（データ変更を監視）
+curl -X POST https://your-worker.your-subdomain.workers.dev/api/hooks \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{"table_name": "users", "event_type": "insert"}'
+```
+
+```javascript
+// SSE接続（JavaScript/React Native）
+const eventSource = new EventSource('https://your-worker.your-subdomain.workers.dev/api/realtime/sse', {
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN'
+  }
+});
+
+eventSource.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  console.log('リアルタイムイベント:', data);
+  // データ変更が即座に通知される（数百ms）
+};
 ```
 
 詳細なAPI仕様は [DEPLOYMENT.md](./DEPLOYMENT.md) をご覧ください。
@@ -187,12 +218,19 @@ curl https://your-worker.your-subdomain.workers.dev/api/items
 - [x] R2ストレージ統合
 - [x] ファイルアップロードAPI
 
-### Phase 3: リアルタイム機能 (v0.3.0)
-- [ ] リアルタイムDB機能
-- [ ] Push通知実装
-- [ ] WebSocket/SSE対応
+### Phase 3: リアルタイム機能 (v0.3.0) ✅ 完了
+- [x] **リアルタイムDB機能**
+  - [x] データ変更イベントのフック機能（insert/update/delete）
+  - [x] Server-Sent Events（SSE）による即座なデータ配信
+  - [x] Durable Objectsを使用した接続管理
+  - [x] 即時ブロードキャスト（waitUntil + 自動フォールバック）
+  - [x] フック管理API（作成・削除・有効/無効切り替え）
+  - [x] イベントキューによる信頼性保証
+  - [x] 認証統合（Admin/User/API Key対応）
+  - [x] アクセス制御（owner_idベースのフィルタリング）
 
 ### Phase 4: 開発体験向上 (v0.4.0)
+- [ ] Push通知実装（Web Push/FCM）
 - [ ] CLIツール
 - [ ] 各種フレームワーク用SDK
 - [ ] 開発/本番環境の分離
