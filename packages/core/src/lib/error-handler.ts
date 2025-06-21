@@ -1,4 +1,13 @@
-import { VibebaseError, ErrorCode, ErrorDetails, createSystemTableError, createInvalidNameError, createNotFoundError, createDuplicateError, createValidationError } from '../types/errors'
+import {
+  createDuplicateError,
+  createInvalidNameError,
+  createNotFoundError,
+  createSystemTableError,
+  createValidationError,
+  ErrorCode,
+  ErrorDetails,
+  VibebaseError,
+} from '../types/errors'
 import { SYSTEM_TABLES } from './table-manager'
 
 /**
@@ -54,9 +63,9 @@ export class ErrorHandler {
       const vibebaseError = VibebaseError.fromError(error, ErrorCode.DATABASE_OPERATION_FAILED)
       ;(vibebaseError as any).context = {
         ...vibebaseError.context,
-        ...context
+        ...context,
       }
-      
+
       this.logError(vibebaseError)
       throw vibebaseError
     }
@@ -72,7 +81,7 @@ export class ErrorHandler {
         message: `Cannot modify system table: ${tableName}`,
         userMessage: `System table "${tableName}" cannot be modified for security reasons.`,
         context: { tableName, operation: 'modification' },
-        suggestions: ['Use a different table name', 'Only modify user-created tables']
+        suggestions: ['Use a different table name', 'Only modify user-created tables'],
       })
     }
   }
@@ -90,8 +99,8 @@ export class ErrorHandler {
         suggestions: [
           'Use only letters, numbers, and underscores',
           'Start with a letter or underscore',
-          'Avoid spaces and special characters'
-        ]
+          'Avoid spaces and special characters',
+        ],
       })
     }
   }
@@ -101,11 +110,11 @@ export class ErrorHandler {
    */
   public handleNotFound(entityType: string, identifier: string): void {
     const errorCodeMap: Record<string, ErrorCode> = {
-      'Table': ErrorCode.TABLE_NOT_FOUND,
-      'Column': ErrorCode.COLUMN_NOT_FOUND,
-      'Index': ErrorCode.INDEX_NOT_FOUND,
-      'Snapshot': ErrorCode.SNAPSHOT_NOT_FOUND,
-      'Record': ErrorCode.RECORD_NOT_FOUND
+      Table: ErrorCode.TABLE_NOT_FOUND,
+      Column: ErrorCode.COLUMN_NOT_FOUND,
+      Index: ErrorCode.INDEX_NOT_FOUND,
+      Snapshot: ErrorCode.SNAPSHOT_NOT_FOUND,
+      Record: ErrorCode.RECORD_NOT_FOUND,
     }
 
     this.throwError({
@@ -113,7 +122,7 @@ export class ErrorHandler {
       message: `${entityType} not found: ${identifier}`,
       userMessage: `The ${entityType.toLowerCase()} "${identifier}" does not exist.`,
       context: { operation: 'lookup' },
-      suggestions: ['Check the spelling', 'Verify the entity exists']
+      suggestions: ['Check the spelling', 'Verify the entity exists'],
     })
   }
 
@@ -126,7 +135,7 @@ export class ErrorHandler {
       message: `${entityType} "${name}" already exists`,
       userMessage: `A ${entityType.toLowerCase()} with the name "${name}" already exists.`,
       context: { operation: 'creation' },
-      suggestions: ['Use a different name', 'Delete the existing entity first']
+      suggestions: ['Use a different name', 'Delete the existing entity first'],
     })
   }
 
@@ -139,7 +148,7 @@ export class ErrorHandler {
       message: `Validation failed: ${errors.join('; ')}`,
       userMessage: 'The operation cannot be completed due to validation errors.',
       context: { operation: 'validation' },
-      suggestions: ['Fix the validation errors and try again']
+      suggestions: ['Fix the validation errors and try again'],
     })
   }
 
@@ -152,7 +161,10 @@ export class ErrorHandler {
       message: 'Only SELECT queries are allowed in the SQL editor',
       userMessage: 'This SQL operation is not permitted for security reasons.',
       context: { operation: 'sql_execution' },
-      suggestions: ['Use only SELECT statements', 'Use the specific table operations for modifications']
+      suggestions: [
+        'Use only SELECT statements',
+        'Use the specific table operations for modifications',
+      ],
     })
   }
 
@@ -162,7 +174,7 @@ export class ErrorHandler {
   public handleStorageWarning(operation: string, error: unknown): void {
     const warning = VibebaseError.fromError(error, ErrorCode.STORAGE_OPERATION_FAILED)
     ;(warning as any).context = { operation, originalError: error }
-    
+
     // Log warning but don't throw - allow graceful degradation
     this.logWarning(warning)
   }
@@ -179,7 +191,7 @@ export class ErrorHandler {
         message: error.message,
         context: error.context,
         userMessage: error.userMessage,
-        suggestions: error.suggestions
+        suggestions: error.suggestions,
       })
     }
   }
@@ -191,7 +203,7 @@ export class ErrorHandler {
     console.warn('[Vibebase Warning]', {
       code: error.code,
       message: error.message,
-      context: error.context
+      context: error.context,
     })
   }
 
@@ -214,8 +226,8 @@ export class ErrorHandler {
           code: error.code,
           message: error.message,
           userMessage: error.userMessage,
-          suggestions: error.suggestions
-        }
+          suggestions: error.suggestions,
+        },
       }
     }
 
@@ -223,8 +235,8 @@ export class ErrorHandler {
       success: false,
       error: {
         code: ErrorCode.UNKNOWN_ERROR,
-        message: error instanceof Error ? error.message : String(error)
-      }
+        message: error instanceof Error ? error.message : String(error),
+      },
     }
   }
 }

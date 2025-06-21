@@ -1,8 +1,8 @@
+import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { zValidator } from '@hono/zod-validator'
 import { TableManager } from '../lib/table-manager'
-import { getCurrentEndUser, getAuthContext } from '../middleware/auth'
+import { getAuthContext, getCurrentEndUser } from '../middleware/auth'
 import type { Env, Variables } from '../types'
 
 export const data = new Hono<{ Bindings: Env; Variables: Variables }>()
@@ -13,12 +13,12 @@ data.use('*', async (c, next) => {
     console.error('Database not available in environment')
     return c.json({ error: 'Database not configured' }, 500)
   }
-  c.set('tableManager', new TableManager(
-    c.env.DB, 
-    c.env.SYSTEM_STORAGE as any, 
-    c.executionCtx,
-    { REALTIME: c.env.REALTIME }
-  ))
+  c.set(
+    'tableManager',
+    new TableManager(c.env.DB, c.env.SYSTEM_STORAGE as any, c.executionCtx, {
+      REALTIME: c.env.REALTIME,
+    })
+  )
   await next()
 })
 
@@ -26,27 +26,27 @@ data.use('*', async (c, next) => {
 data.use('/:tableName/*', async (c, next) => {
   const tm = c.get('tableManager') as TableManager
   const tableName = c.req.param('tableName')
-  
+
   try {
     const tables = await tm.getTables()
-    const table = tables.find(t => t.name === tableName)
-    
+    const table = tables.find((t) => t.name === tableName)
+
     if (!table) {
       return c.json({ error: `Table '${tableName}' not found` }, 404)
     }
-    
+
     // Allow read access to system tables for display purposes
     // (Write operations are still protected in individual endpoints)
-    
+
     // Get authentication context to determine access control
     const authContext = getAuthContext(c)
     const currentUser = getCurrentEndUser(c)
-    
+
     // Set table info and user context for later use
     c.set('tableInfo', table)
     c.set('currentEndUser', currentUser)
     c.set('authContext', authContext)
-    
+
     await next()
   } catch (error) {
     console.error('Error validating table:', error)
@@ -61,35 +61,46 @@ data.get('/:tableName', async (c) => {
   const tableInfo = c.get('tableInfo')
   const authContext = c.get('authContext')
   const currentUser = c.get('currentEndUser')
-  
+
   try {
     const page = Math.max(1, Number(c.req.query('page') || '1'))
     const limit = Math.min(100, Math.max(1, Number(c.req.query('limit') || '20')))
     const offset = (page - 1) * limit
-    
+
     // Get table columns to determine default sort field
     const columns = await tm.getTableColumns(tableName)
-    const validColumns = columns.map(col => col.name)
-    const hasCreatedAt = columns.some(col => col.name === 'created_at')
-    
-    const sortBy = c.req.query('sortBy') || (hasCreatedAt ? 'created_at' : validColumns[0] || 'ROWID')
+    const validColumns = columns.map((col) => col.name)
+    const hasCreatedAt = columns.some((col) => col.name === 'created_at')
+
+    const sortBy =
+      c.req.query('sortBy') || (hasCreatedAt ? 'created_at' : validColumns[0] || 'ROWID')
     const sortOrder = c.req.query('sortOrder') === 'asc' ? 'ASC' : 'DESC'
-    
+
     if (sortBy !== 'ROWID' && !validColumns.includes(sortBy)) {
-      return c.json({ 
-        error: `Invalid sort field '${sortBy}'. Valid fields: ${validColumns.join(', ')}` 
-      }, 400)
+      return c.json(
+        {
+          error: `Invalid sort field '${sortBy}'. Valid fields: ${validColumns.join(', ')}`,
+        },
+        400
+      )
     }
-    
+
     let result
-    
+
     // Apply access control based on authentication type and table policy
     if (authContext?.type === 'admin') {
       // Admins can access all data
       result = await tm.getTableDataWithSort(tableName, limit, offset, sortBy, sortOrder)
     } else if (authContext?.type === 'user' && currentUser) {
       // Users get access control applied
-      result = await tm.getTableDataWithAccessControl(tableName, currentUser.id, limit, offset, sortBy, sortOrder)
+      result = await tm.getTableDataWithAccessControl(
+        tableName,
+        currentUser.id,
+        limit,
+        offset,
+        sortBy,
+        sortOrder
+      )
     } else if (authContext?.type === 'api_key') {
       // API keys can access data based on scopes and table policy
       // For now, treat API keys as admin-level access
@@ -98,9 +109,9 @@ data.get('/:tableName', async (c) => {
     } else {
       return c.json({ error: 'Authentication required' }, 401)
     }
-    
+
     const baseUrl = new URL(c.req.url).origin
-    
+
     return c.json({
       data: result.data,
       pagination: {
@@ -109,26 +120,29 @@ data.get('/:tableName', async (c) => {
         total: result.total,
         totalPages: Math.ceil(result.total / limit),
         hasNext: page * limit < result.total,
-        hasPrev: page > 1
+        hasPrev: page > 1,
       },
       sort: { by: sortBy, order: sortOrder },
       access_info: {
         table_policy: tableInfo?.access_policy || 'public',
-        auth_type: authContext?.type || 'none'
+        auth_type: authContext?.type || 'none',
       },
       _links: {
         documentation: {
           swagger: `${baseUrl}/api/docs/swagger`,
           table_spec: `${baseUrl}/api/docs/tables/${tableName}`,
-          description: `API documentation for ${tableName} table`
-        }
-      }
+          description: `API documentation for ${tableName} table`,
+        },
+      },
     })
   } catch (error) {
     console.error('Error fetching table data:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to fetch data' 
-    }, 500)
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to fetch data',
+      },
+      500
+    )
   }
 })
 
@@ -139,10 +153,10 @@ data.get('/:tableName/:id', async (c) => {
   const id = c.req.param('id')
   const authContext = c.get('authContext')
   const currentUser = c.get('currentEndUser')
-  
+
   try {
     let record
-    
+
     // Apply access control based on authentication type
     if (authContext?.type === 'admin') {
       // Admins can access all records
@@ -157,17 +171,20 @@ data.get('/:tableName/:id', async (c) => {
     } else {
       return c.json({ error: 'Authentication required' }, 401)
     }
-    
+
     if (!record) {
       return c.json({ error: `Record with id '${id}' not found` }, 404)
     }
-    
+
     return c.json({ data: record })
   } catch (error) {
     console.error('Error fetching record:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to fetch record' 
-    }, 500)
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to fetch record',
+      },
+      500
+    )
   }
 })
 
@@ -178,25 +195,25 @@ data.post('/:tableName', async (c) => {
   const authContext = c.get('authContext')
   const currentUser = c.get('currentEndUser')
   const tableInfo = c.get('tableInfo')
-  
+
   try {
     const body = await c.req.json()
-    
+
     // Validate request body is an object
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
       return c.json({ error: 'Request body must be a valid JSON object' }, 400)
     }
-    
+
     // Get table schema for validation
     const columns = await tm.getTableColumns(tableName)
     const errors = await validateRecordData(body, columns, 'create')
-    
+
     if (errors.length > 0) {
       return c.json({ error: 'Validation failed', details: errors }, 400)
     }
-    
+
     let id
-    
+
     // Apply access control based on authentication type
     if (authContext?.type === 'admin') {
       // Admins can create records normally
@@ -210,7 +227,7 @@ data.post('/:tableName', async (c) => {
     } else {
       return c.json({ error: 'Authentication required' }, 401)
     }
-    
+
     // Get the created record to return (with access control)
     let createdRecord
     if (authContext?.type === 'user' && currentUser) {
@@ -218,21 +235,27 @@ data.post('/:tableName', async (c) => {
     } else {
       createdRecord = await tm.getRecordById(tableName, id)
     }
-    
-    return c.json({ 
-      success: true, 
-      data: createdRecord || { id, ...body },
-      message: 'Record created successfully',
-      access_info: {
-        table_policy: tableInfo?.access_policy || 'public',
-        auth_type: authContext?.type || 'none'
-      }
-    }, 201)
+
+    return c.json(
+      {
+        success: true,
+        data: createdRecord || { id, ...body },
+        message: 'Record created successfully',
+        access_info: {
+          table_policy: tableInfo?.access_policy || 'public',
+          auth_type: authContext?.type || 'none',
+        },
+      },
+      201
+    )
   } catch (error) {
     console.error('Error creating record:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to create record' 
-    }, 400)
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to create record',
+      },
+      400
+    )
   }
 })
 
@@ -241,42 +264,45 @@ data.put('/:tableName/:id', async (c) => {
   const tm = c.get('tableManager') as TableManager
   const tableName = c.req.param('tableName')
   const id = c.req.param('id')
-  
+
   try {
     const body = await c.req.json()
-    
+
     // Validate request body is an object
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
       return c.json({ error: 'Request body must be a valid JSON object' }, 400)
     }
-    
+
     // Check if record exists
     const existingRecord = await tm.getRecordById(tableName, id)
     if (!existingRecord) {
       return c.json({ error: `Record with id '${id}' not found` }, 404)
     }
-    
+
     // Get table schema for validation
     const columns = await tm.getTableColumns(tableName)
     const errors = await validateRecordData(body, columns, 'update')
-    
+
     if (errors.length > 0) {
       return c.json({ error: 'Validation failed', details: errors }, 400)
     }
-    
+
     await tm.updateRecord(tableName, id, body)
     const updatedRecord = await tm.getRecordById(tableName, id)
-    
-    return c.json({ 
-      success: true, 
+
+    return c.json({
+      success: true,
       data: updatedRecord,
-      message: 'Record updated successfully' 
+      message: 'Record updated successfully',
     })
   } catch (error) {
     console.error('Error updating record:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to update record' 
-    }, 400)
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to update record',
+      },
+      400
+    )
   }
 })
 
@@ -285,55 +311,58 @@ data.delete('/:tableName/:id', async (c) => {
   const tm = c.get('tableManager') as TableManager
   const tableName = c.req.param('tableName')
   const id = c.req.param('id')
-  
+
   try {
     // Check if record exists
     const existingRecord = await tm.getRecordById(tableName, id)
     if (!existingRecord) {
       return c.json({ error: `Record with id '${id}' not found` }, 404)
     }
-    
+
     await tm.deleteRecord(tableName, id)
-    
-    return c.json({ 
-      success: true, 
-      message: 'Record deleted successfully' 
+
+    return c.json({
+      success: true,
+      message: 'Record deleted successfully',
     })
   } catch (error) {
     console.error('Error deleting record:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to delete record' 
-    }, 400)
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to delete record',
+      },
+      400
+    )
   }
 })
 
 // Helper function to validate record data against table schema
 async function validateRecordData(
-  data: Record<string, any>, 
-  columns: any[], 
+  data: Record<string, any>,
+  columns: any[],
   operation: 'create' | 'update'
 ): Promise<string[]> {
   const errors: string[] = []
-  
+
   // Skip validation for system columns
   const systemColumns = ['id', 'created_at', 'updated_at']
-  const userColumns = columns.filter(col => !systemColumns.includes(col.name))
-  
+  const userColumns = columns.filter((col) => !systemColumns.includes(col.name))
+
   for (const column of userColumns) {
     const value = data[column.name]
     const hasValue = value !== undefined && value !== null && value !== ''
-    
+
     // Check required fields (NOT NULL constraint)
     if (operation === 'create' && column.notnull && !hasValue) {
       errors.push(`Field '${column.name}' is required`)
       continue
     }
-    
+
     // Skip validation if no value provided for update
     if (operation === 'update' && !hasValue) {
       continue
     }
-    
+
     // Type validation
     if (hasValue) {
       const typeError = validateFieldType(column.name, value, column.type)
@@ -342,13 +371,13 @@ async function validateRecordData(
       }
     }
   }
-  
+
   return errors
 }
 
 function validateFieldType(fieldName: string, value: any, sqlType: string): string | null {
   const type = sqlType.toUpperCase()
-  
+
   switch (type) {
     case 'INTEGER':
       if (!Number.isInteger(Number(value))) {
@@ -377,6 +406,6 @@ function validateFieldType(fieldName: string, value: any, sqlType: string): stri
       // For custom types, accept any value
       break
   }
-  
+
   return null
 }

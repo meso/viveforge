@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { VibebaseAuthClient } from '../../lib/auth-client'
 import type { Env } from '../../types'
 
@@ -10,7 +10,7 @@ vi.stubGlobal('fetch', mockFetch)
 const mockVerify = vi.fn()
 vi.mock('hono/jwt', () => ({
   jwt: vi.fn(),
-  verify: mockVerify
+  verify: mockVerify,
 }))
 
 describe('VibebaseAuthClient', () => {
@@ -19,7 +19,7 @@ describe('VibebaseAuthClient', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    
+
     env = {
       VIBEBASE_AUTH_URL: 'https://auth.vibebase.workers.dev',
       DEPLOYMENT_DOMAIN: 'test.example.com',
@@ -30,8 +30,8 @@ describe('VibebaseAuthClient', () => {
       SYSTEM_STORAGE: {} as any,
       USER_STORAGE: {} as any,
       ASSETS: {
-        fetch: vi.fn(() => Promise.resolve(new Response('mock asset')))
-      }
+        fetch: vi.fn(() => Promise.resolve(new Response('mock asset'))),
+      },
     }
 
     authClient = new VibebaseAuthClient(env)
@@ -44,7 +44,7 @@ describe('VibebaseAuthClient', () => {
   describe('getLoginUrl', () => {
     it('should generate correct login URL with default redirect', () => {
       const loginUrl = authClient.getLoginUrl()
-      
+
       expect(loginUrl).toBe(
         'https://auth.vibebase.workers.dev/auth/login?origin=https%3A%2F%2Ftest.example.com&redirect_to=%2F'
       )
@@ -52,7 +52,7 @@ describe('VibebaseAuthClient', () => {
 
     it('should generate correct login URL with custom redirect', () => {
       const loginUrl = authClient.getLoginUrl('/dashboard')
-      
+
       expect(loginUrl).toBe(
         'https://auth.vibebase.workers.dev/auth/login?origin=https%3A%2F%2Ftest.example.com&redirect_to=%2Fdashboard'
       )
@@ -65,11 +65,13 @@ describe('VibebaseAuthClient', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         json: vi.fn().mockResolvedValue({
-          keys: [{
-            x5c: ['mock-public-key'],
-            n: 'mock-modulus'
-          }]
-        })
+          keys: [
+            {
+              x5c: ['mock-public-key'],
+              n: 'mock-modulus',
+            },
+          ],
+        }),
       })
     })
 
@@ -84,7 +86,7 @@ describe('VibebaseAuthClient', () => {
         github_login: 'testuser',
         email: 'test@example.com',
         name: 'Test User',
-        scope: ['admin']
+        scope: ['admin'],
       }
 
       // Mock hono/jwt verify to return the payload
@@ -103,7 +105,7 @@ describe('VibebaseAuthClient', () => {
         provider: 'github',
         provider_id: '12345',
         role: 'user',
-        is_active: true
+        is_active: true,
       })
     })
 
@@ -118,7 +120,7 @@ describe('VibebaseAuthClient', () => {
         github_login: 'testuser',
         email: 'test@example.com',
         name: 'Test User',
-        scope: ['admin']
+        scope: ['admin'],
       }
 
       // Mock hono/jwt verify to return the payload
@@ -142,7 +144,7 @@ describe('VibebaseAuthClient', () => {
         github_login: 'testuser',
         email: 'test@example.com',
         name: 'Test User',
-        scope: ['admin']
+        scope: ['admin'],
       }
 
       // Mock hono/jwt verify to return the payload
@@ -164,7 +166,7 @@ describe('VibebaseAuthClient', () => {
         github_login: 'testuser',
         email: 'test@example.com',
         name: 'Test User',
-        scope: ['admin']
+        scope: ['admin'],
       }
 
       // Mock hono/jwt verify to return the payload
@@ -181,7 +183,9 @@ describe('VibebaseAuthClient', () => {
 
       const malformedToken = 'not.a.valid.jwt.token'
 
-      await expect(authClient.verifyToken(malformedToken)).rejects.toThrow('JWT verification failed')
+      await expect(authClient.verifyToken(malformedToken)).rejects.toThrow(
+        'JWT verification failed'
+      )
     })
   })
 
@@ -191,28 +195,25 @@ describe('VibebaseAuthClient', () => {
         access_token: 'new-access-token',
         refresh_token: 'new-refresh-token',
         token_type: 'Bearer',
-        expires_in: 900
+        expires_in: 900,
       }
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: vi.fn().mockResolvedValue(mockResponse)
+        json: vi.fn().mockResolvedValue(mockResponse),
       })
 
       const result = await authClient.refreshToken('old-refresh-token')
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        'https://auth.vibebase.workers.dev/auth/refresh',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            refresh_token: 'old-refresh-token'
-          })
-        }
-      )
+      expect(mockFetch).toHaveBeenCalledWith('https://auth.vibebase.workers.dev/auth/refresh', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          refresh_token: 'old-refresh-token',
+        }),
+      })
 
       expect(result).toEqual(mockResponse)
     })
@@ -221,7 +222,7 @@ describe('VibebaseAuthClient', () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 401,
-        text: vi.fn().mockResolvedValue('{"error":"Token refresh failed"}')
+        text: vi.fn().mockResolvedValue('{"error":"Token refresh failed"}'),
       })
 
       await expect(authClient.refreshToken('invalid-token')).rejects.toThrow(
@@ -239,26 +240,28 @@ describe('VibebaseAuthClient', () => {
           header: vi.fn(),
           raw: {
             headers: {
-              get: vi.fn()
-            }
-          }
+              get: vi.fn(),
+            },
+          },
         },
         res: {
           headers: {
-            append: vi.fn()
-          }
-        }
+            append: vi.fn(),
+          },
+        },
       }
 
       // Mock JWKS endpoint
       mockFetch.mockResolvedValue({
         ok: true,
         json: vi.fn().mockResolvedValue({
-          keys: [{
-            x5c: ['mock-public-key'],
-            n: 'mock-modulus'
-          }]
-        })
+          keys: [
+            {
+              x5c: ['mock-public-key'],
+              n: 'mock-modulus',
+            },
+          ],
+        }),
       })
     })
 
@@ -273,14 +276,14 @@ describe('VibebaseAuthClient', () => {
         github_login: 'testuser',
         email: 'test@example.com',
         name: 'Test User',
-        scope: ['admin']
+        scope: ['admin'],
       }
 
       // Mock hono/jwt verify to return the payload
       mockVerify.mockResolvedValue(mockPayload)
 
       const mockToken = 'valid.jwt.token'
-      
+
       mockContext.req.header.mockReturnValue(`Bearer ${mockToken}`)
       mockContext.req.raw.headers.get.mockReturnValue(null)
 
@@ -295,7 +298,7 @@ describe('VibebaseAuthClient', () => {
         provider: 'github',
         provider_id: '12345',
         role: 'user',
-        is_active: true
+        is_active: true,
       })
     })
 
@@ -310,14 +313,14 @@ describe('VibebaseAuthClient', () => {
         github_login: 'testuser',
         email: 'test@example.com',
         name: 'Test User',
-        scope: ['admin']
+        scope: ['admin'],
       }
 
       // Mock hono/jwt verify to return the payload
       mockVerify.mockResolvedValue(mockPayload)
 
       const mockToken = 'valid.jwt.token'
-      
+
       mockContext.req.header.mockReturnValue(null)
       mockContext.req.raw.headers.get.mockReturnValue(`access_token=${mockToken}; other=value`)
 
@@ -332,7 +335,7 @@ describe('VibebaseAuthClient', () => {
         provider: 'github',
         provider_id: '12345',
         role: 'user',
-        is_active: true
+        is_active: true,
       })
     })
 
@@ -351,12 +354,12 @@ describe('VibebaseAuthClient', () => {
         access_token: 'new-access-token',
         refresh_token: 'new-refresh-token',
         token_type: 'Bearer',
-        expires_in: 900
+        expires_in: 900,
       }
-      
+
       // Create a spy for the refreshToken method
       const refreshTokenSpy = vi.spyOn(authClient, 'refreshToken').mockResolvedValue(newTokens)
-      
+
       const mockUser = {
         id: '12345',
         username: 'testuser',
@@ -368,7 +371,7 @@ describe('VibebaseAuthClient', () => {
         role: 'admin',
         is_active: true,
         created_at: '2023-01-01T00:00:00.000Z',
-        updated_at: '2023-01-01T00:00:00.000Z'
+        updated_at: '2023-01-01T00:00:00.000Z',
       }
 
       // Create a spy for the verifyToken method

@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'preact/hooks'
-import { api, type OAuthProvider, type SupportedProvider } from '../lib/api'
+import { useEffect, useState } from 'preact/hooks'
 import { OAuthProviderCard } from '../components/OAuthProviderCard'
+import { api, type OAuthProvider, type SupportedProvider } from '../lib/api'
 
 function CallbackUrlsSection() {
   const [callbackUrls, setCallbackUrls] = useState<string[]>([])
@@ -13,15 +13,15 @@ function CallbackUrlsSection() {
     try {
       setIsLoading(true)
       setError(null)
-      
+
       const response = await fetch('/api/app-settings', {
-        credentials: 'include'
+        credentials: 'include',
       })
-      
+
       if (!response.ok) {
         throw new Error('Failed to load app settings')
       }
-      
+
       const data = await response.json()
       setCallbackUrls(data.settings.allowed_callback_urls || [])
     } catch (err) {
@@ -36,22 +36,22 @@ function CallbackUrlsSection() {
     try {
       setIsSaving(true)
       setError(null)
-      
+
       const response = await fetch('/api/app-settings', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         credentials: 'include',
         body: JSON.stringify({
-          allowed_callback_urls: urls
-        })
+          allowed_callback_urls: urls,
+        }),
       })
-      
+
       if (!response.ok) {
         throw new Error('Failed to save callback URLs')
       }
-      
+
       setCallbackUrls(urls)
     } catch (err) {
       console.error('Failed to save callback URLs:', err)
@@ -63,7 +63,7 @@ function CallbackUrlsSection() {
 
   const addUrl = async () => {
     if (!newUrl.trim()) return
-    
+
     const updatedUrls = [...callbackUrls, newUrl.trim()]
     await saveCallbackUrls(updatedUrls)
     setNewUrl('')
@@ -98,8 +98,8 @@ function CallbackUrlsSection() {
       <div class="mb-6">
         <h3 class="text-lg font-semibold text-gray-900">Allowed Callback URLs</h3>
         <p class="text-gray-600 mt-2">
-          Configure URLs where users can be redirected after OAuth authentication. 
-          Supports web URLs (https://), mobile deep links (myapp://), and localhost for development.
+          Configure URLs where users can be redirected after OAuth authentication. Supports web URLs
+          (https://), mobile deep links (myapp://), and localhost for development.
         </p>
       </div>
 
@@ -136,12 +136,13 @@ function CallbackUrlsSection() {
         <h4 class="text-md font-medium text-gray-900 mb-4">
           Configured URLs ({callbackUrls.length})
         </h4>
-        
+
         {callbackUrls.length === 0 ? (
           <div class="text-center py-8 text-gray-500">
             <p class="mb-2">No callback URLs configured</p>
             <p class="text-sm">
-              When no URLs are configured, any callback URL will be allowed (for backward compatibility)
+              When no URLs are configured, any callback URL will be allowed (for backward
+              compatibility)
             </p>
           </div>
         ) : (
@@ -151,9 +152,13 @@ function CallbackUrlsSection() {
                 <div class="flex-1">
                   <code class="text-sm text-gray-800">{url}</code>
                   <div class="text-xs text-gray-500 mt-1">
-                    {url.startsWith('https://') ? '🌐 Web App' : 
-                     url.startsWith('http://localhost') || url.startsWith('http://127.0.0.1') ? '🔧 Development' :
-                     url.includes('://') ? '📱 Mobile/Desktop App' : '❓ Unknown'}
+                    {url.startsWith('https://')
+                      ? '🌐 Web App'
+                      : url.startsWith('http://localhost') || url.startsWith('http://127.0.0.1')
+                        ? '🔧 Development'
+                        : url.includes('://')
+                          ? '📱 Mobile/Desktop App'
+                          : '❓ Unknown'}
                   </div>
                 </div>
                 <button
@@ -173,10 +178,20 @@ function CallbackUrlsSection() {
       <div class="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
         <h4 class="text-lg font-semibold text-blue-900 mb-3">URL Format Examples</h4>
         <div class="space-y-2 text-sm text-blue-800">
-          <p><strong>Web Applications:</strong> <code>https://myapp.com/auth/callback</code></p>
-          <p><strong>Mobile Apps:</strong> <code>myapp://auth/callback</code> or <code>com.example.myapp://callback</code></p>
-          <p><strong>Desktop Apps:</strong> <code>myapp://localhost/callback</code></p>
-          <p><strong>Development:</strong> <code>http://localhost:3000/callback</code> or <code>http://127.0.0.1:8080/auth</code></p>
+          <p>
+            <strong>Web Applications:</strong> <code>https://myapp.com/auth/callback</code>
+          </p>
+          <p>
+            <strong>Mobile Apps:</strong> <code>myapp://auth/callback</code> or{' '}
+            <code>com.example.myapp://callback</code>
+          </p>
+          <p>
+            <strong>Desktop Apps:</strong> <code>myapp://localhost/callback</code>
+          </p>
+          <p>
+            <strong>Development:</strong> <code>http://localhost:3000/callback</code> or{' '}
+            <code>http://127.0.0.1:8080/auth</code>
+          </p>
         </div>
       </div>
 
@@ -184,19 +199,27 @@ function CallbackUrlsSection() {
       <div class="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-6">
         <h4 class="text-lg font-semibold text-gray-900 mb-3">API Usage</h4>
         <div class="space-y-2 text-sm font-mono text-gray-700">
-          <p><strong>Login with callback:</strong></p>
+          <p>
+            <strong>Login with callback:</strong>
+          </p>
           <code class="block bg-white p-2 rounded border">
             GET /api/auth/login/google?callback_url=https://myapp.com/auth/callback
           </code>
-          <p class="mt-3"><strong>The callback response includes:</strong></p>
+          <p class="mt-3">
+            <strong>The callback response includes:</strong>
+          </p>
           <code class="block bg-white p-2 rounded border text-xs">
-            {JSON.stringify({
-              success: true,
-              access_token: "...",
-              refresh_token: "...",
-              user: { id: "...", email: "...", name: "..." },
-              return_url: "https://myapp.com/auth/callback"
-            }, null, 2)}
+            {JSON.stringify(
+              {
+                success: true,
+                access_token: '...',
+                refresh_token: '...',
+                user: { id: '...', email: '...', name: '...' },
+                return_url: 'https://myapp.com/auth/callback',
+              },
+              null,
+              2
+            )}
           </code>
         </div>
       </div>
@@ -218,9 +241,9 @@ export function AuthPage() {
     try {
       const [supportedResult, configuredResult] = await Promise.all([
         api.getSupportedProviders(),
-        api.getOAuthProviders()
+        api.getOAuthProviders(),
       ])
-      
+
       setSupportedProviders(supportedResult.supported_providers)
       setConfiguredProviders(configuredResult.providers)
     } catch (err) {
@@ -236,10 +259,10 @@ export function AuthPage() {
   }, [])
 
   const getConfiguredProvider = (providerName: string): OAuthProvider | undefined => {
-    return configuredProviders.find(p => p.provider === providerName)
+    return configuredProviders.find((p) => p.provider === providerName)
   }
 
-  const enabledCount = configuredProviders.filter(p => p.is_enabled).length
+  const enabledCount = configuredProviders.filter((p) => p.is_enabled).length
   const configuredCount = configuredProviders.length
 
   if (isLoading) {
@@ -256,7 +279,7 @@ export function AuthPage() {
   return (
     <div>
       <h2 class="text-2xl font-bold text-gray-900 mb-6">Authentication</h2>
-      
+
       <div class="flex gap-6">
         {/* Navigation Sidebar */}
         <div class="w-64 flex-shrink-0">
@@ -353,11 +376,25 @@ export function AuthPage() {
               <div class="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
                 <h3 class="text-lg font-semibold text-blue-900 mb-3">Getting Started</h3>
                 <div class="space-y-2 text-sm text-blue-800">
-                  <p>1. <strong>Choose a provider:</strong> Click "Configure" on any OAuth provider you want to enable</p>
-                  <p>2. <strong>Create OAuth app:</strong> Follow the setup instructions to create an OAuth application</p>
-                  <p>3. <strong>Configure credentials:</strong> Enter your Client ID and Client Secret</p>
-                  <p>4. <strong>Enable provider:</strong> Toggle the provider to "Enabled" status</p>
-                  <p>5. <strong>Test authentication:</strong> Users can now authenticate with this provider</p>
+                  <p>
+                    1. <strong>Choose a provider:</strong> Click "Configure" on any OAuth provider
+                    you want to enable
+                  </p>
+                  <p>
+                    2. <strong>Create OAuth app:</strong> Follow the setup instructions to create an
+                    OAuth application
+                  </p>
+                  <p>
+                    3. <strong>Configure credentials:</strong> Enter your Client ID and Client
+                    Secret
+                  </p>
+                  <p>
+                    4. <strong>Enable provider:</strong> Toggle the provider to "Enabled" status
+                  </p>
+                  <p>
+                    5. <strong>Test authentication:</strong> Users can now authenticate with this
+                    provider
+                  </p>
                 </div>
               </div>
 
@@ -365,20 +402,32 @@ export function AuthPage() {
               <div class="mt-8 bg-gray-50 border border-gray-200 rounded-lg p-6">
                 <h3 class="text-lg font-semibold text-gray-900 mb-3">Authentication Endpoints</h3>
                 <div class="space-y-2 text-sm font-mono text-gray-700">
-                  <div><strong>Available providers:</strong> <code>GET /api/auth/providers</code></div>
-                  <div><strong>Start authentication:</strong> <code>GET /api/auth/login/{'{{provider}}'}</code></div>
-                  <div><strong>OAuth callback:</strong> <code>GET /api/auth/callback/{'{{provider}}'}</code></div>
-                  <div><strong>Get user info:</strong> <code>GET /api/auth/me</code></div>
-                  <div><strong>Refresh token:</strong> <code>POST /api/auth/refresh</code></div>
-                  <div><strong>Logout:</strong> <code>POST /api/auth/logout</code></div>
+                  <div>
+                    <strong>Available providers:</strong> <code>GET /api/auth/providers</code>
+                  </div>
+                  <div>
+                    <strong>Start authentication:</strong>{' '}
+                    <code>GET /api/auth/login/{'{{provider}}'}</code>
+                  </div>
+                  <div>
+                    <strong>OAuth callback:</strong>{' '}
+                    <code>GET /api/auth/callback/{'{{provider}}'}</code>
+                  </div>
+                  <div>
+                    <strong>Get user info:</strong> <code>GET /api/auth/me</code>
+                  </div>
+                  <div>
+                    <strong>Refresh token:</strong> <code>POST /api/auth/refresh</code>
+                  </div>
+                  <div>
+                    <strong>Logout:</strong> <code>POST /api/auth/logout</code>
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
-          {activeSection === 'callback-urls' && (
-            <CallbackUrlsSection />
-          )}
+          {activeSection === 'callback-urls' && <CallbackUrlsSection />}
         </div>
       </div>
     </div>

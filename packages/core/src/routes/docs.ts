@@ -10,12 +10,12 @@ docs.use('*', async (c, next) => {
     console.error('Database not available in environment')
     return c.json({ error: 'Database not configured' }, 500)
   }
-  c.set('tableManager', new TableManager(
-    c.env.DB, 
-    c.env.SYSTEM_STORAGE as any, 
-    c.executionCtx,
-    { REALTIME: c.env.REALTIME }
-  ))
+  c.set(
+    'tableManager',
+    new TableManager(c.env.DB, c.env.SYSTEM_STORAGE as any, c.executionCtx, {
+      REALTIME: c.env.REALTIME,
+    })
+  )
   await next()
 })
 
@@ -26,16 +26,19 @@ docs.get('/openapi.json', async (c) => {
 
   try {
     const tables = await tm.getTables()
-    const userTables = tables.filter(table => table.type === 'user')
-    
+    const userTables = tables.filter((table) => table.type === 'user')
+
     const openApiSpec = await generateOpenAPISpec(userTables, tm, baseUrl)
-    
+
     return c.json(openApiSpec)
   } catch (error) {
     console.error('Error generating OpenAPI spec:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to generate API documentation' 
-    }, 500)
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to generate API documentation',
+      },
+      500
+    )
   }
 })
 
@@ -47,26 +50,34 @@ docs.get('/tables/:tableName', async (c) => {
 
   try {
     const tables = await tm.getTables()
-    const table = tables.find(t => t.name === tableName)
-    
+    const table = tables.find((t) => t.name === tableName)
+
     if (!table) {
       return c.json({ error: `Table '${tableName}' not found` }, 404)
     }
-    
+
     if (table.type === 'system') {
       return c.json({ error: `Cannot access documentation for system table '${tableName}'` }, 403)
     }
 
     const columns = await tm.getTableColumns(tableName)
     const searchableColumns = await tm.getSearchableColumns(tableName)
-    const documentation = await generateTableDocumentation(table, columns, searchableColumns, baseUrl)
-    
+    const documentation = await generateTableDocumentation(
+      table,
+      columns,
+      searchableColumns,
+      baseUrl
+    )
+
     return c.json(documentation)
   } catch (error) {
     console.error('Error generating table documentation:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to generate table documentation' 
-    }, 500)
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to generate table documentation',
+      },
+      500
+    )
   }
 })
 
@@ -74,7 +85,7 @@ docs.get('/tables/:tableName', async (c) => {
 docs.get('/swagger', async (c) => {
   const baseUrl = new URL(c.req.url).origin
   const swaggerHtml = generateSwaggerUI(baseUrl)
-  
+
   return c.html(swaggerHtml)
 })
 
@@ -88,14 +99,14 @@ async function generateOpenAPISpec(tables: any[], tm: TableManager, baseUrl: str
       version: '1.0.0',
       contact: {
         name: 'Vibebase',
-        url: 'https://github.com/vibebase/vibebase'
-      }
+        url: 'https://github.com/vibebase/vibebase',
+      },
     },
     servers: [
       {
         url: baseUrl,
-        description: 'Vibebase Instance'
-      }
+        description: 'Vibebase Instance',
+      },
     ],
     paths: {} as any,
     components: {
@@ -108,11 +119,11 @@ async function generateOpenAPISpec(tables: any[], tm: TableManager, baseUrl: str
               schema: {
                 type: 'object',
                 properties: {
-                  error: { type: 'string' }
-                }
-              }
-            }
-          }
+                  error: { type: 'string' },
+                },
+              },
+            },
+          },
         },
         ValidationError: {
           description: 'Validation error',
@@ -124,28 +135,28 @@ async function generateOpenAPISpec(tables: any[], tm: TableManager, baseUrl: str
                   error: { type: 'string' },
                   details: {
                     type: 'array',
-                    items: { type: 'string' }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
+                    items: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   }
 
   // Generate schemas and paths for each table
   for (const table of tables) {
     const columns = await tm.getTableColumns(table.name)
     const searchableColumns = await tm.getSearchableColumns(table.name)
-    
+
     // Generate schema
     const schema = generateTableSchema(table.name, columns)
     spec.components.schemas[table.name] = schema.full
     spec.components.schemas[`${table.name}Input`] = schema.input
     spec.components.schemas[`${table.name}Update`] = schema.update
-    
+
     // Generate paths
     const paths = generateTablePaths(table.name, searchableColumns)
     Object.assign(spec.paths, paths)
@@ -164,9 +175,9 @@ function generateTableSchema(tableName: string, columns: any[]) {
   for (const column of columns) {
     const isSystemField = ['id', 'created_at', 'updated_at'].includes(column.name)
     const fieldSchema = getFieldSchema(column)
-    
+
     properties[column.name] = fieldSchema
-    
+
     if (!isSystemField) {
       inputProperties[column.name] = fieldSchema
       if (column.notnull && !column.dflt_value) {
@@ -179,17 +190,17 @@ function generateTableSchema(tableName: string, columns: any[]) {
     full: {
       type: 'object',
       properties,
-      required: ['id', 'created_at', 'updated_at']
+      required: ['id', 'created_at', 'updated_at'],
     },
     input: {
       type: 'object',
       properties: inputProperties,
-      required: inputRequired
+      required: inputRequired,
     },
     update: {
       type: 'object',
-      properties: inputProperties
-    }
+      properties: inputProperties,
+    },
   }
 }
 
@@ -197,7 +208,7 @@ function generateTableSchema(tableName: string, columns: any[]) {
 function getFieldSchema(column: any) {
   const type = column.type.toUpperCase()
   const schema: any = { description: `${column.name} field` }
-  
+
   switch (type) {
     case 'INTEGER':
       schema.type = 'integer'
@@ -231,7 +242,10 @@ function getFieldSchema(column: any) {
 }
 
 // Generate OpenAPI paths for a table
-function generateTablePaths(tableName: string, searchableColumns: Array<{name: string, type: string}> = []) {
+function generateTablePaths(
+  tableName: string,
+  searchableColumns: Array<{ name: string; type: string }> = []
+) {
   return {
     [`/api/data/${tableName}`]: {
       get: {
@@ -242,26 +256,26 @@ function generateTablePaths(tableName: string, searchableColumns: Array<{name: s
             name: 'page',
             in: 'query',
             description: 'Page number',
-            schema: { type: 'integer', default: 1, minimum: 1 }
+            schema: { type: 'integer', default: 1, minimum: 1 },
           },
           {
             name: 'limit',
             in: 'query',
             description: 'Records per page',
-            schema: { type: 'integer', default: 20, minimum: 1, maximum: 100 }
+            schema: { type: 'integer', default: 20, minimum: 1, maximum: 100 },
           },
           {
             name: 'sortBy',
             in: 'query',
             description: 'Field to sort by',
-            schema: { type: 'string', default: 'created_at' }
+            schema: { type: 'string', default: 'created_at' },
           },
           {
             name: 'sortOrder',
             in: 'query',
             description: 'Sort order',
-            schema: { type: 'string', enum: ['asc', 'desc'], default: 'desc' }
-          }
+            schema: { type: 'string', enum: ['asc', 'desc'], default: 'desc' },
+          },
         ],
         responses: {
           '200': {
@@ -273,7 +287,7 @@ function generateTablePaths(tableName: string, searchableColumns: Array<{name: s
                   properties: {
                     data: {
                       type: 'array',
-                      items: { $ref: `#/components/schemas/${tableName}` }
+                      items: { $ref: `#/components/schemas/${tableName}` },
                     },
                     pagination: {
                       type: 'object',
@@ -283,24 +297,24 @@ function generateTablePaths(tableName: string, searchableColumns: Array<{name: s
                         total: { type: 'integer' },
                         totalPages: { type: 'integer' },
                         hasNext: { type: 'boolean' },
-                        hasPrev: { type: 'boolean' }
-                      }
+                        hasPrev: { type: 'boolean' },
+                      },
                     },
                     sort: {
                       type: 'object',
                       properties: {
                         by: { type: 'string' },
-                        order: { type: 'string' }
-                      }
-                    }
-                  }
-                }
-              }
-            }
+                        order: { type: 'string' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
-          '404': { $ref: '#/components/responses/NotFound' }
+          '404': { $ref: '#/components/responses/NotFound' },
         },
-        tags: [tableName]
+        tags: [tableName],
       },
       post: {
         summary: `Create new ${tableName} record`,
@@ -309,9 +323,9 @@ function generateTablePaths(tableName: string, searchableColumns: Array<{name: s
           required: true,
           content: {
             'application/json': {
-              schema: { $ref: `#/components/schemas/${tableName}Input` }
-            }
-          }
+              schema: { $ref: `#/components/schemas/${tableName}Input` },
+            },
+          },
         },
         responses: {
           '201': {
@@ -323,16 +337,16 @@ function generateTablePaths(tableName: string, searchableColumns: Array<{name: s
                   properties: {
                     success: { type: 'boolean' },
                     data: { $ref: `#/components/schemas/${tableName}` },
-                    message: { type: 'string' }
-                  }
-                }
-              }
-            }
+                    message: { type: 'string' },
+                  },
+                },
+              },
+            },
           },
-          '400': { $ref: '#/components/responses/ValidationError' }
+          '400': { $ref: '#/components/responses/ValidationError' },
         },
-        tags: [tableName]
-      }
+        tags: [tableName],
+      },
     },
     [`/api/data/${tableName}/{id}`]: {
       get: {
@@ -344,8 +358,8 @@ function generateTablePaths(tableName: string, searchableColumns: Array<{name: s
             in: 'path',
             required: true,
             description: 'Record ID',
-            schema: { type: 'string' }
-          }
+            schema: { type: 'string' },
+          },
         ],
         responses: {
           '200': {
@@ -355,15 +369,15 @@ function generateTablePaths(tableName: string, searchableColumns: Array<{name: s
                 schema: {
                   type: 'object',
                   properties: {
-                    data: { $ref: `#/components/schemas/${tableName}` }
-                  }
-                }
-              }
-            }
+                    data: { $ref: `#/components/schemas/${tableName}` },
+                  },
+                },
+              },
+            },
           },
-          '404': { $ref: '#/components/responses/NotFound' }
+          '404': { $ref: '#/components/responses/NotFound' },
         },
-        tags: [tableName]
+        tags: [tableName],
       },
       put: {
         summary: `Update ${tableName} record`,
@@ -374,16 +388,16 @@ function generateTablePaths(tableName: string, searchableColumns: Array<{name: s
             in: 'path',
             required: true,
             description: 'Record ID',
-            schema: { type: 'string' }
-          }
+            schema: { type: 'string' },
+          },
         ],
         requestBody: {
           required: true,
           content: {
             'application/json': {
-              schema: { $ref: `#/components/schemas/${tableName}Update` }
-            }
-          }
+              schema: { $ref: `#/components/schemas/${tableName}Update` },
+            },
+          },
         },
         responses: {
           '200': {
@@ -395,16 +409,16 @@ function generateTablePaths(tableName: string, searchableColumns: Array<{name: s
                   properties: {
                     success: { type: 'boolean' },
                     data: { $ref: `#/components/schemas/${tableName}` },
-                    message: { type: 'string' }
-                  }
-                }
-              }
-            }
+                    message: { type: 'string' },
+                  },
+                },
+              },
+            },
           },
           '404': { $ref: '#/components/responses/NotFound' },
-          '400': { $ref: '#/components/responses/ValidationError' }
+          '400': { $ref: '#/components/responses/ValidationError' },
         },
-        tags: [tableName]
+        tags: [tableName],
       },
       delete: {
         summary: `Delete ${tableName} record`,
@@ -415,8 +429,8 @@ function generateTablePaths(tableName: string, searchableColumns: Array<{name: s
             in: 'path',
             required: true,
             description: 'Record ID',
-            schema: { type: 'string' }
-          }
+            schema: { type: 'string' },
+          },
         ],
         responses: {
           '200': {
@@ -427,16 +441,16 @@ function generateTablePaths(tableName: string, searchableColumns: Array<{name: s
                   type: 'object',
                   properties: {
                     success: { type: 'boolean' },
-                    message: { type: 'string' }
-                  }
-                }
-              }
-            }
+                    message: { type: 'string' },
+                  },
+                },
+              },
+            },
           },
-          '404': { $ref: '#/components/responses/NotFound' }
+          '404': { $ref: '#/components/responses/NotFound' },
         },
-        tags: [tableName]
-      }
+        tags: [tableName],
+      },
     },
     [`/api/tables/${tableName}/search`]: {
       get: {
@@ -447,13 +461,17 @@ function generateTablePaths(tableName: string, searchableColumns: Array<{name: s
             name: 'column',
             in: 'query',
             required: true,
-            description: searchableColumns.length > 0 
-              ? `Column name to search. Available columns and their supported operators:\n${searchableColumns.map(col => `- ${col.name} (${col.type}): ${col.type === 'TEXT' ? 'eq, is_null, is_not_null' : 'eq, lt, le, gt, ge, ne, is_null, is_not_null'}`).join('\n')}`
-              : 'Column name to search. No searchable columns available - this table has no indexed columns of TEXT or INTEGER type.',
-            schema: { 
+            description:
+              searchableColumns.length > 0
+                ? `Column name to search. Available columns and their supported operators:\n${searchableColumns.map((col) => `- ${col.name} (${col.type}): ${col.type === 'TEXT' ? 'eq, is_null, is_not_null' : 'eq, lt, le, gt, ge, ne, is_null, is_not_null'}`).join('\n')}`
+                : 'Column name to search. No searchable columns available - this table has no indexed columns of TEXT or INTEGER type.',
+            schema: {
               type: 'string',
-              enum: searchableColumns.length > 0 ? searchableColumns.map(col => col.name) : ['no-columns-available']
-            }
+              enum:
+                searchableColumns.length > 0
+                  ? searchableColumns.map((col) => col.name)
+                  : ['no-columns-available'],
+            },
           },
           {
             name: 'operator',
@@ -462,30 +480,30 @@ function generateTablePaths(tableName: string, searchableColumns: Array<{name: s
             description: 'Search operator',
             schema: {
               type: 'string',
-              enum: ['eq', 'lt', 'le', 'gt', 'ge', 'ne', 'is_null', 'is_not_null']
-            }
+              enum: ['eq', 'lt', 'le', 'gt', 'ge', 'ne', 'is_null', 'is_not_null'],
+            },
           },
           {
             name: 'value',
             in: 'query',
             required: false,
             description: 'Value to search for (required for non-null operators)',
-            schema: { type: 'string' }
+            schema: { type: 'string' },
           },
           {
             name: 'limit',
             in: 'query',
             required: false,
             description: 'Maximum number of results',
-            schema: { type: 'integer', minimum: 1 }
+            schema: { type: 'integer', minimum: 1 },
           },
           {
             name: 'offset',
             in: 'query',
             required: false,
             description: 'Number of records to skip',
-            schema: { type: 'integer', minimum: 0, default: 0 }
-          }
+            schema: { type: 'integer', minimum: 0, default: 0 },
+          },
         ],
         responses: {
           '200': {
@@ -497,7 +515,7 @@ function generateTablePaths(tableName: string, searchableColumns: Array<{name: s
                   properties: {
                     data: {
                       type: 'array',
-                      items: { $ref: `#/components/schemas/${tableName}` }
+                      items: { $ref: `#/components/schemas/${tableName}` },
                     },
                     pagination: {
                       type: 'object',
@@ -505,8 +523,8 @@ function generateTablePaths(tableName: string, searchableColumns: Array<{name: s
                         total: { type: 'integer', description: 'Total matching records' },
                         limit: { type: 'integer', description: 'Limit applied' },
                         offset: { type: 'integer', description: 'Offset applied' },
-                        hasMore: { type: 'boolean', description: 'Whether more results exist' }
-                      }
+                        hasMore: { type: 'boolean', description: 'Whether more results exist' },
+                      },
                     },
                     query: {
                       type: 'object',
@@ -514,13 +532,13 @@ function generateTablePaths(tableName: string, searchableColumns: Array<{name: s
                         table: { type: 'string' },
                         column: { type: 'string' },
                         operator: { type: 'string' },
-                        value: { type: 'string' }
-                      }
-                    }
-                  }
-                }
-              }
-            }
+                        value: { type: 'string' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
           '400': {
             description: 'Search error',
@@ -534,13 +552,13 @@ function generateTablePaths(tableName: string, searchableColumns: Array<{name: s
                       properties: {
                         code: { type: 'string' },
                         message: { type: 'string' },
-                        details: { type: 'object' }
-                      }
-                    }
-                  }
-                }
-              }
-            }
+                        details: { type: 'object' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
           '403': {
             description: 'System table access denied',
@@ -553,41 +571,48 @@ function generateTablePaths(tableName: string, searchableColumns: Array<{name: s
                       type: 'object',
                       properties: {
                         code: { type: 'string' },
-                        message: { type: 'string' }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
+                        message: { type: 'string' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
-        tags: [tableName]
-      }
-    }
+        tags: [tableName],
+      },
+    },
   }
 }
 
 // Generate documentation for a specific table
-async function generateTableDocumentation(table: any, columns: any[], searchableColumns: Array<{name: string, type: string}>, baseUrl: string) {
-  const userColumns = columns.filter(col => !['id', 'created_at', 'updated_at'].includes(col.name))
-  
+async function generateTableDocumentation(
+  table: any,
+  columns: any[],
+  searchableColumns: Array<{ name: string; type: string }>,
+  baseUrl: string
+) {
+  const userColumns = columns.filter(
+    (col) => !['id', 'created_at', 'updated_at'].includes(col.name)
+  )
+
   return {
     table: {
       name: table.name,
       type: table.type,
       rowCount: table.rowCount,
-      sql: table.sql
+      sql: table.sql,
     },
     schema: {
-      columns: columns.map(col => ({
+      columns: columns.map((col) => ({
         name: col.name,
         type: col.type,
         nullable: !col.notnull,
         defaultValue: col.dflt_value,
         primaryKey: !!col.pk,
-        description: getColumnDescription(col)
-      }))
+        description: getColumnDescription(col),
+      })),
     },
     endpoints: {
       list: {
@@ -596,15 +621,23 @@ async function generateTableDocumentation(table: any, columns: any[], searchable
         description: `Get all ${table.name} records with pagination`,
         parameters: [
           { name: 'page', type: 'integer', description: 'Page number (default: 1)' },
-          { name: 'limit', type: 'integer', description: 'Records per page (default: 20, max: 100)' },
+          {
+            name: 'limit',
+            type: 'integer',
+            description: 'Records per page (default: 20, max: 100)',
+          },
           { name: 'sortBy', type: 'string', description: 'Field to sort by (default: created_at)' },
-          { name: 'sortOrder', type: 'string', description: 'Sort order: asc or desc (default: desc)' }
-        ]
+          {
+            name: 'sortOrder',
+            type: 'string',
+            description: 'Sort order: asc or desc (default: desc)',
+          },
+        ],
       },
       get: {
         method: 'GET',
         url: `${baseUrl}/api/data/${table.name}/{id}`,
-        description: `Get a specific ${table.name} record by ID`
+        description: `Get a specific ${table.name} record by ID`,
       },
       create: {
         method: 'POST',
@@ -616,11 +649,11 @@ async function generateTableDocumentation(table: any, columns: any[], searchable
             props[col.name] = {
               type: getSqlTypeMapping(col.type),
               required: !!col.notnull,
-              description: getColumnDescription(col)
+              description: getColumnDescription(col),
             }
             return props
-          }, {})
-        }
+          }, {}),
+        },
       },
       update: {
         method: 'PUT',
@@ -632,53 +665,83 @@ async function generateTableDocumentation(table: any, columns: any[], searchable
             props[col.name] = {
               type: getSqlTypeMapping(col.type),
               required: false,
-              description: getColumnDescription(col)
+              description: getColumnDescription(col),
             }
             return props
-          }, {})
-        }
+          }, {}),
+        },
       },
       delete: {
         method: 'DELETE',
         url: `${baseUrl}/api/data/${table.name}/{id}`,
-        description: `Delete a ${table.name} record`
+        description: `Delete a ${table.name} record`,
       },
       search: {
         method: 'GET',
         url: `${baseUrl}/api/tables/${table.name}/search`,
         description: `Search ${table.name} records by indexed column values`,
         parameters: [
-          { name: 'column', type: 'string', required: true, description: searchableColumns.length > 0 ? `Column to search (${searchableColumns.map(col => `${col.name}:${col.type}`).join(', ')})` : 'Column to search (no indexed columns available)' },
-          { name: 'operator', type: 'string', required: true, description: 'Search operator (eq, lt, le, gt, ge, ne, is_null, is_not_null)' },
-          { name: 'value', type: 'string', required: false, description: 'Value to search for (required for non-null operators)' },
-          { name: 'limit', type: 'integer', required: false, description: 'Maximum number of results' },
-          { name: 'offset', type: 'integer', required: false, description: 'Number of records to skip (default: 0)' }
-        ]
-      }
+          {
+            name: 'column',
+            type: 'string',
+            required: true,
+            description:
+              searchableColumns.length > 0
+                ? `Column to search (${searchableColumns.map((col) => `${col.name}:${col.type}`).join(', ')})`
+                : 'Column to search (no indexed columns available)',
+          },
+          {
+            name: 'operator',
+            type: 'string',
+            required: true,
+            description: 'Search operator (eq, lt, le, gt, ge, ne, is_null, is_not_null)',
+          },
+          {
+            name: 'value',
+            type: 'string',
+            required: false,
+            description: 'Value to search for (required for non-null operators)',
+          },
+          {
+            name: 'limit',
+            type: 'integer',
+            required: false,
+            description: 'Maximum number of results',
+          },
+          {
+            name: 'offset',
+            type: 'integer',
+            required: false,
+            description: 'Number of records to skip (default: 0)',
+          },
+        ],
+      },
     },
-    searchableColumns: searchableColumns.map(col => ({
+    searchableColumns: searchableColumns.map((col) => ({
       name: col.name,
       type: col.type,
       description: `${col.type} column with database index`,
-      supportedOperators: col.type === 'TEXT' 
-        ? ['eq', 'is_null', 'is_not_null']
-        : ['eq', 'lt', 'le', 'gt', 'ge', 'ne', 'is_null', 'is_not_null']
+      supportedOperators:
+        col.type === 'TEXT'
+          ? ['eq', 'is_null', 'is_not_null']
+          : ['eq', 'lt', 'le', 'gt', 'ge', 'ne', 'is_null', 'is_not_null'],
     })),
     examples: {
       create: generateExampleBody(userColumns),
       update: generateExampleBody(userColumns, true),
       search: {
-        textSearch: searchableColumns.find(col => col.type === 'TEXT') 
-          ? `${baseUrl}/api/tables/${table.name}/search?column=${searchableColumns.find(col => col.type === 'TEXT')?.name}&operator=eq&value=example`
+        textSearch: searchableColumns.find((col) => col.type === 'TEXT')
+          ? `${baseUrl}/api/tables/${table.name}/search?column=${searchableColumns.find((col) => col.type === 'TEXT')?.name}&operator=eq&value=example`
           : null,
-        integerSearch: searchableColumns.find(col => col.type === 'INTEGER')
-          ? `${baseUrl}/api/tables/${table.name}/search?column=${searchableColumns.find(col => col.type === 'INTEGER')?.name}&operator=gt&value=100&limit=50`
+        integerSearch: searchableColumns.find((col) => col.type === 'INTEGER')
+          ? `${baseUrl}/api/tables/${table.name}/search?column=${searchableColumns.find((col) => col.type === 'INTEGER')?.name}&operator=gt&value=100&limit=50`
           : null,
-        nullSearch: searchableColumns.length > 0
-          ? `${baseUrl}/api/tables/${table.name}/search?column=${searchableColumns[0].name}&operator=is_null`
-          : null
-      }
-    }
+        nullSearch:
+          searchableColumns.length > 0
+            ? `${baseUrl}/api/tables/${table.name}/search?column=${searchableColumns[0].name}&operator=is_null`
+            : null,
+      },
+    },
   }
 }
 
@@ -692,22 +755,26 @@ function getColumnDescription(column: any): string {
 function getSqlTypeMapping(sqlType: string): string {
   const type = sqlType.toUpperCase()
   switch (type) {
-    case 'INTEGER': return 'integer'
-    case 'REAL': return 'number'
-    case 'BOOLEAN': return 'boolean'
-    default: return 'string'
+    case 'INTEGER':
+      return 'integer'
+    case 'REAL':
+      return 'number'
+    case 'BOOLEAN':
+      return 'boolean'
+    default:
+      return 'string'
   }
 }
 
 function generateExampleBody(columns: any[], isUpdate = false): any {
   const example: any = {}
-  
+
   for (const col of columns) {
     const type = col.type.toUpperCase()
-    
+
     // Skip required fields for update examples
     if (isUpdate && col.notnull && !col.dflt_value) continue
-    
+
     switch (type) {
       case 'INTEGER':
         example[col.name] = 123
@@ -725,7 +792,7 @@ function generateExampleBody(columns: any[], isUpdate = false): any {
         example[col.name] = `example_${col.name}`
     }
   }
-  
+
   return example
 }
 

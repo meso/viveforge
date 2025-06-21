@@ -1,6 +1,6 @@
+import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { zValidator } from '@hono/zod-validator'
 import { Database } from '../lib/database'
 import type { Env, Variables } from '../types'
 
@@ -9,15 +9,15 @@ export const api = new Hono<{ Bindings: Env; Variables: Variables }>()
 // Health check
 api.get('/health', (c) => {
   const baseUrl = new URL(c.req.url).origin
-  return c.json({ 
-    status: 'healthy', 
+  return c.json({
+    status: 'healthy',
     timestamp: new Date().toISOString(),
     database: c.env.DB ? 'connected' : 'not configured',
     documentation: {
       swagger: `${baseUrl}/api/docs/swagger`,
       openapi: `${baseUrl}/api/docs/openapi.json`,
-      tables: `${baseUrl}/api/docs/tables`
-    }
+      tables: `${baseUrl}/api/docs/tables`,
+    },
   })
 })
 
@@ -44,13 +44,13 @@ api.post('/items', zValidator('json', createItemSchema), async (c) => {
   try {
     const data = c.req.valid('json')
     const userId = c.get('userId') // Will be from app users, not admins
-    
+
     const item = await db.createItem({
       name: data.name,
       description: data.description,
       userId,
     })
-    
+
     return c.json(item, 201)
   } catch (error) {
     console.error('Error creating item:', error)
@@ -69,9 +69,9 @@ api.get('/items', async (c) => {
     const pageSize = Number(c.req.query('pageSize') || '20')
     const offset = (page - 1) * pageSize
     const userId = c.get('userId') // Will be from app users, not admins
-    
+
     const result = await db.getItems(userId, pageSize, offset)
-    
+
     return c.json({
       ...result,
       page,
@@ -92,11 +92,11 @@ api.get('/items/:id', async (c) => {
   try {
     const id = c.req.param('id')
     const item = await db.getItemById(id)
-    
+
     if (!item) {
       return c.json({ error: 'Item not found' }, 404)
     }
-    
+
     return c.json(item)
   } catch (error) {
     console.error('Error fetching item:', error)
@@ -113,16 +113,16 @@ api.put('/items/:id', zValidator('json', createItemSchema), async (c) => {
   try {
     const id = c.req.param('id')
     const data = c.req.valid('json')
-    
+
     const item = await db.updateItem(id, {
       name: data.name,
       description: data.description,
     })
-    
+
     if (!item) {
       return c.json({ error: 'Item not found' }, 404)
     }
-    
+
     return c.json(item)
   } catch (error) {
     console.error('Error updating item:', error)
@@ -139,11 +139,10 @@ api.delete('/items/:id', async (c) => {
   try {
     const id = c.req.param('id')
     const result = await db.deleteItem(id)
-    
+
     return c.json(result)
   } catch (error) {
     console.error('Error deleting item:', error)
     return c.json({ error: 'Failed to delete item' }, 500)
   }
 })
-

@@ -1,29 +1,49 @@
-import { SchemaSnapshotManager } from './schema-snapshot'
-import { SchemaManager } from './schema-manager'
-import { DataManager } from './data-manager'
-import { IndexManager } from './index-manager'
-import { ErrorHandler } from './error-handler'
-import { validateAndEscapeTableName, validateAndEscapeColumnName, validateNotSystemTable } from './sql-utils'
-import type { ColumnDefinition, ColumnInfo } from './schema-manager'
-import type { IndexInfo } from './index-manager'
-import type { TableInfo, CountResult, IndexColumnInfo } from '../types/database'
-import type { 
-  D1Database, 
-  R2Bucket, 
+import type {
+  D1Database,
   ExecutionContext,
-  ValidationResult,
-  SnapshotListResult,
   OperationResult,
-  TableDataResult
+  R2Bucket,
+  SnapshotListResult,
+  TableDataResult,
+  ValidationResult,
 } from '../types/cloudflare'
+import type { CountResult, IndexColumnInfo, TableInfo } from '../types/database'
+import { DataManager } from './data-manager'
+import { ErrorHandler } from './error-handler'
+import type { IndexInfo } from './index-manager'
+import { IndexManager } from './index-manager'
+import type { ColumnDefinition, ColumnInfo } from './schema-manager'
+import { SchemaManager } from './schema-manager'
+import { SchemaSnapshotManager } from './schema-snapshot'
+import {
+  validateAndEscapeColumnName,
+  validateAndEscapeTableName,
+  validateNotSystemTable,
+} from './sql-utils'
 
 interface TableManagerEnvironment {
   REALTIME?: any
 }
 
 // System tables that cannot be modified by users
-export const SYSTEM_TABLES = ['admins', 'sessions', 'schema_snapshots', 'schema_snapshot_counter', 'd1_migrations', 'api_keys', 'user_sessions', 'oauth_providers', 'app_settings', 'table_policies', 'hooks', 'event_queue', 'realtime_subscriptions', 'custom_queries', 'custom_query_logs'] as const
-type SystemTable = typeof SYSTEM_TABLES[number]
+export const SYSTEM_TABLES = [
+  'admins',
+  'sessions',
+  'schema_snapshots',
+  'schema_snapshot_counter',
+  'd1_migrations',
+  'api_keys',
+  'user_sessions',
+  'oauth_providers',
+  'app_settings',
+  'table_policies',
+  'hooks',
+  'event_queue',
+  'realtime_subscriptions',
+  'custom_queries',
+  'custom_query_logs',
+] as const
+type SystemTable = (typeof SYSTEM_TABLES)[number]
 
 export interface LocalTableInfo {
   name: string
@@ -33,66 +53,75 @@ export interface LocalTableInfo {
   access_policy?: 'public' | 'private'
 }
 
-
 export class TableManager {
   private snapshotManager: SchemaSnapshotManager
   private schemaManager: SchemaManager
   private dataManager: DataManager
   private indexManager: IndexManager
   private errorHandler: ErrorHandler
-  
+
   constructor(
-    private db: D1Database, 
-    private systemStorage?: R2Bucket, 
+    private db: D1Database,
+    private systemStorage?: R2Bucket,
     private executionCtx?: any,
     private env?: TableManagerEnvironment
   ) {
     this.errorHandler = ErrorHandler.getInstance()
     // Only initialize snapshotManager if R2 is available
     this.snapshotManager = new SchemaSnapshotManager(db, systemStorage)
-    this.schemaManager = new SchemaManager(db, this.snapshotManager, this.createAsyncSnapshot.bind(this))
+    this.schemaManager = new SchemaManager(
+      db,
+      this.snapshotManager,
+      this.createAsyncSnapshot.bind(this)
+    )
     this.dataManager = new DataManager(db, env, executionCtx)
     this.indexManager = new IndexManager(db, this.createAsyncSnapshot.bind(this))
   }
 
   private async enableForeignKeys(): Promise<void> {
-    return this.errorHandler.handleOperation(
-      async () => {
-        await this.db.prepare('PRAGMA foreign_keys = ON').run()
-      },
-      { operationName: 'enableForeignKeys' }
-    ).catch((error) => {
-      // Log warning but don't throw - this is non-critical
-      this.errorHandler.handleStorageWarning('enableForeignKeys', error)
-    })
+    return this.errorHandler
+      .handleOperation(
+        async () => {
+          await this.db.prepare('PRAGMA foreign_keys = ON').run()
+        },
+        { operationName: 'enableForeignKeys' }
+      )
+      .catch((error) => {
+        // Log warning but don't throw - this is non-critical
+        this.errorHandler.handleStorageWarning('enableForeignKeys', error)
+      })
   }
 
   private async disableForeignKeys(): Promise<void> {
-    return this.errorHandler.handleOperation(
-      async () => {
-        await this.db.prepare('PRAGMA foreign_keys = OFF').run()
-      },
-      { operationName: 'disableForeignKeys' }
-    ).catch((error) => {
-      // Log warning but don't throw - this is non-critical
-      this.errorHandler.handleStorageWarning('disableForeignKeys', error)
-    })
+    return this.errorHandler
+      .handleOperation(
+        async () => {
+          await this.db.prepare('PRAGMA foreign_keys = OFF').run()
+        },
+        { operationName: 'disableForeignKeys' }
+      )
+      .catch((error) => {
+        // Log warning but don't throw - this is non-critical
+        this.errorHandler.handleStorageWarning('disableForeignKeys', error)
+      })
   }
 
   // Get all tables with their types
   async getTables(): Promise<LocalTableInfo[]> {
     await this.enableForeignKeys()
     const result = await this.db
-      .prepare("SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name != '_cf_KV'")
+      .prepare(
+        "SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name != '_cf_KV'"
+      )
       .all()
 
     const tables: LocalTableInfo[] = []
-    
+
     for (const row of result.results) {
       const tableRow = row as TableInfo
       const name = tableRow.name
       const isSystem = SYSTEM_TABLES.includes(name as SystemTable)
-      
+
       // Get row count for each table
       let rowCount = 0
       try {
@@ -103,7 +132,7 @@ export class TableManager {
       } catch (e) {
         this.errorHandler.handleStorageWarning(`getRowCountFor${name}`, e)
       }
-      
+
       // Get access policy for user tables
       let access_policy: 'public' | 'private' | undefined = undefined
       if (!isSystem) {
@@ -118,13 +147,13 @@ export class TableManager {
           access_policy = 'public'
         }
       }
-      
+
       tables.push({
         name,
         type: isSystem ? 'system' : 'user',
         sql: tableRow.sql,
         rowCount,
-        access_policy
+        access_policy,
       })
     }
 
@@ -193,10 +222,10 @@ export class TableManager {
 
   // Get data from table with custom sorting
   async getTableDataWithSort(
-    tableName: string, 
-    limit = 100, 
-    offset = 0, 
-    sortBy?: string, 
+    tableName: string,
+    limit = 100,
+    offset = 0,
+    sortBy?: string,
     sortOrder: 'ASC' | 'DESC' = 'DESC'
   ): Promise<TableDataResult> {
     return this.dataManager.getTableDataWithSort(tableName, limit, offset, sortBy, sortOrder)
@@ -213,7 +242,7 @@ export class TableManager {
   ): Promise<TableDataResult> {
     // Get access policy for the table
     const accessPolicy = await this.getTableAccessPolicy(tableName)
-    
+
     return this.dataManager.getTableDataWithAccessControl(
       tableName,
       accessPolicy,
@@ -232,19 +261,14 @@ export class TableManager {
 
   // Get single record by ID with access control
   async getRecordByIdWithAccessControl(
-    tableName: string, 
-    id: string, 
+    tableName: string,
+    id: string,
     userId?: string
   ): Promise<Record<string, any> | null> {
     // Get access policy for the table
     const accessPolicy = await this.getTableAccessPolicy(tableName)
-    
-    return this.dataManager.getRecordByIdWithAccessControl(
-      tableName,
-      id,
-      accessPolicy,
-      userId
-    )
+
+    return this.dataManager.getRecordByIdWithAccessControl(tableName, id, accessPolicy, userId)
   }
 
   // Create record and return the generated ID
@@ -254,26 +278,20 @@ export class TableManager {
 
   // Create record with access control (auto-set owner_id for private tables)
   async createRecordWithAccessControl(
-    tableName: string, 
+    tableName: string,
     data: Record<string, any>,
     userId?: string
   ): Promise<string> {
     // Get access policy for the table
     const accessPolicy = await this.getTableAccessPolicy(tableName)
-    
-    return this.dataManager.createRecordWithAccessControl(
-      tableName,
-      data,
-      accessPolicy,
-      userId
-    )
+
+    return this.dataManager.createRecordWithAccessControl(tableName, data, accessPolicy, userId)
   }
 
   // Update record
   async updateRecord(tableName: string, id: string, data: Record<string, any>): Promise<void> {
     return this.dataManager.updateRecord(tableName, id, data)
   }
-
 
   // Add column to existing table
   async addColumn(
@@ -286,7 +304,7 @@ export class TableManager {
     }
   ): Promise<void> {
     await this.enableForeignKeys()
-    
+
     // Validate table name and column name
     this.errorHandler.validateSystemTable(tableName)
     this.errorHandler.validateNameFormat(column.name, 'column')
@@ -300,9 +318,9 @@ export class TableManager {
     // Create pre-change snapshot asynchronously
     this.createAsyncSnapshot({
       description: `Before adding column ${column.name} to ${tableName}`,
-      snapshotType: 'pre_change'
+      snapshotType: 'pre_change',
     })
-    
+
     console.log('Adding column with SQL:', alterSQL)
     await this.db.prepare(alterSQL).run()
 
@@ -319,11 +337,11 @@ export class TableManager {
     foreignKey: { table: string; column: string }
   ): Promise<void> {
     // Get current table schema
-    const tableInfo = await this.db
+    const tableInfo = (await this.db
       .prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name=?`)
       .bind(tableName)
-      .first() as TableInfo | null
-    
+      .first()) as TableInfo | null
+
     if (!tableInfo) {
       this.errorHandler.handleNotFound('Table', tableName)
       return
@@ -332,18 +350,27 @@ export class TableManager {
     // Create temp table with new foreign key
     const tempTableName = `${tableName}_temp_${Date.now()}`
     const originalSQL = tableInfo.sql
-    
+
     // Parse and modify the CREATE TABLE statement to add foreign key
-    const modifiedSQL = this.addForeignKeyToCreateStatement(originalSQL, columnName, foreignKey, tempTableName)
-    
+    const modifiedSQL = this.addForeignKeyToCreateStatement(
+      originalSQL,
+      columnName,
+      foreignKey,
+      tempTableName
+    )
+
     // Use batch operation for atomic transaction
     const statements = [
       this.db.prepare(modifiedSQL),
-      this.db.prepare(`INSERT INTO ${validateAndEscapeTableName(tempTableName)} SELECT * FROM ${validateAndEscapeTableName(tableName)}`),
+      this.db.prepare(
+        `INSERT INTO ${validateAndEscapeTableName(tempTableName)} SELECT * FROM ${validateAndEscapeTableName(tableName)}`
+      ),
       this.db.prepare(`DROP TABLE ${validateAndEscapeTableName(tableName)}`),
-      this.db.prepare(`ALTER TABLE ${validateAndEscapeTableName(tempTableName)} RENAME TO ${validateAndEscapeTableName(tableName)}`)
+      this.db.prepare(
+        `ALTER TABLE ${validateAndEscapeTableName(tempTableName)} RENAME TO ${validateAndEscapeTableName(tableName)}`
+      ),
     ]
-    
+
     await this.db.batch(statements)
   }
 
@@ -355,29 +382,32 @@ export class TableManager {
     newTableName: string
   ): string {
     // Replace table name
-    let modifiedSQL = sql.replace(/CREATE TABLE\s+(\w+)/i, `CREATE TABLE ${validateAndEscapeTableName(newTableName)}`)
-    
+    let modifiedSQL = sql.replace(
+      /CREATE TABLE\s+(\w+)/i,
+      `CREATE TABLE ${validateAndEscapeTableName(newTableName)}`
+    )
+
     // Find the closing parenthesis and add foreign key before it
     const lastParen = modifiedSQL.lastIndexOf(')')
     const fkConstraint = `, FOREIGN KEY (${validateAndEscapeColumnName(columnName)}) REFERENCES ${validateAndEscapeTableName(foreignKey.table)}(${validateAndEscapeColumnName(foreignKey.column)})`
-    
+
     modifiedSQL = modifiedSQL.slice(0, lastParen) + fkConstraint + modifiedSQL.slice(lastParen)
-    
+
     return modifiedSQL
   }
 
   // Rename column (requires table recreation in SQLite)
   async renameColumn(tableName: string, oldName: string, newName: string): Promise<void> {
     await this.enableForeignKeys()
-    
+
     this.errorHandler.validateSystemTable(tableName)
 
     // Create pre-change snapshot asynchronously
     this.createAsyncSnapshot({
       description: `Before renaming column ${oldName} to ${newName} in ${tableName}`,
-      snapshotType: 'pre_change'
+      snapshotType: 'pre_change',
     })
-    
+
     // SQLite 3.25.0+ supports ALTER TABLE RENAME COLUMN
     const sql = `ALTER TABLE ${validateAndEscapeTableName(tableName)} RENAME COLUMN ${validateAndEscapeColumnName(oldName)} TO ${validateAndEscapeColumnName(newName)}`
     console.log('Renaming column with SQL:', sql)
@@ -387,15 +417,15 @@ export class TableManager {
   // Drop column (requires table recreation in SQLite)
   async dropColumn(tableName: string, columnName: string): Promise<void> {
     await this.enableForeignKeys()
-    
+
     this.errorHandler.validateSystemTable(tableName)
 
     // Create pre-change snapshot asynchronously
     this.createAsyncSnapshot({
       description: `Before dropping column ${columnName} from ${tableName}`,
-      snapshotType: 'pre_change'
+      snapshotType: 'pre_change',
     })
-    
+
     // SQLite 3.35.0+ supports ALTER TABLE DROP COLUMN
     const sql = `ALTER TABLE ${validateAndEscapeTableName(tableName)} DROP COLUMN ${validateAndEscapeColumnName(columnName)}`
     console.log('Dropping column with SQL:', sql)
@@ -409,7 +439,7 @@ export class TableManager {
     foreignKey: { table: string; column: string }
   ): Promise<void> {
     await this.enableForeignKeys()
-    
+
     this.errorHandler.validateSystemTable(tableName)
 
     // In SQLite, we need to recreate the table to add foreign key constraints
@@ -432,12 +462,16 @@ export class TableManager {
     // Check for NOT NULL constraint violations
     if (changes.notNull === true) {
       const nullCheckResult = await this.db
-        .prepare(`SELECT COUNT(*) as count FROM ${validateAndEscapeTableName(tableName)} WHERE ${validateAndEscapeColumnName(columnName)} IS NULL`)
+        .prepare(
+          `SELECT COUNT(*) as count FROM ${validateAndEscapeTableName(tableName)} WHERE ${validateAndEscapeColumnName(columnName)} IS NULL`
+        )
         .first()
-      
+
       const nullCount = (nullCheckResult as CountResult)?.count || 0
       if (nullCount > 0) {
-        errors.push(`Cannot add NOT NULL constraint: ${nullCount} rows have NULL values in column '${columnName}'`)
+        errors.push(
+          `Cannot add NOT NULL constraint: ${nullCount} rows have NULL values in column '${columnName}'`
+        )
         conflictingRows += nullCount
       }
     }
@@ -455,10 +489,12 @@ export class TableManager {
           )
         `)
         .first()
-      
+
       const fkViolationCount = (fkCheckResult as CountResult)?.count || 0
       if (fkViolationCount > 0) {
-        errors.push(`Cannot add foreign key constraint: ${fkViolationCount} rows reference non-existent values in '${changes.foreignKey.table}.${changes.foreignKey.column}'`)
+        errors.push(
+          `Cannot add foreign key constraint: ${fkViolationCount} rows reference non-existent values in '${changes.foreignKey.table}.${changes.foreignKey.column}'`
+        )
         conflictingRows += fkViolationCount
       }
     }
@@ -468,7 +504,7 @@ export class TableManager {
       const currentColumn = await this.db
         .prepare(`PRAGMA table_info(${validateAndEscapeTableName(tableName)})`)
         .all()
-      
+
       const column = currentColumn.results.find((col: any) => col.name === columnName)
       if (column && (column as any).type !== changes.type) {
         // Check if data can be safely converted
@@ -483,10 +519,12 @@ export class TableManager {
               AND ${validateAndEscapeColumnName(columnName)} != 0
             `)
             .first()
-          
+
           const invalidCount = (invalidIntegerResult as CountResult)?.count || 0
           if (invalidCount > 0) {
-            errors.push(`Cannot convert to INTEGER: ${invalidCount} rows contain non-numeric values in column '${columnName}'`)
+            errors.push(
+              `Cannot convert to INTEGER: ${invalidCount} rows contain non-numeric values in column '${columnName}'`
+            )
             conflictingRows += invalidCount
           }
         } else if (changes.type === 'REAL') {
@@ -502,10 +540,12 @@ export class TableManager {
               AND ${validateAndEscapeColumnName(columnName)} != 0.0
             `)
             .first()
-          
+
           const invalidCount = (invalidRealResult as CountResult)?.count || 0
           if (invalidCount > 0) {
-            errors.push(`Cannot convert to REAL: ${invalidCount} rows contain non-numeric values in column '${columnName}'`)
+            errors.push(
+              `Cannot convert to REAL: ${invalidCount} rows contain non-numeric values in column '${columnName}'`
+            )
             conflictingRows += invalidCount
           }
         }
@@ -515,7 +555,7 @@ export class TableManager {
     return {
       valid: errors.length === 0,
       errors,
-      conflictingRows
+      conflictingRows,
     }
   }
 
@@ -530,7 +570,7 @@ export class TableManager {
     }
   ): Promise<void> {
     await this.enableForeignKeys()
-    
+
     this.errorHandler.validateSystemTable(tableName)
 
     // Validate changes before proceeding
@@ -540,11 +580,11 @@ export class TableManager {
     }
 
     // Get current table schema
-    const tableInfo = await this.db
+    const tableInfo = (await this.db
       .prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name=?`)
       .bind(tableName)
-      .first() as TableInfo | null
-    
+      .first()) as TableInfo | null
+
     if (!tableInfo) {
       this.errorHandler.handleNotFound('Table', tableName)
       return
@@ -552,8 +592,8 @@ export class TableManager {
 
     // Get current column info
     const columns = await this.getTableColumns(tableName)
-    const currentColumn = columns.find(col => col.name === columnName)
-    
+    const currentColumn = columns.find((col) => col.name === columnName)
+
     if (!currentColumn) {
       this.errorHandler.handleNotFound('Column', `${columnName} in table ${tableName}`)
       return
@@ -568,25 +608,29 @@ export class TableManager {
       tempTableName,
       columns
     )
-    
+
     console.log('Original SQL:', tableInfo.sql)
     console.log('Modified SQL:', modifiedSQL)
     console.log('Temp table name:', tempTableName)
-    
+
     // Create pre-change snapshot asynchronously
     this.createAsyncSnapshot({
       description: `Before modifying column ${columnName} in ${tableName}`,
-      snapshotType: 'pre_change'
+      snapshotType: 'pre_change',
     })
-    
+
     // Use batch operation for atomic transaction
     const statements = [
       this.db.prepare(modifiedSQL),
-      this.db.prepare(`INSERT INTO ${validateAndEscapeTableName(tempTableName)} SELECT * FROM ${validateAndEscapeTableName(tableName)}`),
+      this.db.prepare(
+        `INSERT INTO ${validateAndEscapeTableName(tempTableName)} SELECT * FROM ${validateAndEscapeTableName(tableName)}`
+      ),
       this.db.prepare(`DROP TABLE ${validateAndEscapeTableName(tableName)}`),
-      this.db.prepare(`ALTER TABLE ${validateAndEscapeTableName(tempTableName)} RENAME TO ${validateAndEscapeTableName(tableName)}`)
+      this.db.prepare(
+        `ALTER TABLE ${validateAndEscapeTableName(tempTableName)} RENAME TO ${validateAndEscapeTableName(tableName)}`
+      ),
     ]
-    
+
     await this.db.batch(statements)
   }
 
@@ -603,86 +647,94 @@ export class TableManager {
     columns: ColumnInfo[]
   ): string {
     // Always rebuild the entire CREATE statement to avoid parsing issues
-    const columnDefs = columns.map(col => {
-      if (col.name === columnName) {
-        // Apply changes to this column
-        let def = `${validateAndEscapeColumnName(col.name)} ${changes.type || col.type}`
-        const shouldBeNotNull = changes.notNull !== undefined ? changes.notNull : (col.notnull === 1)
-        if (col.pk) def += ' PRIMARY KEY'
-        if (col.dflt_value !== null && col.dflt_value !== undefined) {
-          // Handle different default value types
-          if (typeof col.dflt_value === 'string') {
-            if (col.dflt_value === 'CURRENT_TIMESTAMP' || col.dflt_value === 'NULL') {
-              // Simple SQL keywords
-              def += ` DEFAULT ${col.dflt_value}`
-            } else if (col.dflt_value.includes('(')) {
-              // Complex function call - wrap in parentheses for SQLite
-              def += ` DEFAULT (${col.dflt_value})`
+    const columnDefs = columns
+      .map((col) => {
+        if (col.name === columnName) {
+          // Apply changes to this column
+          let def = `${validateAndEscapeColumnName(col.name)} ${changes.type || col.type}`
+          const shouldBeNotNull =
+            changes.notNull !== undefined ? changes.notNull : col.notnull === 1
+          if (col.pk) def += ' PRIMARY KEY'
+          if (col.dflt_value !== null && col.dflt_value !== undefined) {
+            // Handle different default value types
+            if (typeof col.dflt_value === 'string') {
+              if (col.dflt_value === 'CURRENT_TIMESTAMP' || col.dflt_value === 'NULL') {
+                // Simple SQL keywords
+                def += ` DEFAULT ${col.dflt_value}`
+              } else if (col.dflt_value.includes('(')) {
+                // Complex function call - wrap in parentheses for SQLite
+                def += ` DEFAULT (${col.dflt_value})`
+              } else {
+                // String literal
+                def += ` DEFAULT '${col.dflt_value}'`
+              }
             } else {
-              // String literal
-              def += ` DEFAULT '${col.dflt_value}'`
-            }
-          } else {
-            def += ` DEFAULT ${col.dflt_value}`
-          }
-        }
-        if (shouldBeNotNull) def += ' NOT NULL'
-        return def
-      } else {
-        // Keep existing column definition
-        let def = `${validateAndEscapeColumnName(col.name)} ${col.type}`
-        if (col.pk) def += ' PRIMARY KEY'
-        if (col.dflt_value !== null && col.dflt_value !== undefined) {
-          // Handle different default value types
-          if (typeof col.dflt_value === 'string') {
-            if (col.dflt_value === 'CURRENT_TIMESTAMP' || col.dflt_value === 'NULL') {
-              // Simple SQL keywords
               def += ` DEFAULT ${col.dflt_value}`
-            } else if (col.dflt_value.includes('(')) {
-              // Complex function call - wrap in parentheses for SQLite
-              def += ` DEFAULT (${col.dflt_value})`
-            } else {
-              // String literal
-              def += ` DEFAULT '${col.dflt_value}'`
             }
-          } else {
-            def += ` DEFAULT ${col.dflt_value}`
           }
+          if (shouldBeNotNull) def += ' NOT NULL'
+          return def
+        } else {
+          // Keep existing column definition
+          let def = `${validateAndEscapeColumnName(col.name)} ${col.type}`
+          if (col.pk) def += ' PRIMARY KEY'
+          if (col.dflt_value !== null && col.dflt_value !== undefined) {
+            // Handle different default value types
+            if (typeof col.dflt_value === 'string') {
+              if (col.dflt_value === 'CURRENT_TIMESTAMP' || col.dflt_value === 'NULL') {
+                // Simple SQL keywords
+                def += ` DEFAULT ${col.dflt_value}`
+              } else if (col.dflt_value.includes('(')) {
+                // Complex function call - wrap in parentheses for SQLite
+                def += ` DEFAULT (${col.dflt_value})`
+              } else {
+                // String literal
+                def += ` DEFAULT '${col.dflt_value}'`
+              }
+            } else {
+              def += ` DEFAULT ${col.dflt_value}`
+            }
+          }
+          if (col.notnull) def += ' NOT NULL'
+          return def
         }
-        if (col.notnull) def += ' NOT NULL'
-        return def
-      }
-    }).join(', ')
-    
+      })
+      .join(', ')
+
     // Build foreign key constraints array
     const foreignKeys: string[] = []
-    
+
     // Add new foreign key if specified
     if (changes.foreignKey) {
-      foreignKeys.push(`FOREIGN KEY (${validateAndEscapeColumnName(columnName)}) REFERENCES ${validateAndEscapeTableName(changes.foreignKey.table)}(${validateAndEscapeColumnName(changes.foreignKey.column)})`)
+      foreignKeys.push(
+        `FOREIGN KEY (${validateAndEscapeColumnName(columnName)}) REFERENCES ${validateAndEscapeTableName(changes.foreignKey.table)}(${validateAndEscapeColumnName(changes.foreignKey.column)})`
+      )
     }
-    
+
     // Extract existing foreign keys from original SQL (simple approach)
     // Look for patterns like: FOREIGN KEY (column) REFERENCES table(column)
-    const originalFkRegex = /FOREIGN KEY\s*\(\s*"?([^)"]+)"?\s*\)\s*REFERENCES\s+"?([^"(]+)"?\s*\(\s*"?([^)"]+)"?\s*\)/gi
+    const originalFkRegex =
+      /FOREIGN KEY\s*\(\s*"?([^)"]+)"?\s*\)\s*REFERENCES\s+"?([^"(]+)"?\s*\(\s*"?([^)"]+)"?\s*\)/gi
     let match
     while ((match = originalFkRegex.exec(sql)) !== null) {
       const [fullMatch, fkColumn, refTable, refColumn] = match
       // Only keep if it's not the column we're modifying
       if (fkColumn !== columnName) {
-        foreignKeys.push(`FOREIGN KEY (${validateAndEscapeColumnName(fkColumn)}) REFERENCES ${validateAndEscapeTableName(refTable)}(${validateAndEscapeColumnName(refColumn)})`)
+        foreignKeys.push(
+          `FOREIGN KEY (${validateAndEscapeColumnName(fkColumn)}) REFERENCES ${validateAndEscapeTableName(refTable)}(${validateAndEscapeColumnName(refColumn)})`
+        )
       }
     }
-    
+
     // If removing foreign key constraint for this column, don't add it back
     if (changes.foreignKey === null) {
       // Already handled by not including it above
     }
-    
+
     // Build final SQL
     const fkClause = foreignKeys.length > 0 ? `, ${foreignKeys.join(', ')}` : ''
     const modifiedSQL = `CREATE TABLE ${validateAndEscapeTableName(newTableName)} (${columnDefs}${fkClause})`
-    
+
     return modifiedSQL
   }
 
@@ -690,7 +742,7 @@ export class TableManager {
   async executeSQL(sql: string, params: any[] = []): Promise<{ results: Record<string, any>[] }> {
     // Basic SQL injection prevention
     const normalizedSQL = sql.trim().toUpperCase()
-    
+
     // Only allow SELECT for now
     if (!normalizedSQL.startsWith('SELECT')) {
       this.errorHandler.handleUnsafeSQL(sql)
@@ -704,7 +756,10 @@ export class TableManager {
           message: `Cannot query system table: ${systemTable}`,
           userMessage: `Querying system table "${systemTable}" is not allowed for security reasons.`,
           context: { tableName: systemTable, operation: 'sql_query' },
-          suggestions: ['Query only user-created tables', 'Use the specific table operations instead']
+          suggestions: [
+            'Query only user-created tables',
+            'Use the specific table operations instead',
+          ],
         })
       }
     }
@@ -715,31 +770,33 @@ export class TableManager {
       .all()
 
     return {
-      results: result.results as Record<string, unknown>[]
+      results: result.results as Record<string, unknown>[],
     }
   }
-  
+
   // Schema snapshot management
-  async createSnapshot(options: {
-    name?: string
-    description?: string
-    createdBy?: string
-    snapshotType?: 'manual' | 'auto' | 'pre_change'
-  } = {}): Promise<string> {
+  async createSnapshot(
+    options: {
+      name?: string
+      description?: string
+      createdBy?: string
+      snapshotType?: 'manual' | 'auto' | 'pre_change'
+    } = {}
+  ): Promise<string> {
     return this.snapshotManager.createSnapshot({
       snapshotType: 'manual',
-      ...options
+      ...options,
     })
   }
-  
+
   async getSnapshots(limit = 20, offset = 0): Promise<SnapshotListResult> {
     return this.snapshotManager.getSnapshots(limit, offset)
   }
-  
+
   async getSnapshot(id: string): Promise<Record<string, any> | null> {
     return this.snapshotManager.getSnapshot(id)
   }
-  
+
   // Access policy management
   async getTableAccessPolicy(tableName: string): Promise<'public' | 'private'> {
     try {
@@ -753,33 +810,38 @@ export class TableManager {
       return 'public'
     }
   }
-  
+
   async setTableAccessPolicy(tableName: string, policy: 'public' | 'private'): Promise<void> {
     // Ensure table_policies table exists
-    await this.db.prepare(`
+    await this.db
+      .prepare(`
       CREATE TABLE IF NOT EXISTS table_policies (
         table_name TEXT PRIMARY KEY,
         access_policy TEXT NOT NULL DEFAULT 'public' CHECK (access_policy IN ('public', 'private')),
         created_at DATETIME NOT NULL DEFAULT (datetime('now')),
         updated_at DATETIME NOT NULL DEFAULT (datetime('now'))
       )
-    `).run()
-    
+    `)
+      .run()
+
     // Insert or update policy
-    await this.db.prepare(`
+    await this.db
+      .prepare(`
       INSERT INTO table_policies (table_name, access_policy, created_at, updated_at)
       VALUES (?, ?, datetime('now'), datetime('now'))
       ON CONFLICT(table_name) DO UPDATE SET
         access_policy = excluded.access_policy,
         updated_at = excluded.updated_at
-    `).bind(tableName, policy).run()
+    `)
+      .bind(tableName, policy)
+      .run()
   }
-  
+
   async restoreSnapshot(id: string): Promise<OperationResult> {
     // Create pre-change snapshot before restore
     this.createAsyncSnapshot({
       description: `Before restoring snapshot ${id}`,
-      snapshotType: 'pre_change'
+      snapshotType: 'pre_change',
     })
 
     // Disable foreign keys during restore to prevent constraint errors
@@ -792,7 +854,7 @@ export class TableManager {
       await this.enableForeignKeys()
     }
   }
-  
+
   async deleteSnapshot(id: string): Promise<OperationResult> {
     return await this.snapshotManager.deleteSnapshot(id)
   }
@@ -820,7 +882,7 @@ export class TableManager {
   }
 
   // Search functionality
-  async getSearchableColumns(tableName: string): Promise<Array<{name: string, type: string}>> {
+  async getSearchableColumns(tableName: string): Promise<Array<{ name: string; type: string }>> {
     return this.errorHandler.handleOperation(
       async () => {
         // Get all columns for the table
@@ -841,13 +903,13 @@ export class TableManager {
           .prepare(`PRAGMA index_list(${validateAndEscapeTableName(tableName)})`)
           .all()
 
-        const searchableColumns: Array<{name: string, type: string}> = []
+        const searchableColumns: Array<{ name: string; type: string }> = []
 
         // Check each index to find indexed columns
         for (const indexRow of indexesResult.results) {
           const index = indexRow as IndexInfo
           const indexName = index.name
-          
+
           // Skip SQLite auto-created indexes for primary keys/unique constraints
           if (indexName.startsWith('sqlite_autoindex_')) continue
 
@@ -859,14 +921,14 @@ export class TableManager {
           for (const indexColumnRow of indexColumnsResult.results) {
             const columnInfo = indexColumnRow as IndexColumnInfo
             const columnName = columnInfo.name
-            const column = columns.find(col => col.name === columnName)
-            
+            const column = columns.find((col) => col.name === columnName)
+
             if (column && ['TEXT', 'INTEGER'].includes(column.type.toUpperCase())) {
               // Avoid duplicates
-              if (!searchableColumns.find(sc => sc.name === columnName)) {
+              if (!searchableColumns.find((sc) => sc.name === columnName)) {
                 searchableColumns.push({
                   name: columnName,
-                  type: column.type.toUpperCase()
+                  type: column.type.toUpperCase(),
                 })
               }
             }
@@ -882,13 +944,16 @@ export class TableManager {
     )
   }
 
-  async searchRecords(tableName: string, options: {
-    column: string
-    operator: string
-    value?: string
-    limit?: number
-    offset: number
-  }): Promise<{
+  async searchRecords(
+    tableName: string,
+    options: {
+      column: string
+      operator: string
+      value?: string
+      limit?: number
+      offset: number
+    }
+  ): Promise<{
     data: Record<string, any>[]
     total: number
     hasMore: boolean
@@ -940,7 +1005,9 @@ export class TableManager {
 
         // Get total count
         const countResult = await this.db
-          .prepare(`SELECT COUNT(*) as total FROM ${validateAndEscapeTableName(tableName)} WHERE ${whereClause}`)
+          .prepare(
+            `SELECT COUNT(*) as total FROM ${validateAndEscapeTableName(tableName)} WHERE ${whereClause}`
+          )
           .bind(...params)
           .first()
 
@@ -965,12 +1032,12 @@ export class TableManager {
           .all()
 
         const data = dataResult.results || []
-        const hasMore = limit !== undefined ? (offset + data.length) < total : false
+        const hasMore = limit !== undefined ? offset + data.length < total : false
 
         return {
           data: data as Record<string, unknown>[],
           total,
-          hasMore
+          hasMore,
         }
       },
       { operationName: 'searchRecords', tableName, columnName: options.column }

@@ -1,6 +1,6 @@
 import { sign, verify } from 'hono/jwt'
-import type { D1Database } from '../types/cloudflare'
 import type { User, UserSession, UserToken } from '../types/auth'
+import type { D1Database } from '../types/cloudflare'
 
 export class UserAuthManager {
   constructor(
@@ -10,10 +10,12 @@ export class UserAuthManager {
   ) {}
 
   // Generate JWT tokens for user
-  async generateTokens(user: User): Promise<{ accessToken: string; refreshToken: string; sessionId: string }> {
+  async generateTokens(
+    user: User
+  ): Promise<{ accessToken: string; refreshToken: string; sessionId: string }> {
     const sessionId = this.generateId()
     const now = Math.floor(Date.now() / 1000)
-    
+
     // Access token (15 minutes)
     const accessTokenPayload: UserToken = {
       type: 'access',
@@ -22,10 +24,10 @@ export class UserAuthManager {
       scope: ['user'],
       aud: this.domain,
       iss: 'vibebase-local',
-      exp: now + (15 * 60), // 15 minutes
-      iat: now
+      exp: now + 15 * 60, // 15 minutes
+      iat: now,
     }
-    
+
     // Refresh token (30 days)
     const refreshTokenPayload: UserToken = {
       type: 'refresh',
@@ -34,45 +36,45 @@ export class UserAuthManager {
       scope: ['user'],
       aud: this.domain,
       iss: 'vibebase-local',
-      exp: now + (30 * 24 * 60 * 60), // 30 days
-      iat: now
+      exp: now + 30 * 24 * 60 * 60, // 30 days
+      iat: now,
     }
-    
+
     const accessToken = await sign(accessTokenPayload as any, this.jwtSecret)
     const refreshToken = await sign(refreshTokenPayload as any, this.jwtSecret)
-    
+
     // Store session in database
     await this.createSession(sessionId, user.id, accessToken, refreshToken, accessTokenPayload.exp)
-    
+
     return { accessToken, refreshToken, sessionId }
   }
 
   // Verify JWT token and return user context
   async verifyUserToken(token: string): Promise<{ user: User; session: UserSession } | null> {
     try {
-      const payload = await verify(token, this.jwtSecret) as unknown as UserToken
-      
+      const payload = (await verify(token, this.jwtSecret)) as unknown as UserToken
+
       // Validate token structure
       if (!payload || payload.iss !== 'vibebase-local' || payload.aud !== this.domain) {
         return null
       }
-      
+
       if (!payload.scope?.includes('user')) {
         return null
       }
-      
+
       // Check if session exists and is valid
       const session = await this.getSession(payload.session_id)
       if (!session || new Date(session.expires_at) < new Date()) {
         return null
       }
-      
+
       // Get user data
       const user = await this.getUser(payload.user_id)
       if (!user || !user.is_active) {
         return null
       }
-      
+
       return { user, session }
     } catch (error) {
       console.error('Token verification failed:', error)
@@ -89,8 +91,11 @@ export class UserAuthManager {
     avatar_url?: string
     metadata?: any
   }): Promise<User> {
-    const existingUser = await this.getUserByProvider(providerUser.provider, providerUser.provider_id)
-    
+    const existingUser = await this.getUserByProvider(
+      providerUser.provider,
+      providerUser.provider_id
+    )
+
     if (existingUser) {
       // Update existing user
       const updatedUser = await this.updateUser(existingUser.id, {
@@ -98,7 +103,7 @@ export class UserAuthManager {
         name: providerUser.name,
         avatar_url: providerUser.avatar_url,
         metadata: JSON.stringify(providerUser.metadata || {}),
-        last_login_at: new Date().toISOString()
+        last_login_at: new Date().toISOString(),
       })
       return updatedUser
     } else {
@@ -114,7 +119,7 @@ export class UserAuthManager {
         role: 'user',
         metadata: JSON.stringify(providerUser.metadata || {}),
         last_login_at: new Date().toISOString(),
-        is_active: true
+        is_active: true,
       })
       return user
     }
@@ -123,24 +128,24 @@ export class UserAuthManager {
   // Refresh access token using refresh token
   async refreshAccessToken(refreshToken: string): Promise<{ accessToken: string } | null> {
     try {
-      const payload = await verify(refreshToken, this.jwtSecret) as unknown as UserToken
-      
+      const payload = (await verify(refreshToken, this.jwtSecret)) as unknown as UserToken
+
       if (payload.type !== 'refresh' || payload.iss !== 'vibebase-local') {
         return null
       }
-      
+
       // Check if session exists
       const session = await this.getSession(payload.session_id)
       if (!session) {
         return null
       }
-      
+
       // Get user and verify active
       const user = await this.getUser(payload.user_id)
       if (!user || !user.is_active) {
         return null
       }
-      
+
       // Generate new access token
       const now = Math.floor(Date.now() / 1000)
       const accessTokenPayload: UserToken = {
@@ -150,15 +155,15 @@ export class UserAuthManager {
         scope: ['user'],
         aud: this.domain,
         iss: 'vibebase-local',
-        exp: now + (15 * 60), // 15 minutes
-        iat: now
+        exp: now + 15 * 60, // 15 minutes
+        iat: now,
       }
-      
+
       const accessToken = await sign(accessTokenPayload as any, this.jwtSecret)
-      
+
       // Update session with new access token
       await this.updateSession(payload.session_id, accessToken, accessTokenPayload.exp)
-      
+
       return { accessToken }
     } catch (error) {
       console.error('Token refresh failed:', error)
@@ -172,32 +177,47 @@ export class UserAuthManager {
   }
 
   // Private helper methods
-  private async createSession(id: string, userId: string, accessToken: string, refreshToken: string, expiresAt: number): Promise<void> {
+  private async createSession(
+    id: string,
+    userId: string,
+    accessToken: string,
+    refreshToken: string,
+    expiresAt: number
+  ): Promise<void> {
     const accessTokenHash = await this.hashToken(accessToken)
     const refreshTokenHash = await this.hashToken(refreshToken)
-    
-    await this.db.prepare(`
+
+    await this.db
+      .prepare(`
       INSERT INTO user_sessions (id, user_id, access_token_hash, refresh_token_hash, expires_at)
       VALUES (?, ?, ?, ?, ?)
-    `).bind(id, userId, accessTokenHash, refreshTokenHash, new Date(expiresAt * 1000).toISOString()).run()
+    `)
+      .bind(id, userId, accessTokenHash, refreshTokenHash, new Date(expiresAt * 1000).toISOString())
+      .run()
   }
 
   private async getSession(id: string): Promise<UserSession | null> {
-    const result = await this.db.prepare(`
+    const result = await this.db
+      .prepare(`
       SELECT * FROM user_sessions WHERE id = ?
-    `).bind(id).first()
-    
+    `)
+      .bind(id)
+      .first()
+
     return result as UserSession | null
   }
 
   private async updateSession(id: string, accessToken: string, expiresAt: number): Promise<void> {
     const accessTokenHash = await this.hashToken(accessToken)
-    
-    await this.db.prepare(`
+
+    await this.db
+      .prepare(`
       UPDATE user_sessions 
       SET access_token_hash = ?, expires_at = ?, updated_at = ?
       WHERE id = ?
-    `).bind(accessTokenHash, new Date(expiresAt * 1000).toISOString(), new Date().toISOString(), id).run()
+    `)
+      .bind(accessTokenHash, new Date(expiresAt * 1000).toISOString(), new Date().toISOString(), id)
+      .run()
   }
 
   private async deleteSession(id: string): Promise<void> {
@@ -205,50 +225,59 @@ export class UserAuthManager {
   }
 
   private async getUser(id: string): Promise<User | null> {
-    const result = await this.db.prepare(`
+    const result = await this.db
+      .prepare(`
       SELECT * FROM users WHERE id = ?
-    `).bind(id).first()
-    
+    `)
+      .bind(id)
+      .first()
+
     return result as User | null
   }
 
   private async getUserByProvider(provider: string, providerId: string): Promise<User | null> {
-    const result = await this.db.prepare(`
+    const result = await this.db
+      .prepare(`
       SELECT * FROM users WHERE provider = ? AND provider_id = ?
-    `).bind(provider, providerId).first()
-    
+    `)
+      .bind(provider, providerId)
+      .first()
+
     return result as User | null
   }
 
   private async createUser(userData: Omit<User, 'created_at' | 'updated_at'>): Promise<User> {
     const now = new Date().toISOString()
-    
-    await this.db.prepare(`
+
+    await this.db
+      .prepare(`
       INSERT INTO users (id, email, name, avatar_url, provider, provider_id, role, metadata, last_login_at, is_active, owner_id, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      userData.id,
-      userData.email,
-      userData.name,
-      userData.avatar_url,
-      userData.provider,
-      userData.provider_id,
-      userData.role,
-      userData.metadata,
-      userData.last_login_at,
-      userData.is_active,
-      userData.id, // owner_id = user's own id
-      now,
-      now
-    ).run()
-    
+    `)
+      .bind(
+        userData.id,
+        userData.email,
+        userData.name,
+        userData.avatar_url,
+        userData.provider,
+        userData.provider_id,
+        userData.role,
+        userData.metadata,
+        userData.last_login_at,
+        userData.is_active,
+        userData.id, // owner_id = user's own id
+        now,
+        now
+      )
+      .run()
+
     return { ...userData, created_at: now, updated_at: now }
   }
 
   private async updateUser(id: string, updates: Partial<User>): Promise<User> {
     const setClauses = []
     const values = []
-    
+
     if (updates.email !== undefined) {
       setClauses.push('email = ?')
       values.push(updates.email)
@@ -269,19 +298,22 @@ export class UserAuthManager {
       setClauses.push('last_login_at = ?')
       values.push(updates.last_login_at)
     }
-    
+
     setClauses.push('updated_at = CURRENT_TIMESTAMP')
     values.push(id)
-    
-    await this.db.prepare(`
+
+    await this.db
+      .prepare(`
       UPDATE users SET ${setClauses.join(', ')} WHERE id = ?
-    `).bind(...values).run()
-    
+    `)
+      .bind(...values)
+      .run()
+
     const updatedUser = await this.getUser(id)
     if (!updatedUser) {
       throw new Error('Failed to update user')
     }
-    
+
     return updatedUser
   }
 
@@ -294,7 +326,7 @@ export class UserAuthManager {
     const data = encoder.encode(token)
     const hash = await crypto.subtle.digest('SHA-256', data)
     return Array.from(new Uint8Array(hash))
-      .map(b => b.toString(16).padStart(2, '0'))
+      .map((b) => b.toString(16).padStart(2, '0'))
       .join('')
   }
 }

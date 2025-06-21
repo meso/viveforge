@@ -114,7 +114,7 @@ export interface GoogleUserInfo extends OAuthUserInfo {
 }
 
 export interface GitHubUserInfo extends OAuthUserInfo {
-  id: string  // Changed from number to string to match OAuthUserInfo
+  id: string // Changed from number to string to match OAuthUserInfo
   login: string
   email: string
   name?: string
@@ -139,7 +139,16 @@ export interface AuthError {
   details?: string | Record<string, unknown>
 }
 
-export type OAuthProviderType = 'google' | 'github' | 'facebook' | 'linkedin' | 'twitter' | 'apple' | 'microsoft' | 'discord' | 'slack'
+export type OAuthProviderType =
+  | 'google'
+  | 'github'
+  | 'facebook'
+  | 'linkedin'
+  | 'twitter'
+  | 'apple'
+  | 'microsoft'
+  | 'discord'
+  | 'slack'
 
 // Supported providers by Hono OAuth
 export type HonoSupportedProvider = 'google' | 'github' | 'facebook' | 'linkedin' | 'twitter'

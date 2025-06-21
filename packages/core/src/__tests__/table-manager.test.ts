@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { TableManager } from '../lib/table-manager'
-import { createMockD1Database, createMockR2Bucket, createMockExecutionContext } from './setup'
-import type { MockD1Database, MockR2Bucket, MockExecutionContext } from './setup'
+import type { MockD1Database, MockExecutionContext, MockR2Bucket } from './setup'
+import { createMockD1Database, createMockExecutionContext, createMockR2Bucket } from './setup'
 
 describe('TableManager', () => {
   let tableManager: TableManager
@@ -13,30 +13,30 @@ describe('TableManager', () => {
     mockDb = createMockD1Database()
     mockStorage = createMockR2Bucket()
     mockCtx = createMockExecutionContext()
-    tableManager = new TableManager(
-      mockDb as any, 
-      mockStorage as any, 
-      mockCtx as any,
-      { REALTIME: undefined }
-    )
+    tableManager = new TableManager(mockDb as any, mockStorage as any, mockCtx as any, {
+      REALTIME: undefined,
+    })
   })
 
   describe('Table Operations', () => {
     it('should get tables list', async () => {
       const tables = await tableManager.getTables()
       expect(tables).toBeInstanceOf(Array)
-      expect(tables.every(table => 
-        typeof table.name === 'string' && 
-        typeof table.type === 'string' &&
-        typeof table.sql === 'string'
-      )).toBe(true)
+      expect(
+        tables.every(
+          (table) =>
+            typeof table.name === 'string' &&
+            typeof table.type === 'string' &&
+            typeof table.sql === 'string'
+        )
+      ).toBe(true)
     })
 
     it('should create a new table', async () => {
       const tableName = 'test_table'
       const columns = [
         { name: 'title', type: 'TEXT', constraints: 'NOT NULL' },
-        { name: 'description', type: 'TEXT' }
+        { name: 'description', type: 'TEXT' },
       ]
 
       await expect(tableManager.createTable(tableName, columns)).resolves.not.toThrow()
@@ -46,16 +46,18 @@ describe('TableManager', () => {
       const systemTableName = 'admins'
       const columns = [{ name: 'test', type: 'TEXT' }]
 
-      await expect(tableManager.createTable(systemTableName, columns))
-        .rejects.toThrow('Cannot modify system table')
+      await expect(tableManager.createTable(systemTableName, columns)).rejects.toThrow(
+        'Cannot modify system table'
+      )
     })
 
     it('should validate table names', async () => {
       const invalidTableName = '123invalid'
       const columns = [{ name: 'test', type: 'TEXT' }]
 
-      await expect(tableManager.createTable(invalidTableName, columns))
-        .rejects.toThrow('Invalid table name')
+      await expect(tableManager.createTable(invalidTableName, columns)).rejects.toThrow(
+        'Invalid table name'
+      )
     })
 
     it('should drop a user table', async () => {
@@ -65,8 +67,9 @@ describe('TableManager', () => {
 
     it('should not drop system tables', async () => {
       const systemTableName = 'admins'
-      await expect(tableManager.dropTable(systemTableName))
-        .rejects.toThrow('Cannot modify system table')
+      await expect(tableManager.dropTable(systemTableName)).rejects.toThrow(
+        'Cannot modify system table'
+      )
     })
   })
 
@@ -75,9 +78,7 @@ describe('TableManager', () => {
 
     beforeEach(async () => {
       // Create a test table first
-      await tableManager.createTable(testTableName, [
-        { name: 'title', type: 'TEXT' }
-      ])
+      await tableManager.createTable(testTableName, [{ name: 'title', type: 'TEXT' }])
     })
 
     it('should add column to existing table', async () => {
@@ -86,19 +87,19 @@ describe('TableManager', () => {
     })
 
     it('should rename column', async () => {
-      await expect(tableManager.renameColumn(testTableName, 'title', 'new_title'))
-        .resolves.not.toThrow()
+      await expect(
+        tableManager.renameColumn(testTableName, 'title', 'new_title')
+      ).resolves.not.toThrow()
     })
 
     it('should drop column', async () => {
-      await expect(tableManager.dropColumn(testTableName, 'title'))
-        .resolves.not.toThrow()
+      await expect(tableManager.dropColumn(testTableName, 'title')).resolves.not.toThrow()
     })
 
     it('should validate column changes', async () => {
       const changes = { type: 'INTEGER', notNull: true }
       const result = await tableManager.validateColumnChanges(testTableName, 'title', changes)
-      
+
       expect(result).toHaveProperty('valid')
       expect(result).toHaveProperty('errors')
       expect(result).toHaveProperty('conflictingRows')
@@ -109,8 +110,9 @@ describe('TableManager', () => {
 
     it('should modify column', async () => {
       const changes = { type: 'TEXT', notNull: false }
-      await expect(tableManager.modifyColumn(testTableName, 'title', changes))
-        .resolves.not.toThrow()
+      await expect(
+        tableManager.modifyColumn(testTableName, 'title', changes)
+      ).resolves.not.toThrow()
     })
   })
 
@@ -120,7 +122,7 @@ describe('TableManager', () => {
     beforeEach(async () => {
       await tableManager.createTable(testTableName, [
         { name: 'title', type: 'TEXT' },
-        { name: 'description', type: 'TEXT' }
+        { name: 'description', type: 'TEXT' },
       ])
     })
 
@@ -136,7 +138,7 @@ describe('TableManager', () => {
 
     it('should get table data with pagination', async () => {
       const result = await tableManager.getTableData(testTableName, 10, 0)
-      
+
       expect(result).toHaveProperty('data')
       expect(result).toHaveProperty('total')
       expect(Array.isArray(result.data)).toBe(true)
@@ -151,7 +153,7 @@ describe('TableManager', () => {
     it('should create record with ID', async () => {
       const data = { title: 'Test Title', description: 'Test Description' }
       const id = await tableManager.createRecordWithId(testTableName, data)
-      
+
       expect(typeof id).toBe('string')
       expect(id.length).toBeGreaterThan(0)
     })
@@ -159,14 +161,12 @@ describe('TableManager', () => {
     it('should update record', async () => {
       const recordId = 'test-id'
       const data = { title: 'Updated Title' }
-      await expect(tableManager.updateRecord(testTableName, recordId, data))
-        .resolves.not.toThrow()
+      await expect(tableManager.updateRecord(testTableName, recordId, data)).resolves.not.toThrow()
     })
 
     it('should delete record', async () => {
       const recordId = 'test-id'
-      await expect(tableManager.deleteRecord(testTableName, recordId))
-        .resolves.not.toThrow()
+      await expect(tableManager.deleteRecord(testTableName, recordId)).resolves.not.toThrow()
     })
 
     it('should get record by ID', async () => {
@@ -183,7 +183,7 @@ describe('TableManager', () => {
     beforeEach(async () => {
       await tableManager.createTable(testTableName, [
         { name: 'title', type: 'TEXT' },
-        { name: 'category', type: 'TEXT' }
+        { name: 'category', type: 'TEXT' },
       ])
     })
 
@@ -196,25 +196,27 @@ describe('TableManager', () => {
       const indexName = 'idx_test_title'
       const columns = ['title']
       const options = { unique: false }
-      
-      await expect(tableManager.createIndex(indexName, testTableName, columns, options))
-        .resolves.not.toThrow()
+
+      await expect(
+        tableManager.createIndex(indexName, testTableName, columns, options)
+      ).resolves.not.toThrow()
     })
 
     it('should create unique index', async () => {
       const indexName = 'idx_test_unique'
       const columns = ['title']
       const options = { unique: true }
-      
-      await expect(tableManager.createIndex(indexName, testTableName, columns, options))
-        .resolves.not.toThrow()
+
+      await expect(
+        tableManager.createIndex(indexName, testTableName, columns, options)
+      ).resolves.not.toThrow()
     })
 
     it('should drop index', async () => {
       // First create an index
       const indexName = 'idx_test_drop'
       await tableManager.createIndex(indexName, testTableName, ['title'])
-      
+
       // Then drop it
       await expect(tableManager.dropIndex(indexName)).resolves.not.toThrow()
     })
@@ -227,66 +229,81 @@ describe('TableManager', () => {
     it('should validate index names', async () => {
       const invalidIndexName = '123invalid'
       const columns = ['title']
-      
-      await expect(tableManager.createIndex(invalidIndexName, testTableName, columns))
-        .rejects.toThrow('Invalid index name')
+
+      await expect(
+        tableManager.createIndex(invalidIndexName, testTableName, columns)
+      ).rejects.toThrow('Invalid index name')
     })
 
     it('should prevent duplicate index names', async () => {
       const indexName = 'idx_duplicate'
       const columns = ['title']
-      
+
       // Create first index
       await tableManager.createIndex(indexName, testTableName, columns)
-      
+
       // Try to create duplicate
-      await expect(tableManager.createIndex(indexName, testTableName, columns))
-        .rejects.toThrow('already exists')
+      await expect(tableManager.createIndex(indexName, testTableName, columns)).rejects.toThrow(
+        'already exists'
+      )
     })
 
     // Additional detailed tests for pre-refactoring validation
     describe('Index Creation - Detailed Validation', () => {
       it('should validate required parameters', async () => {
-        await expect(tableManager.createIndex('', testTableName, ['title']))
-          .rejects.toThrow('Index name, table name, and columns are required')
-          
-        await expect(tableManager.createIndex('idx_test', '', ['title']))
-          .rejects.toThrow('Index name, table name, and columns are required')
-          
-        await expect(tableManager.createIndex('idx_test', testTableName, []))
-          .rejects.toThrow('Index name, table name, and columns are required')
+        await expect(tableManager.createIndex('', testTableName, ['title'])).rejects.toThrow(
+          'Index name, table name, and columns are required'
+        )
+
+        await expect(tableManager.createIndex('idx_test', '', ['title'])).rejects.toThrow(
+          'Index name, table name, and columns are required'
+        )
+
+        await expect(tableManager.createIndex('idx_test', testTableName, [])).rejects.toThrow(
+          'Index name, table name, and columns are required'
+        )
       })
 
       it('should accept valid index name formats', async () => {
-        await expect(tableManager.createIndex('idx_valid', testTableName, ['title']))
-          .resolves.not.toThrow()
-          
-        await expect(tableManager.createIndex('IDX_VALID2', testTableName, ['category']))
-          .resolves.not.toThrow()
-          
-        await expect(tableManager.createIndex('_idx_valid3', testTableName, ['title']))
-          .resolves.not.toThrow()
+        await expect(
+          tableManager.createIndex('idx_valid', testTableName, ['title'])
+        ).resolves.not.toThrow()
+
+        await expect(
+          tableManager.createIndex('IDX_VALID2', testTableName, ['category'])
+        ).resolves.not.toThrow()
+
+        await expect(
+          tableManager.createIndex('_idx_valid3', testTableName, ['title'])
+        ).resolves.not.toThrow()
       })
 
       it('should reject invalid index name formats', async () => {
-        await expect(tableManager.createIndex('123invalid', testTableName, ['title']))
-          .rejects.toThrow('Invalid index name')
-          
-        await expect(tableManager.createIndex('idx-invalid', testTableName, ['title']))
-          .rejects.toThrow('Invalid index name')
-          
-        await expect(tableManager.createIndex('idx invalid', testTableName, ['title']))
-          .rejects.toThrow('Invalid index name')
+        await expect(
+          tableManager.createIndex('123invalid', testTableName, ['title'])
+        ).rejects.toThrow('Invalid index name')
+
+        await expect(
+          tableManager.createIndex('idx-invalid', testTableName, ['title'])
+        ).rejects.toThrow('Invalid index name')
+
+        await expect(
+          tableManager.createIndex('idx invalid', testTableName, ['title'])
+        ).rejects.toThrow('Invalid index name')
       })
 
       it('should create multi-column indexes', async () => {
-        await expect(tableManager.createIndex('idx_multi', testTableName, ['title', 'category']))
-          .resolves.not.toThrow()
+        await expect(
+          tableManager.createIndex('idx_multi', testTableName, ['title', 'category'])
+        ).resolves.not.toThrow()
       })
 
       it('should create unique indexes with proper option', async () => {
-        await expect(tableManager.createIndex('idx_unique_detailed', testTableName, ['title'], { unique: true }))
-          .resolves.not.toThrow()
+        await expect(
+          tableManager.createIndex('idx_unique_detailed', testTableName, ['title'], {
+            unique: true,
+          })
+        ).resolves.not.toThrow()
       })
     })
 
@@ -295,13 +312,15 @@ describe('TableManager', () => {
         // Create test indexes
         await tableManager.createIndex('idx_title', testTableName, ['title'])
         await tableManager.createIndex('idx_category', testTableName, ['category'])
-        await tableManager.createIndex('idx_unique_multi', testTableName, ['title', 'category'], { unique: true })
+        await tableManager.createIndex('idx_unique_multi', testTableName, ['title', 'category'], {
+          unique: true,
+        })
       })
 
       it('should return correct index metadata structure', async () => {
         const indexes = await tableManager.getTableIndexes(testTableName)
-        
-        indexes.forEach(index => {
+
+        indexes.forEach((index) => {
           expect(index).toHaveProperty('name')
           expect(index).toHaveProperty('tableName')
           expect(index).toHaveProperty('columns')
@@ -317,24 +336,24 @@ describe('TableManager', () => {
 
       it('should return indexes specific to the requested table', async () => {
         const indexes = await tableManager.getTableIndexes(testTableName)
-        
-        indexes.forEach(index => {
+
+        indexes.forEach((index) => {
           expect(index.tableName).toBe(testTableName)
         })
       })
 
       it('should filter out system-generated indexes', async () => {
         const indexes = await tableManager.getTableIndexes(testTableName)
-        
-        indexes.forEach(index => {
+
+        indexes.forEach((index) => {
           expect(index.name).not.toMatch(/^sqlite_autoindex_/)
         })
       })
 
       it('should include columns in correct order for multi-column indexes', async () => {
         const indexes = await tableManager.getTableIndexes(testTableName)
-        const multiColIndex = indexes.find(idx => idx.columns.length > 1)
-        
+        const multiColIndex = indexes.find((idx) => idx.columns.length > 1)
+
         if (multiColIndex) {
           expect(multiColIndex.columns).toEqual(['title', 'category'])
         }
@@ -348,27 +367,25 @@ describe('TableManager', () => {
       })
 
       it('should validate index name parameter', async () => {
-        await expect(tableManager.dropIndex(''))
-          .rejects.toThrow('Index name is required')
+        await expect(tableManager.dropIndex('')).rejects.toThrow('Index name is required')
       })
 
       it('should reject dropping non-existent indexes', async () => {
-        await expect(tableManager.dropIndex('non_existent_index'))
-          .rejects.toThrow('Index "non_existent_index" not found')
+        await expect(tableManager.dropIndex('non_existent_index')).rejects.toThrow(
+          'Index "non_existent_index" not found'
+        )
       })
 
       it('should prevent dropping system-generated indexes', async () => {
-        await expect(tableManager.dropIndex('sqlite_autoindex_test_table_1'))
-          .rejects.toThrow() // Either "not found" or "cannot drop" is acceptable in mock
+        await expect(tableManager.dropIndex('sqlite_autoindex_test_table_1')).rejects.toThrow() // Either "not found" or "cannot drop" is acceptable in mock
       })
 
       it('should successfully drop existing user indexes', async () => {
-        await expect(tableManager.dropIndex('idx_to_delete'))
-          .resolves.not.toThrow()
-          
+        await expect(tableManager.dropIndex('idx_to_delete')).resolves.not.toThrow()
+
         // Verify it's gone
         const indexes = await tableManager.getTableIndexes(testTableName)
-        expect(indexes.find(idx => idx.name === 'idx_to_delete')).toBeUndefined()
+        expect(indexes.find((idx) => idx.name === 'idx_to_delete')).toBeUndefined()
       })
     })
 
@@ -381,17 +398,17 @@ describe('TableManager', () => {
 
       it('should return all user-created indexes across tables', async () => {
         const indexes = await tableManager.getAllUserIndexes()
-        
+
         expect(Array.isArray(indexes)).toBe(true)
         // Should include our test indexes
-        const testIndexes = indexes.filter(idx => idx.tableName === testTableName)
+        const testIndexes = indexes.filter((idx) => idx.tableName === testTableName)
         expect(testIndexes.length).toBeGreaterThan(0)
       })
 
       it('should include proper metadata for all indexes', async () => {
         const indexes = await tableManager.getAllUserIndexes()
-        
-        indexes.forEach(index => {
+
+        indexes.forEach((index) => {
           expect(index).toHaveProperty('name')
           expect(index).toHaveProperty('tableName')
           expect(index).toHaveProperty('columns')
@@ -402,8 +419,8 @@ describe('TableManager', () => {
 
       it('should exclude system-generated indexes', async () => {
         const indexes = await tableManager.getAllUserIndexes()
-        
-        indexes.forEach(index => {
+
+        indexes.forEach((index) => {
           expect(index.name).not.toMatch(/^sqlite_autoindex_/)
         })
       })
@@ -412,55 +429,54 @@ describe('TableManager', () => {
     describe('Index Operations Integration', () => {
       it('should handle complete index lifecycle', async () => {
         const indexName = 'idx_lifecycle_test'
-        
+
         // Create
-        await expect(tableManager.createIndex(indexName, testTableName, ['title'], { unique: true }))
-          .resolves.not.toThrow()
-          
+        await expect(
+          tableManager.createIndex(indexName, testTableName, ['title'], { unique: true })
+        ).resolves.not.toThrow()
+
         // Verify exists in table indexes
         const tableIndexes = await tableManager.getTableIndexes(testTableName)
-        const createdIndex = tableIndexes.find(idx => idx.name === indexName)
+        const createdIndex = tableIndexes.find((idx) => idx.name === indexName)
         expect(createdIndex).toBeDefined()
         expect(createdIndex?.unique).toBe(true)
         expect(createdIndex?.columns).toEqual(['title'])
-        
+
         // Verify exists in all indexes
         const allIndexes = await tableManager.getAllUserIndexes()
-        expect(allIndexes.some(idx => idx.name === indexName)).toBe(true)
-        
+        expect(allIndexes.some((idx) => idx.name === indexName)).toBe(true)
+
         // Delete
-        await expect(tableManager.dropIndex(indexName))
-          .resolves.not.toThrow()
-          
+        await expect(tableManager.dropIndex(indexName)).resolves.not.toThrow()
+
         // Verify removed
         const updatedTableIndexes = await tableManager.getTableIndexes(testTableName)
-        expect(updatedTableIndexes.find(idx => idx.name === indexName)).toBeUndefined()
+        expect(updatedTableIndexes.find((idx) => idx.name === indexName)).toBeUndefined()
       })
 
       it('should handle multiple indexes on same table', async () => {
         const indexes = [
           { name: 'idx_multi_1', columns: ['title'] },
           { name: 'idx_multi_2', columns: ['category'] },
-          { name: 'idx_multi_3', columns: ['title', 'category'], unique: true }
+          { name: 'idx_multi_3', columns: ['title', 'category'], unique: true },
         ]
-        
+
         // Create all indexes
         for (const index of indexes) {
-          await expect(tableManager.createIndex(
-            index.name, 
-            testTableName, 
-            index.columns, 
-            { unique: index.unique }
-          )).resolves.not.toThrow()
+          await expect(
+            tableManager.createIndex(index.name, testTableName, index.columns, {
+              unique: index.unique,
+            })
+          ).resolves.not.toThrow()
         }
-        
+
         // Verify all exist
         const tableIndexes = await tableManager.getTableIndexes(testTableName)
         expect(tableIndexes.length).toBeGreaterThanOrEqual(3)
-        
+
         // Check that all our created indexes are found
         for (const expectedIndex of indexes) {
-          const found = tableIndexes.find(idx => idx.name === expectedIndex.name)
+          const found = tableIndexes.find((idx) => idx.name === expectedIndex.name)
           expect(found).toBeDefined()
           // In mock environment, just verify basic properties exist
           expect(found?.columns).toBeDefined()
@@ -475,9 +491,9 @@ describe('TableManager', () => {
       const options = {
         name: 'Test Snapshot',
         description: 'Test snapshot creation',
-        snapshotType: 'manual' as const
+        snapshotType: 'manual' as const,
       }
-      
+
       const snapshotId = await tableManager.createSnapshot(options)
       expect(typeof snapshotId).toBe('string')
       expect(snapshotId.length).toBeGreaterThan(0)
@@ -485,7 +501,7 @@ describe('TableManager', () => {
 
     it('should get snapshots with pagination', async () => {
       const result = await tableManager.getSnapshots(10, 0)
-      
+
       expect(result).toHaveProperty('snapshots')
       expect(result).toHaveProperty('total')
       expect(Array.isArray(result.snapshots)).toBe(true)
@@ -495,7 +511,7 @@ describe('TableManager', () => {
     it('should get single snapshot', async () => {
       // Create a snapshot first
       const snapshotId = await tableManager.createSnapshot({ name: 'Test' })
-      
+
       const snapshot = await tableManager.getSnapshot(snapshotId)
       if (snapshot) {
         expect(snapshot).toHaveProperty('id')
@@ -507,7 +523,7 @@ describe('TableManager', () => {
     it('should restore snapshot', async () => {
       // Create a snapshot first
       const snapshotId = await tableManager.createSnapshot({ name: 'Test' })
-      
+
       const result = await tableManager.restoreSnapshot(snapshotId)
       expect(result).toHaveProperty('success')
       expect(result).toHaveProperty('message')
@@ -516,7 +532,7 @@ describe('TableManager', () => {
     it('should delete snapshot', async () => {
       // Create a snapshot first
       const snapshotId = await tableManager.createSnapshot({ name: 'Test' })
-      
+
       const result = await tableManager.deleteSnapshot(snapshotId)
       expect(result).toHaveProperty('success')
       expect(result).toHaveProperty('message')
@@ -528,31 +544,32 @@ describe('TableManager', () => {
     it('should execute safe SQL queries', async () => {
       const sql = 'SELECT COUNT(*) as count FROM sqlite_master'
       const result = await tableManager.executeSQL(sql)
-      
+
       expect(result).toHaveProperty('results')
       expect(Array.isArray(result.results)).toBe(true)
     })
 
     it('should reject unsafe SQL queries', async () => {
       const unsafeSql = 'DROP TABLE users'
-      
-      await expect(tableManager.executeSQL(unsafeSql))
-        .rejects.toThrow('Only SELECT queries are allowed')
+
+      await expect(tableManager.executeSQL(unsafeSql)).rejects.toThrow(
+        'Only SELECT queries are allowed'
+      )
     })
 
     it('should reject queries on system tables', async () => {
       const systemTableSql = 'SELECT * FROM admins'
-      
-      await expect(tableManager.executeSQL(systemTableSql))
-        .rejects.toThrow('Cannot query system table')
+
+      await expect(tableManager.executeSQL(systemTableSql)).rejects.toThrow(
+        'Cannot query system table'
+      )
     })
   })
 
   describe('Error Handling and Recovery', () => {
     it('should handle database connection errors gracefully', async () => {
       // Test with invalid database operations
-      await expect(tableManager.executeSQL('INVALID SQL SYNTAX'))
-        .rejects.toThrow()
+      await expect(tableManager.executeSQL('INVALID SQL SYNTAX')).rejects.toThrow()
     })
 
     it('should provide consistent error messages for system table modifications', async () => {
@@ -560,7 +577,7 @@ describe('TableManager', () => {
         () => tableManager.createTable('admins', [{ name: 'test', type: 'TEXT' }]),
         () => tableManager.dropTable('sessions'),
         () => tableManager.createRecord('schema_snapshots', { test: 'data' }),
-        () => tableManager.deleteRecord('schema_snapshot_counter', 'test-id')
+        () => tableManager.deleteRecord('schema_snapshot_counter', 'test-id'),
       ]
 
       for (const operation of systemTableOperations) {
@@ -570,36 +587,33 @@ describe('TableManager', () => {
 
     it('should handle invalid names consistently', async () => {
       const invalidNames = ['123invalid', 'invalid-name', 'invalid name', '']
-      
+
       for (const invalidName of invalidNames) {
         if (invalidName) {
-          await expect(tableManager.createTable(invalidName, [{ name: 'test', type: 'TEXT' }]))
-            .rejects.toThrow(/invalid.*name/i)
+          await expect(
+            tableManager.createTable(invalidName, [{ name: 'test', type: 'TEXT' }])
+          ).rejects.toThrow(/invalid.*name/i)
         }
       }
     })
 
     it('should handle not found errors gracefully', async () => {
       const nonExistentTable = 'non_existent_table_12345'
-      
-      await expect(tableManager.getTableColumns(nonExistentTable))
-        .resolves.toEqual([]) // Should return empty array, not throw
-        
-      // In our mock, dropTable doesn't validate table existence, 
+
+      await expect(tableManager.getTableColumns(nonExistentTable)).resolves.toEqual([]) // Should return empty array, not throw
+
+      // In our mock, dropTable doesn't validate table existence,
       // so we test with a system table which should throw
-      await expect(tableManager.dropTable('admins'))
-        .rejects.toThrow(/system table/) // Should throw for system tables
+      await expect(tableManager.dropTable('admins')).rejects.toThrow(/system table/) // Should throw for system tables
     })
 
     it('should handle validation errors with detailed information', async () => {
       const testTableName = 'validation_error_test'
-      await tableManager.createTable(testTableName, [
-        { name: 'test_col', type: 'TEXT' }
-      ])
+      await tableManager.createTable(testTableName, [{ name: 'test_col', type: 'TEXT' }])
 
       // Test with foreign key validation which should fail in mock
       const validation = await tableManager.validateColumnChanges(testTableName, 'test_col', {
-        foreignKey: { table: 'non_existent_table', column: 'id' }
+        foreignKey: { table: 'non_existent_table', column: 'id' },
       })
 
       // Our mock doesn't implement full validation, so it returns valid: true
@@ -614,13 +628,11 @@ describe('TableManager', () => {
 
     it('should handle foreign key constraint violations', async () => {
       const testTableName = 'fk_test_table'
-      await tableManager.createTable(testTableName, [
-        { name: 'title', type: 'TEXT' }
-      ])
+      await tableManager.createTable(testTableName, [{ name: 'title', type: 'TEXT' }])
 
       // Test foreign key validation structure
       const validation = await tableManager.validateColumnChanges(testTableName, 'title', {
-        foreignKey: { table: 'non_existent_table', column: 'id' }
+        foreignKey: { table: 'non_existent_table', column: 'id' },
       })
 
       // Our mock returns basic structure, test that validation function works
@@ -634,18 +646,18 @@ describe('TableManager', () => {
     it('should handle duplicate entity creation errors', async () => {
       const indexName = 'duplicate_test_index'
       const testTableName = 'duplicate_test_table'
-      
-      await tableManager.createTable(testTableName, [
-        { name: 'title', type: 'TEXT' }
-      ])
+
+      await tableManager.createTable(testTableName, [{ name: 'title', type: 'TEXT' }])
 
       // Create index first time - should succeed
-      await expect(tableManager.createIndex(indexName, testTableName, ['title']))
-        .resolves.not.toThrow()
+      await expect(
+        tableManager.createIndex(indexName, testTableName, ['title'])
+      ).resolves.not.toThrow()
 
       // Try to create same index again - should fail
-      await expect(tableManager.createIndex(indexName, testTableName, ['title']))
-        .rejects.toThrow(/already exists/i)
+      await expect(tableManager.createIndex(indexName, testTableName, ['title'])).rejects.toThrow(
+        /already exists/i
+      )
     })
 
     it('should handle storage operation failures gracefully', async () => {
@@ -653,7 +665,7 @@ describe('TableManager', () => {
       // This tests the fallback behavior
       const snapshotId = await tableManager.createSnapshot({
         name: 'Storage Test Snapshot',
-        description: 'Testing storage failure handling'
+        description: 'Testing storage failure handling',
       })
 
       expect(typeof snapshotId).toBe('string')
@@ -671,15 +683,13 @@ describe('TableManager', () => {
 
     it('should handle concurrent operation conflicts', async () => {
       const testTableName = 'concurrent_test_table'
-      await tableManager.createTable(testTableName, [
-        { name: 'title', type: 'TEXT' }
-      ])
+      await tableManager.createTable(testTableName, [{ name: 'title', type: 'TEXT' }])
 
       // Simulate concurrent modifications
       const promises = [
         tableManager.addColumn(testTableName, { name: 'col1', type: 'TEXT' }),
         tableManager.addColumn(testTableName, { name: 'col2', type: 'TEXT' }),
-        tableManager.addColumn(testTableName, { name: 'col3', type: 'TEXT' })
+        tableManager.addColumn(testTableName, { name: 'col3', type: 'TEXT' }),
       ]
 
       // All should complete without throwing
@@ -689,20 +699,18 @@ describe('TableManager', () => {
     it('should handle query timeout and recovery', async () => {
       // Test with a complex query that might timeout in a real environment
       const result = await tableManager.executeSQL('SELECT COUNT(*) as count FROM sqlite_master')
-      
+
       expect(result).toHaveProperty('results')
       expect(Array.isArray(result.results)).toBe(true)
     })
 
     it('should handle large data operations gracefully', async () => {
       const testTableName = 'large_data_test'
-      await tableManager.createTable(testTableName, [
-        { name: 'data', type: 'TEXT' }
-      ])
+      await tableManager.createTable(testTableName, [{ name: 'data', type: 'TEXT' }])
 
       // Test pagination with various limits
       const limits = [1, 10, 100, 1000]
-      
+
       for (const limit of limits) {
         const result = await tableManager.getTableData(testTableName, limit, 0)
         expect(result).toHaveProperty('data')
@@ -713,9 +721,7 @@ describe('TableManager', () => {
 
     it('should maintain data consistency during error recovery', async () => {
       const testTableName = 'consistency_test'
-      await tableManager.createTable(testTableName, [
-        { name: 'title', type: 'TEXT' }
-      ])
+      await tableManager.createTable(testTableName, [{ name: 'title', type: 'TEXT' }])
 
       // Get initial table count
       const initialTables = await tableManager.getTables()
@@ -739,20 +745,22 @@ describe('TableManager', () => {
       const validDb = createMockD1Database()
       const validStorage = createMockR2Bucket()
       const validCtx = createMockExecutionContext()
-      
-      expect(() => new TableManager(validDb as any, validStorage as any, validCtx as any)).not.toThrow()
+
+      expect(
+        () => new TableManager(validDb as any, validStorage as any, validCtx as any)
+      ).not.toThrow()
     })
 
     it('should handle constructor with minimal parameters', () => {
       const validDb = createMockD1Database()
-      
+
       expect(() => new TableManager(validDb)).not.toThrow()
     })
 
     it('should handle constructor with storage but no execution context', () => {
       const validDb = createMockD1Database()
       const validStorage = createMockR2Bucket()
-      
+
       expect(() => new TableManager(validDb, validStorage)).not.toThrow()
     })
 
@@ -761,11 +769,11 @@ describe('TableManager', () => {
       await tableManager.createTable(testTableName, [
         { name: 'id', type: 'TEXT' },
         { name: 'count', type: 'INTEGER' },
-        { name: 'active', type: 'BOOLEAN' }
+        { name: 'active', type: 'BOOLEAN' },
       ])
 
       const result = await tableManager.getTableData(testTableName)
-      
+
       expect(result).toHaveProperty('data')
       expect(result).toHaveProperty('total')
       expect(Array.isArray(result.data)).toBe(true)
@@ -777,13 +785,13 @@ describe('TableManager', () => {
       await tableManager.createTable(testTableName, [
         { name: 'text_col', type: 'TEXT', constraints: 'NOT NULL' },
         { name: 'int_col', type: 'INTEGER' },
-        { name: 'real_col', type: 'REAL' }
+        { name: 'real_col', type: 'REAL' },
       ])
 
       const columns = await tableManager.getTableColumns(testTableName)
-      
+
       expect(Array.isArray(columns)).toBe(true)
-      columns.forEach(column => {
+      columns.forEach((column) => {
         expect(column).toHaveProperty('name')
         expect(column).toHaveProperty('type')
         expect(column).toHaveProperty('notnull')
@@ -797,9 +805,9 @@ describe('TableManager', () => {
 
     it('should return properly typed table information', async () => {
       const tables = await tableManager.getTables()
-      
+
       expect(Array.isArray(tables)).toBe(true)
-      tables.forEach(table => {
+      tables.forEach((table) => {
         expect(table).toHaveProperty('name')
         expect(table).toHaveProperty('type')
         expect(table).toHaveProperty('sql')
@@ -815,13 +823,13 @@ describe('TableManager', () => {
       const testTableName = 'fk_type_test'
       await tableManager.createTable(testTableName, [
         { name: 'id', type: 'TEXT' },
-        { name: 'name', type: 'TEXT' }
+        { name: 'name', type: 'TEXT' },
       ])
 
       const foreignKeys = await tableManager.getForeignKeys(testTableName)
-      
+
       expect(Array.isArray(foreignKeys)).toBe(true)
-      foreignKeys.forEach(fk => {
+      foreignKeys.forEach((fk) => {
         expect(fk).toHaveProperty('from')
         expect(fk).toHaveProperty('table')
         expect(fk).toHaveProperty('to')
@@ -835,13 +843,13 @@ describe('TableManager', () => {
       const testTableName = 'record_type_test'
       await tableManager.createTable(testTableName, [
         { name: 'title', type: 'TEXT' },
-        { name: 'count', type: 'INTEGER' }
+        { name: 'count', type: 'INTEGER' },
       ])
 
       // Test createRecordWithId returns string
       const recordId = await tableManager.createRecordWithId(testTableName, {
         title: 'Test',
-        count: 42
+        count: 42,
       })
       expect(typeof recordId).toBe('string')
 
@@ -852,13 +860,11 @@ describe('TableManager', () => {
 
     it('should handle validation results with proper typing', async () => {
       const testTableName = 'validation_type_test'
-      await tableManager.createTable(testTableName, [
-        { name: 'test_col', type: 'TEXT' }
-      ])
+      await tableManager.createTable(testTableName, [{ name: 'test_col', type: 'TEXT' }])
 
       const validation = await tableManager.validateColumnChanges(testTableName, 'test_col', {
         type: 'INTEGER',
-        notNull: true
+        notNull: true,
       })
 
       expect(validation).toHaveProperty('valid')
@@ -867,7 +873,7 @@ describe('TableManager', () => {
       expect(typeof validation.valid).toBe('boolean')
       expect(Array.isArray(validation.errors)).toBe(true)
       expect(typeof validation.conflictingRows).toBe('number')
-      validation.errors.forEach(error => {
+      validation.errors.forEach((error) => {
         expect(typeof error).toBe('string')
       })
     })
@@ -876,7 +882,7 @@ describe('TableManager', () => {
       // Test createSnapshot returns string ID
       const snapshotId = await tableManager.createSnapshot({
         name: 'Type Test Snapshot',
-        description: 'Testing proper return types'
+        description: 'Testing proper return types',
       })
       expect(typeof snapshotId).toBe('string')
 

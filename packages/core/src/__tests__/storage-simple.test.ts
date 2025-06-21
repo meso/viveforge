@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Suppress console.error during tests to reduce noise
 beforeEach(() => {
@@ -24,25 +24,25 @@ function createSimpleMockR2Bucket(): SimpleMockR2Bucket {
 
   return {
     storage,
-    
+
     async get(key: string) {
       const item = storage.get(key)
       if (!item) return null
-      
+
       return {
         ...item.metadata,
         body: new ReadableStream({
           start(controller) {
             controller.enqueue(new Uint8Array(item.data))
             controller.close()
-          }
+          },
         }),
         async text() {
           return new TextDecoder().decode(item.data)
         },
         async arrayBuffer() {
           return item.data.slice()
-        }
+        },
       }
     },
 
@@ -54,56 +54,56 @@ function createSimpleMockR2Bucket(): SimpleMockR2Bucket {
         etag: Math.random().toString(36),
         httpEtag: `"${Math.random().toString(36)}"`,
         httpMetadata: options?.httpMetadata,
-        customMetadata: options?.customMetadata
+        customMetadata: options?.customMetadata,
       }
-      
+
       storage.set(key, { data: value, metadata })
       return metadata
     },
 
     async delete(keys: string | string[]) {
       const keyArray = Array.isArray(keys) ? keys : [keys]
-      keyArray.forEach(key => storage.delete(key))
+      keyArray.forEach((key) => storage.delete(key))
     },
 
     async list(options?: any) {
       const { prefix = '', limit = 1000 } = options || {}
-      
+
       const objects = Array.from(storage.entries())
         .filter(([key]) => key.startsWith(prefix))
         .map(([_, item]) => item.metadata)
         .slice(0, limit)
-      
+
       return {
         objects,
         truncated: false,
-        delimitedPrefixes: []
+        delimitedPrefixes: [],
       }
     },
 
     async head(key: string) {
       const item = storage.get(key)
       return item ? item.metadata : null
-    }
+    },
   }
 }
 
 describe('Storage API - Basic Tests', () => {
   let app: Hono<{ Bindings: Env; Variables: Variables }>
   let mockBucket: SimpleMockR2Bucket
-  
+
   beforeEach(() => {
     app = new Hono<{ Bindings: Env; Variables: Variables }>()
     mockBucket = createSimpleMockR2Bucket()
-    
+
     app.use('*', async (c, next) => {
       c.env = {
         USER_STORAGE: mockBucket as any,
-        ENVIRONMENT: 'development'
+        ENVIRONMENT: 'development',
       } as Env
       await next()
     })
-    
+
     app.route('/api/storage', storage)
   })
 
@@ -111,8 +111,8 @@ describe('Storage API - Basic Tests', () => {
     it('should list empty files initially', async () => {
       const res = await app.request('/api/storage')
       expect(res.status).toBe(200)
-      
-      const data = await res.json() as any
+
+      const data = (await res.json()) as any
       expect(data.objects).toEqual([])
       expect(data.truncated).toBe(false)
     })
@@ -121,15 +121,15 @@ describe('Storage API - Basic Tests', () => {
       const formData = new FormData()
       const file = new File(['test content'], 'test.txt', { type: 'text/plain' })
       formData.append('file', file)
-      
+
       const res = await app.request('/api/storage/upload', {
         method: 'POST',
-        body: formData
+        body: formData,
       })
-      
+
       expect(res.status).toBe(200)
-      
-      const data = await res.json() as any
+
+      const data = (await res.json()) as any
       expect(data.key).toBe('test.txt')
       expect(data.size).toBe(12)
     })
@@ -138,13 +138,13 @@ describe('Storage API - Basic Tests', () => {
       // First upload a file
       const testData = new TextEncoder().encode('test content')
       await mockBucket.put('test.txt', testData, {
-        httpMetadata: { contentType: 'text/plain' }
+        httpMetadata: { contentType: 'text/plain' },
       })
-      
+
       const res = await app.request('/api/storage/download/test.txt')
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('text/plain')
-      
+
       const content = await res.text()
       expect(content).toBe('test content')
     })
@@ -153,16 +153,16 @@ describe('Storage API - Basic Tests', () => {
       // First upload a file
       const testData = new TextEncoder().encode('test content')
       await mockBucket.put('delete-me.txt', testData)
-      
+
       const res = await app.request('/api/storage/delete-me.txt', {
-        method: 'DELETE'
+        method: 'DELETE',
       })
-      
+
       expect(res.status).toBe(200)
-      
-      const data = await res.json() as any
+
+      const data = (await res.json()) as any
       expect(data.success).toBe(true)
-      
+
       // Verify file was deleted
       const deletedFile = await mockBucket.get('delete-me.txt')
       expect(deletedFile).toBeNull()
@@ -173,13 +173,13 @@ describe('Storage API - Basic Tests', () => {
       const testData = new TextEncoder().encode('test content')
       await mockBucket.put('info-test.txt', testData, {
         httpMetadata: { contentType: 'text/plain' },
-        customMetadata: { uploadedBy: 'test' }
+        customMetadata: { uploadedBy: 'test' },
       })
-      
+
       const res = await app.request('/api/storage/info/info-test.txt')
       expect(res.status).toBe(200)
-      
-      const data = await res.json() as any
+
+      const data = (await res.json()) as any
       expect(data.key).toBe('info-test.txt')
       expect(data.size).toBe(12)
       expect(data.customMetadata.uploadedBy).toBe('test')
@@ -189,11 +189,11 @@ describe('Storage API - Basic Tests', () => {
       // Upload some test files
       await mockBucket.put('file1.txt', new ArrayBuffer(10))
       await mockBucket.put('file2.txt', new ArrayBuffer(20))
-      
+
       const res = await app.request('/api/storage')
       expect(res.status).toBe(200)
-      
-      const data = await res.json() as any
+
+      const data = (await res.json()) as any
       expect(data.objects).toHaveLength(2)
       expect(data.objects.map((obj: any) => obj.key)).toContain('file1.txt')
       expect(data.objects.map((obj: any) => obj.key)).toContain('file2.txt')
@@ -204,19 +204,19 @@ describe('Storage API - Basic Tests', () => {
       await mockBucket.put('bulk1.txt', new ArrayBuffer(10))
       await mockBucket.put('bulk2.txt', new ArrayBuffer(20))
       await mockBucket.put('keep.txt', new ArrayBuffer(30))
-      
+
       const res = await app.request('/api/storage', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ keys: ['bulk1.txt', 'bulk2.txt'] })
+        body: JSON.stringify({ keys: ['bulk1.txt', 'bulk2.txt'] }),
       })
-      
+
       expect(res.status).toBe(200)
-      
-      const data = await res.json() as any
+
+      const data = (await res.json()) as any
       expect(data.success).toBe(true)
       expect(data.deletedKeys).toEqual(['bulk1.txt', 'bulk2.txt'])
-      
+
       // Verify files were deleted
       expect(await mockBucket.get('bulk1.txt')).toBeNull()
       expect(await mockBucket.get('bulk2.txt')).toBeNull()
@@ -237,12 +237,12 @@ describe('Storage API - Basic Tests', () => {
 
     it('should handle upload without file gracefully', async () => {
       const formData = new FormData()
-      
+
       const res = await app.request('/api/storage/upload', {
         method: 'POST',
-        body: formData
+        body: formData,
       })
-      
+
       expect(res.status).toBe(400)
     })
 
@@ -250,9 +250,9 @@ describe('Storage API - Basic Tests', () => {
       const res = await app.request('/api/storage/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
+        body: JSON.stringify({}),
       })
-      
+
       expect(res.status).toBe(400)
     })
   })

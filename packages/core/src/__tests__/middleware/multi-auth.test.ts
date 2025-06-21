@@ -1,14 +1,14 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { Hono } from 'hono'
-import { multiAuth } from '../../middleware/auth'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { APIKeyManager } from '../../lib/api-key-manager'
 import { VibebaseAuthClient } from '../../lib/auth-client'
+import { multiAuth } from '../../middleware/auth'
 import type { Env, Variables } from '../../types'
 
 // Mock APIKeyManager
 vi.mock('../../lib/api-key-manager', () => ({
   APIKeyManager: vi.fn(),
-  API_SCOPES: {}
+  API_SCOPES: {},
 }))
 
 describe('Multi-Auth Middleware', () => {
@@ -19,22 +19,22 @@ describe('Multi-Auth Middleware', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    
+
     app = new Hono()
-    
+
     mockAPIKeyManager = {
-      verifyAPIKey: vi.fn()
+      verifyAPIKey: vi.fn(),
     }
-    
+
     // Mock the APIKeyManager constructor to return our mock
     vi.mocked(APIKeyManager).mockImplementation(() => mockAPIKeyManager)
-    
+
     mockAuthClient = {
       verifyRequest: vi.fn(),
       verifyJWT: vi.fn(),
-      getLoginUrl: vi.fn().mockReturnValue('/auth/login')
+      getLoginUrl: vi.fn().mockReturnValue('/auth/login'),
     }
-    
+
     mockEnv = {
       DB: {} as any,
       SESSIONS: {} as any,
@@ -44,7 +44,7 @@ describe('Multi-Auth Middleware', () => {
       VIBEBASE_AUTH_URL: 'https://auth.example.com',
       DEPLOYMENT_DOMAIN: 'example.com',
       WORKER_NAME: 'test-worker',
-      ENVIRONMENT: 'development'
+      ENVIRONMENT: 'development',
     }
 
     // Setup middleware
@@ -54,9 +54,9 @@ describe('Multi-Auth Middleware', () => {
       c.set('authClient', mockAuthClient)
       await next()
     })
-    
+
     app.use('*', multiAuth)
-    
+
     app.get('/test', (c) => {
       const user = c.get('user')
       const apiKey = c.get('apiKey')
@@ -72,19 +72,19 @@ describe('Multi-Auth Middleware', () => {
         name: 'Test Key',
         scopes: ['data:read'],
         created_by: 'admin-123',
-        is_active: true
+        is_active: true,
       }
 
       mockAPIKeyManager.verifyAPIKey.mockResolvedValue(mockAPIKey)
 
       const response = await app.request('/test', {
         headers: {
-          'Authorization': 'Bearer vb_live_test-key'
-        }
+          Authorization: 'Bearer vb_live_test-key',
+        },
       })
 
       expect(response.status).toBe(200)
-      const data = await response.json() as any
+      const data = (await response.json()) as any
       expect(data.authContext).toEqual({ type: 'api_key', apiKey: mockAPIKey })
       expect(data.user).toBeUndefined()
       expect(mockAPIKeyManager.verifyAPIKey).toHaveBeenCalledWith('vb_live_test-key')
@@ -95,12 +95,12 @@ describe('Multi-Auth Middleware', () => {
 
       const response = await app.request('/test', {
         headers: {
-          'Authorization': 'Bearer vb_live_invalid-key'
-        }
+          Authorization: 'Bearer vb_live_invalid-key',
+        },
       })
 
       expect(response.status).toBe(401)
-      const data = await response.json() as any
+      const data = (await response.json()) as any
       expect(data.error).toBe('Invalid API key')
     })
 
@@ -109,12 +109,12 @@ describe('Multi-Auth Middleware', () => {
 
       const response = await app.request('/test', {
         headers: {
-          'Authorization': 'Bearer vb_live_test-key'
-        }
+          Authorization: 'Bearer vb_live_test-key',
+        },
       })
 
       expect(response.status).toBe(401)
-      const data = await response.json() as any
+      const data = (await response.json()) as any
       expect(data.error).toBe('API key authentication failed')
     })
   })
@@ -125,19 +125,19 @@ describe('Multi-Auth Middleware', () => {
         id: 123,
         username: 'testuser',
         email: 'test@example.com',
-        scope: ['admin']
+        scope: ['admin'],
       }
 
       mockAuthClient.verifyJWT.mockResolvedValue(mockUser)
 
       const response = await app.request('/test', {
         headers: {
-          'Authorization': 'Bearer jwt-token-here'
-        }
+          Authorization: 'Bearer jwt-token-here',
+        },
       })
 
       expect(response.status).toBe(200)
-      const data = await response.json() as any
+      const data = (await response.json()) as any
       expect(data.user).toEqual(mockUser)
       expect(data.authContext).toEqual({ type: 'admin', user: mockUser })
       expect(data.apiKey).toBeUndefined()
@@ -148,12 +148,12 @@ describe('Multi-Auth Middleware', () => {
 
       const response = await app.request('/test', {
         headers: {
-          'Authorization': 'Bearer invalid-jwt-token'
-        }
+          Authorization: 'Bearer invalid-jwt-token',
+        },
       })
 
       expect(response.status).toBe(401)
-      const data = await response.json() as any
+      const data = (await response.json()) as any
       expect(data.error).toBe('Invalid JWT token')
     })
 
@@ -162,12 +162,12 @@ describe('Multi-Auth Middleware', () => {
 
       const response = await app.request('/test', {
         headers: {
-          'Authorization': 'Bearer jwt-token-here'
-        }
+          Authorization: 'Bearer jwt-token-here',
+        },
       })
 
       expect(response.status).toBe(401)
-      const data = await response.json() as any
+      const data = (await response.json()) as any
       expect(data.error).toBe('JWT authentication failed')
     })
   })
@@ -178,25 +178,25 @@ describe('Multi-Auth Middleware', () => {
         id: 123,
         username: 'testuser',
         email: 'test@example.com',
-        scope: ['admin']
+        scope: ['admin'],
       }
 
       mockAuthClient.verifyRequest.mockResolvedValue(mockUser)
 
       const response = await app.request('/test', {
         headers: {
-          'Cookie': 'session=valid-session-token'
-        }
+          Cookie: 'session=valid-session-token',
+        },
       })
 
       expect(response.status).toBe(200)
-      const data = await response.json() as any
+      const data = (await response.json()) as any
       expect(data.user).toEqual(mockUser)
     })
 
     it('should redirect to login when no authentication provided', async () => {
       mockAuthClient.verifyRequest.mockResolvedValue(null)
-      
+
       const response = await app.request('/test')
 
       expect(response.status).toBe(302)
@@ -211,14 +211,14 @@ describe('Multi-Auth Middleware', () => {
         name: 'Test Key',
         scopes: ['data:read'],
         created_by: 'admin-123',
-        is_active: true
+        is_active: true,
       }
 
       const mockUser = {
         id: 123,
         username: 'testuser',
         email: 'test@example.com',
-        scope: ['admin']
+        scope: ['admin'],
       }
 
       mockAPIKeyManager.verifyAPIKey.mockResolvedValue(mockAPIKey)
@@ -226,13 +226,13 @@ describe('Multi-Auth Middleware', () => {
 
       const response = await app.request('/test', {
         headers: {
-          'Authorization': 'Bearer vb_live_test-key',
-          'Cookie': 'session=valid-session-token'
-        }
+          Authorization: 'Bearer vb_live_test-key',
+          Cookie: 'session=valid-session-token',
+        },
       })
 
       expect(response.status).toBe(200)
-      const data = await response.json() as any
+      const data = (await response.json()) as any
       expect(data.authContext).toEqual({ type: 'api_key', apiKey: mockAPIKey })
       expect(data.user).toBeUndefined()
       expect(mockAPIKeyManager.verifyAPIKey).toHaveBeenCalled()
@@ -254,12 +254,12 @@ describe('Multi-Auth Middleware', () => {
 
       const response = await app.request('/test', {
         headers: {
-          'Authorization': 'Bearer vb_live_test-key'
-        }
+          Authorization: 'Bearer vb_live_test-key',
+        },
       })
 
       expect(response.status).toBe(401)
-      const data = await response.json() as any
+      const data = (await response.json()) as any
       expect(data.error).toBe('Invalid API key')
     })
 
@@ -276,12 +276,12 @@ describe('Multi-Auth Middleware', () => {
 
       const response = await app.request('/test', {
         headers: {
-          'Authorization': 'Bearer jwt-token-here'
-        }
+          Authorization: 'Bearer jwt-token-here',
+        },
       })
 
       expect(response.status).toBe(503)
-      const data = await response.json() as any
+      const data = (await response.json()) as any
       expect(data.error).toBe('Authentication service unavailable')
     })
   })

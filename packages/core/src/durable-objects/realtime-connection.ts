@@ -37,22 +37,22 @@ export class RealtimeConnectionManager extends DurableObject {
 
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url)
-    
+
     // Handle SSE connections
     if (url.pathname === '/connect') {
       return this.handleSSEConnection(request)
     }
-    
+
     // Handle event broadcasts
     if (url.pathname === '/broadcast' && request.method === 'POST') {
       return this.handleBroadcast(request)
     }
-    
+
     // Handle connection management
     if (url.pathname === '/disconnect' && request.method === 'POST') {
       return this.handleDisconnect(request)
     }
-    
+
     return new Response('Not Found', { status: 404 })
   }
 
@@ -60,7 +60,7 @@ export class RealtimeConnectionManager extends DurableObject {
     const url = new URL(request.url)
     const clientId = url.searchParams.get('clientId')
     const userId = url.searchParams.get('userId')
-    
+
     if (!clientId) {
       return new Response('Missing clientId', { status: 400 })
     }
@@ -76,19 +76,19 @@ export class RealtimeConnectionManager extends DurableObject {
       userId: userId || undefined,
       subscriptions: {
         tables: new Set(),
-        hookIds: new Set()
+        hookIds: new Set(),
       },
       writer,
-      lastPing: Date.now()
+      lastPing: Date.now(),
     }
-    
+
     this.connections.set(clientId, connection)
 
     // Send initial connection message
     await this.sendToClient(connection, {
       type: 'connected',
       clientId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     })
 
     // Start ping interval if not already running
@@ -100,7 +100,7 @@ export class RealtimeConnectionManager extends DurableObject {
     request.signal.addEventListener('abort', () => {
       this.connections.delete(clientId)
       writer.close().catch(() => {})
-      
+
       // Stop ping interval if no more connections
       if (this.connections.size === 0 && this.pingInterval) {
         clearInterval(this.pingInterval)
@@ -112,16 +112,16 @@ export class RealtimeConnectionManager extends DurableObject {
       headers: {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-        'X-Accel-Buffering': 'no' // Disable Nginx buffering
-      }
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no', // Disable Nginx buffering
+      },
     })
   }
 
   private async handleBroadcast(request: Request): Promise<Response> {
     try {
       const message: RealtimeMessage = await request.json()
-      
+
       if (message.type !== 'event' || !message.event) {
         return new Response('Invalid message', { status: 400 })
       }
@@ -132,22 +132,27 @@ export class RealtimeConnectionManager extends DurableObject {
       // Broadcast to all relevant connections
       for (const [clientId, connection] of this.connections) {
         // Check if connection is subscribed to this event
-        if (connection.subscriptions.tables.has(event.table) ||
-            connection.subscriptions.tables.has('*')) {
+        if (
+          connection.subscriptions.tables.has(event.table) ||
+          connection.subscriptions.tables.has('*')
+        ) {
           await this.sendToClient(connection, {
             type: 'event',
-            ...event
+            ...event,
           })
           broadcastCount++
         }
       }
 
-      return new Response(JSON.stringify({ 
-        success: true, 
-        broadcastCount 
-      }), {
-        headers: { 'Content-Type': 'application/json' }
-      })
+      return new Response(
+        JSON.stringify({
+          success: true,
+          broadcastCount,
+        }),
+        {
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
     } catch (error) {
       console.error('Broadcast error:', error)
       return new Response('Internal Server Error', { status: 500 })
@@ -156,8 +161,8 @@ export class RealtimeConnectionManager extends DurableObject {
 
   private async handleDisconnect(request: Request): Promise<Response> {
     try {
-      const { clientId } = await request.json() as { clientId?: string }
-      
+      const { clientId } = (await request.json()) as { clientId?: string }
+
       if (!clientId) {
         return new Response('Missing clientId', { status: 400 })
       }
@@ -169,7 +174,7 @@ export class RealtimeConnectionManager extends DurableObject {
       }
 
       return new Response(JSON.stringify({ success: true }), {
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
       })
     } catch (error) {
       console.error('Disconnect error:', error)
@@ -198,7 +203,7 @@ export class RealtimeConnectionManager extends DurableObject {
         // Send ping
         this.sendToClient(connection, {
           type: 'ping',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         }).catch(() => {
           // Remove dead connections
           this.connections.delete(clientId)
@@ -220,7 +225,10 @@ export class RealtimeConnectionManager extends DurableObject {
   }
 
   // Handle subscription updates from clients
-  async updateSubscriptions(clientId: string, subscriptions: RealtimeMessage['subscriptions']): Promise<void> {
+  async updateSubscriptions(
+    clientId: string,
+    subscriptions: RealtimeMessage['subscriptions']
+  ): Promise<void> {
     const connection = this.connections.get(clientId)
     if (!connection) return
 
@@ -236,9 +244,9 @@ export class RealtimeConnectionManager extends DurableObject {
       type: 'subscriptions_updated',
       subscriptions: {
         tables: Array.from(connection.subscriptions.tables),
-        hookIds: Array.from(connection.subscriptions.hookIds)
+        hookIds: Array.from(connection.subscriptions.hookIds),
       },
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     })
   }
 }

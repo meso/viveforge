@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { Hono } from 'hono'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { API_SCOPES, APIKeyManager } from '../../lib/api-key-manager'
 import { apiKeys } from '../../routes/api-keys'
-import { APIKeyManager, API_SCOPES } from '../../lib/api-key-manager'
 import type { Env, Variables } from '../../types'
 
 // Mock auth middleware to bypass authentication
@@ -13,7 +13,7 @@ vi.mock('../../middleware/auth', () => ({
       username: 'testuser',
       email: 'test@example.com',
       name: 'Test User',
-      scope: ['admin']
+      scope: ['admin'],
     })
     await next()
   }),
@@ -22,13 +22,13 @@ vi.mock('../../middleware/auth', () => ({
     username: 'testuser',
     email: 'test@example.com',
     name: 'Test User',
-    scope: ['admin']
+    scope: ['admin'],
   }),
   getAuthContext: vi.fn(),
   requireScope: vi.fn(),
   multiAuth: vi.fn().mockImplementation(async (c, next) => {
     await next()
-  })
+  }),
 }))
 
 // Mock the APIKeyManager
@@ -45,8 +45,8 @@ vi.mock('../../lib/api-key-manager', () => ({
     'storage:write': 'Upload files to storage',
     'storage:delete': 'Delete files from storage',
     'admin:read': 'Read administrative data',
-    'admin:write': 'Perform administrative operations'
-  }
+    'admin:write': 'Perform administrative operations',
+  },
 }))
 
 describe('API Keys Routes', () => {
@@ -56,20 +56,20 @@ describe('API Keys Routes', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    
+
     app = new Hono()
-    
+
     mockAPIKeyManager = {
       initializeTable: vi.fn(),
       createAPIKey: vi.fn(),
       listAPIKeys: vi.fn(),
       revokeAPIKey: vi.fn(),
-      deleteAPIKey: vi.fn()
+      deleteAPIKey: vi.fn(),
     }
-    
+
     // Mock the APIKeyManager constructor to return our mock
     vi.mocked(APIKeyManager).mockImplementation(() => mockAPIKeyManager)
-    
+
     mockEnv = {
       DB: {} as any,
       SESSIONS: {} as any,
@@ -79,7 +79,7 @@ describe('API Keys Routes', () => {
       VIBEBASE_AUTH_URL: 'https://auth.example.com',
       DEPLOYMENT_DOMAIN: 'example.com',
       WORKER_NAME: 'test-worker',
-      ENVIRONMENT: 'development'
+      ENVIRONMENT: 'development',
     }
 
     // Mock authentication middleware - set env and variables
@@ -92,12 +92,12 @@ describe('API Keys Routes', () => {
     const mockDB = {
       prepare: vi.fn().mockReturnValue({
         bind: vi.fn().mockReturnValue({
-          first: vi.fn().mockResolvedValue({ id: 'admin-123' })
-        })
-      })
+          first: vi.fn().mockResolvedValue({ id: 'admin-123' }),
+        }),
+      }),
     }
     mockEnv.DB = mockDB as any
-    
+
     app.route('/api/api-keys', apiKeys)
   })
 
@@ -106,11 +106,11 @@ describe('API Keys Routes', () => {
       mockAPIKeyManager.initializeTable.mockResolvedValue(undefined)
 
       const response = await app.request('/api/api-keys/init', {
-        method: 'POST'
+        method: 'POST',
       })
 
       expect(response.status).toBe(200)
-      const data = await response.json() as any
+      const data = (await response.json()) as any
       expect(data.success).toBe(true)
       expect(data.message).toBe('API keys table initialized')
       expect(mockAPIKeyManager.initializeTable).toHaveBeenCalled()
@@ -120,11 +120,11 @@ describe('API Keys Routes', () => {
       mockAPIKeyManager.initializeTable.mockRejectedValue(new Error('Table creation failed'))
 
       const response = await app.request('/api/api-keys/init', {
-        method: 'POST'
+        method: 'POST',
       })
 
       expect(response.status).toBe(500)
-      const data = await response.json() as any
+      const data = (await response.json()) as any
       expect(data.error).toBe('Failed to initialize API keys table')
       expect(data.details).toBe('Table creation failed')
     })
@@ -135,7 +135,7 @@ describe('API Keys Routes', () => {
       const response = await app.request('/api/api-keys/scopes')
 
       expect(response.status).toBe(200)
-      const data = await response.json() as any
+      const data = (await response.json()) as any
       expect(data.scopes).toEqual(API_SCOPES)
     })
   })
@@ -149,8 +149,8 @@ describe('API Keys Routes', () => {
           key_prefix: 'vb_live_abc123...',
           scopes: ['data:read'],
           created_at: '2023-01-01T00:00:00Z',
-          is_active: true
-        }
+          is_active: true,
+        },
       ]
 
       mockAPIKeyManager.listAPIKeys.mockResolvedValue(mockKeys)
@@ -158,7 +158,7 @@ describe('API Keys Routes', () => {
       const response = await app.request('/api/api-keys')
 
       expect(response.status).toBe(200)
-      const data = await response.json() as any
+      const data = (await response.json()) as any
       expect(data.data).toEqual(mockKeys)
       expect(mockAPIKeyManager.listAPIKeys).toHaveBeenCalledWith('admin-123')
     })
@@ -167,16 +167,16 @@ describe('API Keys Routes', () => {
       const mockDB = {
         prepare: vi.fn().mockReturnValue({
           bind: vi.fn().mockReturnValue({
-            first: vi.fn().mockResolvedValue(null)
-          })
-        })
+            first: vi.fn().mockResolvedValue(null),
+          }),
+        }),
       }
       mockEnv.DB = mockDB as any
 
       const response = await app.request('/api/api-keys')
 
       expect(response.status).toBe(404)
-      const data = await response.json() as any
+      const data = (await response.json()) as any
       expect(data.error).toBe('Admin not found in database')
     })
 
@@ -186,7 +186,7 @@ describe('API Keys Routes', () => {
       const response = await app.request('/api/api-keys')
 
       expect(response.status).toBe(500)
-      const data = await response.json() as any
+      const data = (await response.json()) as any
       expect(data.error).toBe('Failed to list API keys')
     })
   })
@@ -198,7 +198,7 @@ describe('API Keys Routes', () => {
         name: 'Test Key',
         key: 'vb_live_test-key-123',
         scopes: ['data:read', 'data:write'],
-        expires_at: null
+        expires_at: null,
       }
 
       mockAPIKeyManager.createAPIKey.mockResolvedValue(mockCreatedKey)
@@ -206,23 +206,23 @@ describe('API Keys Routes', () => {
       const response = await app.request('/api/api-keys', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           name: 'Test Key',
-          scopes: ['data:read', 'data:write']
-        })
+          scopes: ['data:read', 'data:write'],
+        }),
       })
 
       expect(response.status).toBe(201)
-      const data = await response.json() as any
+      const data = (await response.json()) as any
       expect(data.success).toBe(true)
       expect(data.data).toEqual(mockCreatedKey)
       expect(data.message).toContain('Save the key securely')
       expect(mockAPIKeyManager.createAPIKey).toHaveBeenCalledWith(
         {
           name: 'Test Key',
-          scopes: ['data:read', 'data:write']
+          scopes: ['data:read', 'data:write'],
         },
         'admin-123'
       )
@@ -232,16 +232,16 @@ describe('API Keys Routes', () => {
       const response = await app.request('/api/api-keys', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          name: 'Test Key'
+          name: 'Test Key',
           // missing scopes
-        })
+        }),
       })
 
       expect(response.status).toBe(400)
-      const data = await response.json() as any
+      const data = (await response.json()) as any
       expect(data.error).toBe('Validation failed')
       expect(data.details).toContain('name and scopes are required')
     })
@@ -250,16 +250,16 @@ describe('API Keys Routes', () => {
       const response = await app.request('/api/api-keys', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           name: 'Test Key',
-          scopes: ['invalid:scope', 'data:read']
-        })
+          scopes: ['invalid:scope', 'data:read'],
+        }),
       })
 
       expect(response.status).toBe(400)
-      const data = await response.json() as any
+      const data = (await response.json()) as any
       expect(data.error).toBe('Invalid scopes')
       expect(data.details[0]).toContain('invalid:scope')
       expect(data.valid_scopes).toBeTruthy()
@@ -271,16 +271,16 @@ describe('API Keys Routes', () => {
       const response = await app.request('/api/api-keys', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           name: 'Test Key',
-          scopes: ['data:read']
-        })
+          scopes: ['data:read'],
+        }),
       })
 
       expect(response.status).toBe(500)
-      const data = await response.json() as any
+      const data = (await response.json()) as any
       expect(data.error).toBe('Failed to create API key')
       expect(data.details).toBe('Creation failed')
     })
@@ -292,19 +292,19 @@ describe('API Keys Routes', () => {
         {
           id: 'key-123',
           name: 'Test Key',
-          is_active: true
-        }
+          is_active: true,
+        },
       ]
 
       mockAPIKeyManager.listAPIKeys.mockResolvedValue(mockKeys)
       mockAPIKeyManager.revokeAPIKey.mockResolvedValue(true)
 
       const response = await app.request('/api/api-keys/key-123/revoke', {
-        method: 'PATCH'
+        method: 'PATCH',
       })
 
       expect(response.status).toBe(200)
-      const data = await response.json() as any
+      const data = (await response.json()) as any
       expect(data.success).toBe(true)
       expect(data.message).toBe('API key revoked successfully')
       expect(mockAPIKeyManager.revokeAPIKey).toHaveBeenCalledWith('key-123', 'admin-123')
@@ -314,11 +314,11 @@ describe('API Keys Routes', () => {
       mockAPIKeyManager.listAPIKeys.mockResolvedValue([])
 
       const response = await app.request('/api/api-keys/nonexistent-key/revoke', {
-        method: 'PATCH'
+        method: 'PATCH',
       })
 
       expect(response.status).toBe(404)
-      const data = await response.json() as any
+      const data = (await response.json()) as any
       expect(data.error).toBe('API key not found or access denied')
     })
 
@@ -327,19 +327,19 @@ describe('API Keys Routes', () => {
         {
           id: 'key-123',
           name: 'Test Key',
-          is_active: true
-        }
+          is_active: true,
+        },
       ]
 
       mockAPIKeyManager.listAPIKeys.mockResolvedValue(mockKeys)
       mockAPIKeyManager.revokeAPIKey.mockResolvedValue(false)
 
       const response = await app.request('/api/api-keys/key-123/revoke', {
-        method: 'PATCH'
+        method: 'PATCH',
       })
 
       expect(response.status).toBe(500)
-      const data = await response.json() as any
+      const data = (await response.json()) as any
       expect(data.error).toBe('Failed to revoke API key')
     })
   })
@@ -349,11 +349,11 @@ describe('API Keys Routes', () => {
       mockAPIKeyManager.deleteAPIKey.mockResolvedValue(true)
 
       const response = await app.request('/api/api-keys/key-123', {
-        method: 'DELETE'
+        method: 'DELETE',
       })
 
       expect(response.status).toBe(200)
-      const data = await response.json() as any
+      const data = (await response.json()) as any
       expect(data.success).toBe(true)
       expect(data.message).toBe('API key deleted successfully')
       expect(mockAPIKeyManager.deleteAPIKey).toHaveBeenCalledWith('key-123', 'admin-123')
@@ -363,11 +363,11 @@ describe('API Keys Routes', () => {
       mockAPIKeyManager.deleteAPIKey.mockResolvedValue(false)
 
       const response = await app.request('/api/api-keys/nonexistent-key', {
-        method: 'DELETE'
+        method: 'DELETE',
       })
 
       expect(response.status).toBe(404)
-      const data = await response.json() as any
+      const data = (await response.json()) as any
       expect(data.error).toBe('API key not found or access denied')
     })
 
@@ -375,11 +375,11 @@ describe('API Keys Routes', () => {
       mockAPIKeyManager.deleteAPIKey.mockRejectedValue(new Error('Database error'))
 
       const response = await app.request('/api/api-keys/key-123', {
-        method: 'DELETE'
+        method: 'DELETE',
       })
 
       expect(response.status).toBe(500)
-      const data = await response.json() as any
+      const data = (await response.json()) as any
       expect(data.error).toBe('Failed to delete API key')
     })
   })
@@ -391,7 +391,7 @@ describe('API Keys Routes', () => {
       const response = await app.request('/api/api-keys')
 
       expect(response.status).toBe(503)
-      const data = await response.json() as any
+      const data = (await response.json()) as any
       expect(data.error).toBe('Database not available')
     })
   })

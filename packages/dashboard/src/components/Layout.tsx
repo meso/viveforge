@@ -1,6 +1,6 @@
+import clsx from 'clsx'
 import { ComponentChildren } from 'preact'
 import { Link } from 'preact-router/match'
-import clsx from 'clsx'
 
 interface LayoutProps {
   children: ComponentChildren
@@ -39,9 +39,7 @@ export function Layout({ children }: LayoutProps) {
         </div>
       </nav>
 
-      <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {children}
-      </main>
+      <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">{children}</main>
     </div>
   )
 }

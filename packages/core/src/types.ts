@@ -1,37 +1,37 @@
-import { TableManager } from './lib/table-manager'
+import type { User, VibebaseAuthClient } from './lib/auth-client'
 import { Database } from './lib/database'
-import type { VibebaseAuthClient, User } from './lib/auth-client'
-import type { AuthContext } from './types/auth'
 import type { LocalTableInfo } from './lib/table-manager'
+import { TableManager } from './lib/table-manager'
+import type { AuthContext } from './types/auth'
 import type { DurableObjectNamespace } from './types/cloudflare'
 
 export interface Env {
   DB?: D1Database
-  SYSTEM_STORAGE?: R2Bucket  // システム用（スナップショット等）
-  USER_STORAGE?: R2Bucket    // ユーザー用
+  SYSTEM_STORAGE?: R2Bucket // システム用（スナップショット等）
+  USER_STORAGE?: R2Bucket // ユーザー用
   SESSIONS?: KVNamespace
-  ASSETS: { fetch: (request: Request) => Promise<Response> }  // Workers Assets
+  ASSETS: { fetch: (request: Request) => Promise<Response> } // Workers Assets
   ENVIRONMENT: 'development' | 'production'
-  
+
   // User authentication
   JWT_SECRET?: string
   DOMAIN?: string
-  
+
   // Vibebase Auth settings
   VIBEBASE_AUTH_URL?: string
   DEPLOYMENT_ID?: string
   DEPLOYMENT_DOMAIN?: string
   WORKER_NAME?: string
-  
+
   // Legacy Cloudflare Access settings (deprecated)
   CLOUDFLARE_TEAM_DOMAIN?: string
-  
+
   // OAuth providers secrets (legacy)
   GOOGLE_CLIENT_ID?: string
   GOOGLE_CLIENT_SECRET?: string
   GITHUB_CLIENT_ID?: string
   GITHUB_CLIENT_SECRET?: string
-  
+
   // Durable Objects
   REALTIME?: DurableObjectNamespace
 }

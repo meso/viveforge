@@ -1,11 +1,11 @@
-import { Router, Route } from 'preact-router'
+import { Route, Router } from 'preact-router'
 import { Layout } from './components/Layout'
-import { HomePage } from './pages/Home'
-import { DatabasePage } from './pages/Database'
-import { StoragePage } from './pages/Storage'
 import { AuthPage } from './pages/Auth'
-import { SettingsPage } from './pages/Settings'
 import { CustomSQL } from './pages/CustomSQL'
+import { DatabasePage } from './pages/Database'
+import { HomePage } from './pages/Home'
+import { SettingsPage } from './pages/Settings'
+import { StoragePage } from './pages/Storage'
 
 export function App() {
   return (

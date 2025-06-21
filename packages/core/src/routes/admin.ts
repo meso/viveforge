@@ -17,15 +17,15 @@ admin.get('/', async (c) => {
       return c.json({ error: 'Database not available' }, 500)
     }
     const result = await db.prepare('SELECT * FROM admins ORDER BY created_at DESC').all()
-    
+
     // Convert is_root from SQLite integer to boolean
     const admins = result.results.map((admin: any) => ({
       ...admin,
-      is_root: Boolean(admin.is_root)
+      is_root: Boolean(admin.is_root),
     }))
-    
+
     return c.json({
-      admins
+      admins,
     })
   } catch (error) {
     console.error('Failed to get admins:', error)
@@ -42,7 +42,7 @@ admin.post('/', async (c) => {
 
   try {
     const { github_username } = await c.req.json()
-    
+
     if (!github_username || typeof github_username !== 'string') {
       return c.json({ error: 'GitHub username is required' }, 400)
     }
@@ -51,24 +51,26 @@ admin.post('/', async (c) => {
     if (!db) {
       return c.json({ error: 'Database not available' }, 500)
     }
-    
+
     // Check if admin already exists
-    const existing = await db.prepare(
-      'SELECT id FROM admins WHERE github_username = ?'
-    ).bind(github_username).first()
-    
+    const existing = await db
+      .prepare('SELECT id FROM admins WHERE github_username = ?')
+      .bind(github_username)
+      .first()
+
     if (existing) {
       return c.json({ error: 'Admin already exists' }, 409)
     }
-    
+
     // Add new admin
-    await db.prepare(
-      'INSERT INTO admins (github_username, is_root) VALUES (?, ?)'
-    ).bind(github_username, false).run()
-    
-    return c.json({ 
+    await db
+      .prepare('INSERT INTO admins (github_username, is_root) VALUES (?, ?)')
+      .bind(github_username, false)
+      .run()
+
+    return c.json({
       message: 'Admin added successfully',
-      github_username 
+      github_username,
     })
   } catch (error) {
     console.error('Failed to add admin:', error)
@@ -89,26 +91,27 @@ admin.delete('/:id', async (c) => {
     if (!db) {
       return c.json({ error: 'Database not available' }, 500)
     }
-    
+
     // Check if admin exists and is not root
-    const admin = await db.prepare(
-      'SELECT id, github_username, is_root FROM admins WHERE id = ?'
-    ).bind(id).first() as Record<string, unknown>
-    
+    const admin = (await db
+      .prepare('SELECT id, github_username, is_root FROM admins WHERE id = ?')
+      .bind(id)
+      .first()) as Record<string, unknown>
+
     if (!admin) {
       return c.json({ error: 'Admin not found' }, 404)
     }
-    
+
     if (admin.is_root) {
       return c.json({ error: 'Cannot remove root admin' }, 403)
     }
-    
+
     // Remove admin
     await db.prepare('DELETE FROM admins WHERE id = ?').bind(id).run()
-    
-    return c.json({ 
+
+    return c.json({
       message: 'Admin removed successfully',
-      github_username: admin.github_username as string
+      github_username: admin.github_username as string,
     })
   } catch (error) {
     console.error('Failed to remove admin:', error)

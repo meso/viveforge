@@ -1,5 +1,5 @@
-import type { Env } from '../types'
 import { jwt } from 'hono/jwt'
+import type { Env } from '../types'
 
 export interface User {
   id: string
@@ -14,8 +14,8 @@ export interface User {
   is_active: boolean
   created_at: string
   updated_at: string
-  username?: string  // For compatibility with existing code
-  scope?: string[]   // For compatibility with existing code
+  username?: string // For compatibility with existing code
+  scope?: string[] // For compatibility with existing code
 }
 
 export interface TokenPair {
@@ -62,14 +62,14 @@ export class VibebaseAuthClient {
   private async registerDeployment(): Promise<void> {
     console.log(`Registering deployment with auth server: ${this.authBaseUrl}`)
     console.log(`Deployment domain: ${this.deploymentDomain}`)
-    
+
     try {
       const response = await fetch(`${this.authBaseUrl}/api/deployments/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-Deployment-Domain': this.deploymentDomain,
-          'X-API-Version': '1.0'
+          'X-API-Version': '1.0',
         },
         body: JSON.stringify({
           domain: this.deploymentDomain,
@@ -77,9 +77,9 @@ export class VibebaseAuthClient {
           features: ['database', 'storage', 'auth'],
           metadata: {
             worker_name: this.env.WORKER_NAME || 'vibebase',
-            created_at: new Date().toISOString()
-          }
-        })
+            created_at: new Date().toISOString(),
+          },
+        }),
       })
 
       console.log(`Registration response status: ${response.status}`)
@@ -87,17 +87,26 @@ export class VibebaseAuthClient {
       if (!response.ok) {
         const errorResponse = await response.json().catch(() => ({ error: 'Unknown error' }))
         console.error(`Registration failed with response:`, errorResponse)
-        
+
         // ドメインが既に登録済みの場合は、既存のデプロイメント情報を取得
-        if (response.status === 409 || (errorResponse && typeof errorResponse === 'object' && 'error' in errorResponse && typeof errorResponse.error === 'string' && errorResponse.error.includes('already registered'))) {
+        if (
+          response.status === 409 ||
+          (errorResponse &&
+            typeof errorResponse === 'object' &&
+            'error' in errorResponse &&
+            typeof errorResponse.error === 'string' &&
+            errorResponse.error.includes('already registered'))
+        ) {
           console.log('Domain already registered, attempting to get existing deployment...')
           return await this.getExistingDeployment()
         }
-        
-        throw new Error(`Deployment registration failed: ${response.status} - ${errorResponse && typeof errorResponse === 'object' && 'error' in errorResponse ? errorResponse.error : 'Unknown error'}`)
+
+        throw new Error(
+          `Deployment registration failed: ${response.status} - ${errorResponse && typeof errorResponse === 'object' && 'error' in errorResponse ? errorResponse.error : 'Unknown error'}`
+        )
       }
 
-      const result = await response.json() as DeploymentInfo
+      const result = (await response.json()) as DeploymentInfo
       this.deploymentId = result.deployment_id
 
       // 公開鍵をキャッシュ
@@ -115,18 +124,21 @@ export class VibebaseAuthClient {
    */
   private async getExistingDeployment(): Promise<void> {
     try {
-      const response = await fetch(`${this.authBaseUrl}/api/deployments/by-domain/${encodeURIComponent(this.deploymentDomain)}`, {
-        method: 'GET',
-        headers: {
-          'X-API-Version': '1.0'
+      const response = await fetch(
+        `${this.authBaseUrl}/api/deployments/by-domain/${encodeURIComponent(this.deploymentDomain)}`,
+        {
+          method: 'GET',
+          headers: {
+            'X-API-Version': '1.0',
+          },
         }
-      })
+      )
 
       if (!response.ok) {
         throw new Error(`Failed to get existing deployment: ${response.status}`)
       }
 
-      const result = await response.json() as DeploymentInfo
+      const result = (await response.json()) as DeploymentInfo
       this.deploymentId = result.deployment_id
 
       // 公開鍵をキャッシュ
@@ -145,13 +157,16 @@ export class VibebaseAuthClient {
   private async validateDeployment(): Promise<void> {
     if (!this.deploymentId) return
 
-    const response = await fetch(`${this.authBaseUrl}/api/deployments/${this.deploymentId}/validate`, {
-      method: 'GET',
-      headers: {
-        'X-Deployment-ID': this.deploymentId,
-        'X-API-Version': '1.0'
+    const response = await fetch(
+      `${this.authBaseUrl}/api/deployments/${this.deploymentId}/validate`,
+      {
+        method: 'GET',
+        headers: {
+          'X-Deployment-ID': this.deploymentId,
+          'X-API-Version': '1.0',
+        },
       }
-    })
+    )
 
     if (!response.ok) {
       console.warn(`Deployment validation failed: ${response.status}`)
@@ -166,7 +181,7 @@ export class VibebaseAuthClient {
   getLoginUrl(redirectTo: string = '/'): string {
     const params = new URLSearchParams({
       origin: `https://${this.deploymentDomain}`,
-      redirect_to: redirectTo
+      redirect_to: redirectTo,
     })
 
     return `${this.authBaseUrl}/auth/login?${params.toString()}`
@@ -179,13 +194,13 @@ export class VibebaseAuthClient {
     try {
       // 公開鍵取得
       const publicKey = await this.getPublicKey()
-      
+
       // JWT検証（hono/jwtを使用）
       const payload = await this.verifyJWTWithHono(token, publicKey)
-      
+
       // ペイロード検証
       this.validateTokenPayload(payload)
-      
+
       return {
         id: String(payload.github_id),
         email: payload.email,
@@ -197,7 +212,7 @@ export class VibebaseAuthClient {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         username: payload.github_login,
-        scope: payload.scope
+        scope: payload.scope,
       }
     } catch (error) {
       const err = error as Error
@@ -234,7 +249,7 @@ export class VibebaseAuthClient {
       const cookieHeader = c.req.raw.headers.get('Cookie')
       const cookieToken = cookieHeader?.match(/access_token=([^;]+)/)?.[1]
       const refreshToken = cookieHeader?.match(/refresh_token=([^;]+)/)?.[1]
-      
+
       if (cookieToken) {
         try {
           return await this.verifyToken(cookieToken)
@@ -242,19 +257,25 @@ export class VibebaseAuthClient {
           // アクセストークンが無効な場合、リフレッシュトークンで更新を試行
         }
       }
-      
+
       // access_tokenがないまたは無効で、refresh_tokenがある場合、リフレッシュを試行
       if (refreshToken) {
         try {
           const tokens = await this.refreshToken(refreshToken)
-          
+
           // 新しいCookieを設定（本番環境用セキュア設定）
           const expires = tokens.expires_in
           const refreshExpires = 30 * 24 * 60 * 60 // 30日
-          
-          c.res.headers.append('Set-Cookie', `access_token=${tokens.access_token}; HttpOnly; Secure; SameSite=Strict; Max-Age=${expires}; Path=/`)
-          c.res.headers.append('Set-Cookie', `refresh_token=${tokens.refresh_token}; HttpOnly; Secure; SameSite=Strict; Max-Age=${refreshExpires}; Path=/`)
-          
+
+          c.res.headers.append(
+            'Set-Cookie',
+            `access_token=${tokens.access_token}; HttpOnly; Secure; SameSite=Strict; Max-Age=${expires}; Path=/`
+          )
+          c.res.headers.append(
+            'Set-Cookie',
+            `refresh_token=${tokens.refresh_token}; HttpOnly; Secure; SameSite=Strict; Max-Age=${refreshExpires}; Path=/`
+          )
+
           return await this.verifyToken(tokens.access_token)
         } catch (error) {
           // リフレッシュ失敗時はクッキーをクリア
@@ -278,11 +299,11 @@ export class VibebaseAuthClient {
     const response = await fetch(`${this.authBaseUrl}/auth/refresh`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        refresh_token: refreshToken
-      })
+        refresh_token: refreshToken,
+      }),
     })
 
     if (!response.ok) {
@@ -301,11 +322,11 @@ export class VibebaseAuthClient {
       await fetch(`${this.authBaseUrl}/auth/logout`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          refresh_token: token
-        })
+          refresh_token: token,
+        }),
       })
     } catch (error) {
       // ログアウトは失敗しても無視
@@ -318,23 +339,23 @@ export class VibebaseAuthClient {
    */
   private async getPublicKey(): Promise<string> {
     const cacheKey = 'current'
-    
+
     if (this.publicKeyCache.has(cacheKey)) {
       return this.publicKeyCache.get(cacheKey)!
     }
 
     try {
       const response = await fetch(`${this.authBaseUrl}/.well-known/jwks.json`)
-      const jwks = await response.json() as { keys: any[] }
-      
+      const jwks = (await response.json()) as { keys: any[] }
+
       // 最新の公開鍵を取得
       const key = jwks.keys[0]
       const publicKey = await this.jwkToPublicKey(key)
-      
+
       // キャッシュに保存（5分間）
       this.publicKeyCache.set(cacheKey, publicKey)
       setTimeout(() => this.publicKeyCache.delete(cacheKey), 5 * 60 * 1000)
-      
+
       return publicKey
     } catch (error) {
       const err = error as Error
@@ -361,12 +382,12 @@ export class VibebaseAuthClient {
       const pemCert = `-----BEGIN CERTIFICATE-----\n${cert.match(/.{1,64}/g)?.join('\n')}\n-----END CERTIFICATE-----`
       return pemCert
     }
-    
+
     // RSA公開鍵の場合はJWK形式をそのまま返す（hono/jwtがJWKをサポート）
     if (jwk.kty === 'RSA' && jwk.n && jwk.e) {
       return JSON.stringify(jwk)
     }
-    
+
     throw new Error('Unsupported JWK format')
   }
 
@@ -377,10 +398,10 @@ export class VibebaseAuthClient {
     try {
       // hono/jwtのverify関数を直接使用
       const { verify } = await import('hono/jwt')
-      
+
       // 公開鍵のフォーマットを判定
       let publicKey: any = publicKeyData
-      
+
       // JSON文字列の場合はパース（JWK形式）
       try {
         const parsed = JSON.parse(publicKeyData)
@@ -391,7 +412,7 @@ export class VibebaseAuthClient {
         // JSON パースに失敗した場合は文字列（PEM形式）のまま使用
         publicKey = publicKeyData
       }
-      
+
       // RS256で検証
       const payload = await verify(token, publicKey, 'RS256')
       return payload
@@ -431,7 +452,6 @@ export class VibebaseAuthClient {
     if (payload.nbf && payload.nbf > now) {
       throw new Error('Token not yet valid')
     }
-
   }
 
   /**

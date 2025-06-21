@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'preact/hooks'
+import { useEffect, useState } from 'preact/hooks'
 
 interface StorageObject {
   key: string
@@ -32,10 +32,10 @@ export function StoragePage() {
       const params = new URLSearchParams()
       if (prefix) params.set('prefix', prefix)
       if (cursor) params.set('cursor', cursor)
-      
+
       const response = await fetch(`/api/storage?${params}`)
       if (!response.ok) throw new Error('Failed to load files')
-      
+
       const data: StorageListResponse = await response.json()
       setObjects(cursor ? [...objects, ...data.objects] : data.objects)
     } catch (err) {
@@ -55,15 +55,15 @@ export function StoragePage() {
       for (const file of Array.from(files)) {
         const formData = new FormData()
         formData.append('file', file)
-        
+
         const response = await fetch('/api/storage/upload', {
           method: 'POST',
-          body: formData
+          body: formData,
         })
-        
+
         if (!response.ok) throw new Error(`Failed to upload ${file.name}`)
       }
-      
+
       await loadObjects()
       input.value = ''
     } catch (err) {
@@ -75,15 +75,15 @@ export function StoragePage() {
 
   const handleDelete = async (key: string) => {
     if (!confirm(`Delete ${key}?`)) return
-    
+
     try {
       const response = await fetch(`/api/storage/${encodeURIComponent(key)}`, {
-        method: 'DELETE'
+        method: 'DELETE',
       })
-      
+
       if (!response.ok) throw new Error('Failed to delete file')
-      
-      setObjects(objects.filter(obj => obj.key !== key))
+
+      setObjects(objects.filter((obj) => obj.key !== key))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Delete failed')
     }
@@ -92,17 +92,17 @@ export function StoragePage() {
   const handleBulkDelete = async () => {
     if (selectedFiles.size === 0) return
     if (!confirm(`Delete ${selectedFiles.size} files?`)) return
-    
+
     try {
       const response = await fetch('/api/storage', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ keys: Array.from(selectedFiles) })
+        body: JSON.stringify({ keys: Array.from(selectedFiles) }),
       })
-      
+
       if (!response.ok) throw new Error('Failed to delete files')
-      
-      setObjects(objects.filter(obj => !selectedFiles.has(obj.key)))
+
+      setObjects(objects.filter((obj) => !selectedFiles.has(obj.key)))
       setSelectedFiles(new Set())
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Bulk delete failed')
@@ -184,7 +184,7 @@ export function StoragePage() {
                   onChange={(e) => {
                     const target = e.target as HTMLInputElement
                     if (target.checked) {
-                      setSelectedFiles(new Set(objects.map(obj => obj.key)))
+                      setSelectedFiles(new Set(objects.map((obj) => obj.key)))
                     } else {
                       setSelectedFiles(new Set())
                     }

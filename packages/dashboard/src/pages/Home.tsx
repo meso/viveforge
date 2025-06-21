@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'preact/hooks'
+import { useEffect, useState } from 'preact/hooks'
 import { api } from '../lib/api'
 
 export function HomePage() {
   const [stats, setStats] = useState({
     userTables: 0,
     systemTables: 0,
-    dbStatus: 'checking...'
+    dbStatus: 'checking...',
   })
 
   useEffect(() => {
@@ -16,27 +16,27 @@ export function HomePage() {
     try {
       // Load health status
       const health = await api.health()
-      
+
       // Load tables
       const tablesResult = await api.getTables()
-      const userTables = tablesResult.tables.filter(t => t.type === 'user').length
-      const systemTables = tablesResult.tables.filter(t => t.type === 'system').length
-      
+      const userTables = tablesResult.tables.filter((t) => t.type === 'user').length
+      const systemTables = tablesResult.tables.filter((t) => t.type === 'system').length
+
       setStats({
         userTables,
         systemTables,
-        dbStatus: health.database === 'connected' ? 'connected' : 'disconnected'
+        dbStatus: health.database === 'connected' ? 'connected' : 'disconnected',
       })
     } catch (error) {
       console.error('Failed to load stats:', error)
-      setStats(prev => ({ ...prev, dbStatus: 'error' }))
+      setStats((prev) => ({ ...prev, dbStatus: 'error' }))
     }
   }
 
   return (
     <div>
       <h2 class="text-2xl font-bold text-gray-900 mb-6">Dashboard</h2>
-      
+
       <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <DashboardCard
           title="Database Tables"
@@ -74,7 +74,11 @@ export function HomePage() {
               <a href="/storage" class="text-indigo-600 hover:text-indigo-500 block">
                 Upload files →
               </a>
-              <a href="/api/health" target="_blank" class="text-indigo-600 hover:text-indigo-500 block">
+              <a
+                href="/api/health"
+                target="_blank"
+                class="text-indigo-600 hover:text-indigo-500 block"
+              >
                 View API health →
               </a>
             </div>
@@ -134,11 +138,15 @@ function DashboardCard({ title, description, href, stats, status }: DashboardCar
         <div class="flex items-center justify-between">
           <dt class="text-sm font-medium text-gray-500 truncate">{title}</dt>
           {status && (
-            <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-              status === 'connected' ? 'bg-green-100 text-green-800' :
-              status === 'error' ? 'bg-red-100 text-red-800' :
-              'bg-gray-100 text-gray-800'
-            }`}>
+            <span
+              class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                status === 'connected'
+                  ? 'bg-green-100 text-green-800'
+                  : status === 'error'
+                    ? 'bg-red-100 text-red-800'
+                    : 'bg-gray-100 text-gray-800'
+              }`}
+            >
               {status}
             </span>
           )}

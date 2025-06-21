@@ -1,6 +1,18 @@
 // Use Web Crypto API instead of Node.js crypto for Cloudflare Workers
-import type { D1Database, R2Bucket, SnapshotListResult, OperationResult, SchemaSnapshot } from '../types/cloudflare'
-import type { TableInfo, SnapshotRecord, SchemaSnapshotCounterRecord, CountResult, IndexInfo as DBIndexInfo } from '../types/database'
+import type {
+  D1Database,
+  OperationResult,
+  R2Bucket,
+  SchemaSnapshot,
+  SnapshotListResult,
+} from '../types/cloudflare'
+import type {
+  CountResult,
+  IndexInfo as DBIndexInfo,
+  SchemaSnapshotCounterRecord,
+  SnapshotRecord,
+  TableInfo,
+} from '../types/database'
 import type { IndexInfo } from './index-manager'
 
 export interface TableSchema {
@@ -12,7 +24,10 @@ export interface TableSchema {
 }
 
 export class SchemaSnapshotManager {
-  constructor(private db: D1Database, private systemStorage?: R2Bucket) {}
+  constructor(
+    private db: D1Database,
+    private systemStorage?: R2Bucket
+  ) {}
 
   // Get all table schemas excluding system tables
   async getAllTableSchemas(): Promise<TableSchema[]> {
@@ -30,36 +45,30 @@ export class SchemaSnapshotManager {
       .all()
 
     const schemas: TableSchema[] = []
-    
+
     for (const table of result.results) {
       const tableInfo = table as TableInfo
-      const columnsResult = await this.db
-        .prepare(`PRAGMA table_info("${tableInfo.name}")`)
-        .all()
-      
+      const columnsResult = await this.db.prepare(`PRAGMA table_info("${tableInfo.name}")`).all()
+
       const foreignKeysResult = await this.db
         .prepare(`PRAGMA foreign_key_list("${tableInfo.name}")`)
         .all()
 
       // Get indexes for this table
-      const indexesResult = await this.db
-        .prepare(`PRAGMA index_list("${tableInfo.name}")`)
-        .all()
+      const indexesResult = await this.db.prepare(`PRAGMA index_list("${tableInfo.name}")`).all()
 
       const indexes: IndexInfo[] = []
       for (const indexRow of indexesResult.results) {
         const indexInfo = indexRow as DBIndexInfo
         const indexName = indexInfo.name
-        
+
         // Skip auto-generated indexes
         if (indexName.startsWith('sqlite_autoindex_')) {
           continue
         }
 
         // Get index details
-        const indexInfoResult = await this.db
-          .prepare(`PRAGMA index_info("${indexName}")`)
-          .all()
+        const indexInfoResult = await this.db.prepare(`PRAGMA index_info("${indexName}")`).all()
 
         const columns = indexInfoResult.results
           .sort((a: any, b: any) => a.seqno - b.seqno)
@@ -76,19 +85,19 @@ export class SchemaSnapshotManager {
           tableName: tableInfo.name,
           columns: columns,
           unique: indexInfo.unique === 1,
-          sql: (sqlResult as DBIndexInfo)?.sql || ''
+          sql: (sqlResult as DBIndexInfo)?.sql || '',
         })
       }
-      
+
       schemas.push({
         name: tableInfo.name,
         sql: tableInfo.sql,
         columns: columnsResult.results,
         foreignKeys: foreignKeysResult.results,
-        indexes: indexes
+        indexes: indexes,
       })
     }
-    
+
     return schemas
   }
 
@@ -96,46 +105,46 @@ export class SchemaSnapshotManager {
   async getAllTableData(): Promise<{ [tableName: string]: any[] }> {
     const schemas = await this.getAllTableSchemas()
     const allData: { [tableName: string]: any[] } = {}
-    
+
     for (const schema of schemas) {
       // Skip system tables
-      if (['admins', 'sessions', 'schema_snapshots', 'schema_snapshot_counter'].includes(schema.name)) {
+      if (
+        ['admins', 'sessions', 'schema_snapshots', 'schema_snapshot_counter'].includes(schema.name)
+      ) {
         continue
       }
-      
+
       try {
-        const result = await this.db
-          .prepare(`SELECT * FROM "${schema.name}"`)
-          .all()
+        const result = await this.db.prepare(`SELECT * FROM "${schema.name}"`).all()
         allData[schema.name] = result.results
       } catch (error) {
         console.warn(`Failed to get data for table ${schema.name}:`, error)
         allData[schema.name] = []
       }
     }
-    
+
     return allData
   }
 
   // Calculate schema hash for comparison using Web Crypto API
   async calculateSchemaHash(schemas: TableSchema[]): Promise<string> {
     const schemaString = schemas
-      .map(s => s.sql)
+      .map((s) => s.sql)
       .sort()
       .join('|')
-    
+
     const encoder = new TextEncoder()
     const data = encoder.encode(schemaString)
     const hashBuffer = await crypto.subtle.digest('SHA-256', data)
     const hashArray = Array.from(new Uint8Array(hashBuffer))
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+    return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
   }
 
   // Check if schema has changed
   async hasSchemaChanged(): Promise<boolean> {
     const currentSchemas = await this.getAllTableSchemas()
     const currentHash = await this.calculateSchemaHash(currentSchemas)
-    
+
     // Get latest snapshot
     const latestSnapshot = await this.db
       .prepare(`
@@ -145,11 +154,11 @@ export class SchemaSnapshotManager {
         LIMIT 1
       `)
       .first()
-    
+
     if (!latestSnapshot) {
       return true // No snapshots yet
     }
-    
+
     return currentHash !== (latestSnapshot as SnapshotRecord).schema_hash
   }
 
@@ -159,7 +168,7 @@ export class SchemaSnapshotManager {
     const counter = await this.db
       .prepare('SELECT current_version FROM schema_snapshot_counter WHERE id = 1')
       .first()
-    
+
     if (!counter) {
       // Initialize counter
       await this.db
@@ -167,42 +176,44 @@ export class SchemaSnapshotManager {
         .run()
       return 1
     }
-    
+
     const nextVersion = (counter as SchemaSnapshotCounterRecord).current_version + 1
-    
+
     // Update counter
     await this.db
       .prepare('UPDATE schema_snapshot_counter SET current_version = ? WHERE id = 1')
       .bind(nextVersion)
       .run()
-    
+
     return nextVersion
   }
 
   // Create a new snapshot
-  async createSnapshot(options: {
-    name?: string
-    description?: string
-    createdBy?: string
-    snapshotType?: 'manual' | 'auto' | 'pre_change'
-    d1BookmarkId?: string
-  } = {}): Promise<string> {
+  async createSnapshot(
+    options: {
+      name?: string
+      description?: string
+      createdBy?: string
+      snapshotType?: 'manual' | 'auto' | 'pre_change'
+      d1BookmarkId?: string
+    } = {}
+  ): Promise<string> {
     const schemas = await this.getAllTableSchemas()
-    const fullSchema = schemas.map(s => s.sql).join(';\n')
+    const fullSchema = schemas.map((s) => s.sql).join(';\n')
     const schemaHash = await this.calculateSchemaHash(schemas)
     const version = await this.getNextVersion()
     const id = crypto.randomUUID()
-    
+
     // Save schema and data to R2 if available
     if (this.systemStorage) {
       try {
         // Get all table data
         const allData = await this.getAllTableData()
-        
+
         // Save data to R2
         const dataKey = `snapshots/${id}/data.json`
         await this.systemStorage.put(dataKey, JSON.stringify(allData))
-        
+
         // Save schema info to R2
         const schemaKey = `snapshots/${id}/schema.json`
         await this.systemStorage.put(schemaKey, JSON.stringify(schemas))
@@ -210,7 +221,7 @@ export class SchemaSnapshotManager {
         console.warn('Failed to save data to R2, continuing with schema-only snapshot:', error)
       }
     }
-    
+
     await this.db
       .prepare(`
         INSERT INTO schema_snapshots (
@@ -231,7 +242,7 @@ export class SchemaSnapshotManager {
         options.d1BookmarkId || null
       )
       .run()
-    
+
     return id
   }
 
@@ -240,7 +251,7 @@ export class SchemaSnapshotManager {
     const countResult = await this.db
       .prepare('SELECT COUNT(*) as total FROM schema_snapshots')
       .first()
-    
+
     const result = await this.db
       .prepare(`
         SELECT 
@@ -252,7 +263,7 @@ export class SchemaSnapshotManager {
       `)
       .bind(limit, offset)
       .all()
-    
+
     const snapshots = result.results.map((row: any) => ({
       id: row.id,
       version: row.version,
@@ -264,12 +275,12 @@ export class SchemaSnapshotManager {
       createdAt: row.created_at,
       createdBy: row.created_by,
       snapshotType: row.snapshot_type,
-      d1BookmarkId: row.d1_bookmark_id
+      d1BookmarkId: row.d1_bookmark_id,
     }))
-    
+
     return {
       snapshots,
-      total: (countResult as CountResult)?.total || 0
+      total: (countResult as CountResult)?.total || 0,
     }
   }
 
@@ -285,9 +296,9 @@ export class SchemaSnapshotManager {
       `)
       .bind(id)
       .first()
-    
+
     if (!result) return null
-    
+
     return {
       id: (result as any).id,
       version: (result as any).version,
@@ -299,7 +310,7 @@ export class SchemaSnapshotManager {
       createdAt: (result as any).created_at,
       createdBy: (result as any).created_by,
       snapshotType: (result as any).snapshot_type,
-      d1BookmarkId: (result as any).d1_bookmark_id
+      d1BookmarkId: (result as any).d1_bookmark_id,
     }
   }
 
@@ -309,9 +320,9 @@ export class SchemaSnapshotManager {
     if (!snapshot) {
       throw new Error('Snapshot not found')
     }
-    
+
     const schemas: TableSchema[] = JSON.parse(snapshot.tablesJson)
-    
+
     // Try to get data from R2
     let snapshotData: { [tableName: string]: any[] } = {}
     if (this.systemStorage) {
@@ -326,16 +337,15 @@ export class SchemaSnapshotManager {
         console.warn('Failed to get data from R2, restoring schema only:', error)
       }
     }
-    
-    // Begin restoration 
+
+    // Begin restoration
     try {
-      
       // Create a new transaction-like approach using batch
       const allStatements = []
-      
+
       // First statement: disable foreign keys
       allStatements.push(this.db.prepare('PRAGMA foreign_keys = OFF'))
-      
+
       // Get current user tables
       const currentTables = await this.db
         .prepare(`
@@ -347,29 +357,35 @@ export class SchemaSnapshotManager {
           AND name NOT IN ('admins', 'sessions', 'schema_snapshots', 'schema_snapshot_counter', 'd1_migrations')
         `)
         .all()
-      
-      
+
       // Sort tables for deletion in reverse dependency order
       const tableNames = currentTables.results.map((t: any) => t.name as string)
       const deletionOrder = this.sortTablesForDeletion(tableNames)
-      
+
       // Add DROP statements in correct order
       for (const tableName of deletionOrder) {
         allStatements.push(this.db.prepare(`DROP TABLE IF EXISTS "${tableName}"`))
       }
-      
+
       // Prepare table creation and data insertion statements
-      const schemasToRestore = schemas.filter(schema => 
-        !['admins', 'sessions', 'schema_snapshots', 'schema_snapshot_counter', 'd1_migrations'].includes(schema.name)
+      const schemasToRestore = schemas.filter(
+        (schema) =>
+          ![
+            'admins',
+            'sessions',
+            'schema_snapshots',
+            'schema_snapshot_counter',
+            'd1_migrations',
+          ].includes(schema.name)
       )
-      
+
       // Define dependency order (parent tables first)
       const tablePriority = {
-        'users': 1,    // Usually the base table that others reference
-        'items': 2,    // May reference users
-        'messages': 3  // May reference users and items
+        users: 1, // Usually the base table that others reference
+        items: 2, // May reference users
+        messages: 3, // May reference users and items
       }
-      
+
       // Sort tables by priority
       schemasToRestore.sort((a, b) => {
         const priorityA = tablePriority[a.name as keyof typeof tablePriority] || 999
@@ -377,41 +393,43 @@ export class SchemaSnapshotManager {
         if (priorityA !== priorityB) return priorityA - priorityB
         return a.name.localeCompare(b.name)
       })
-      
-      
+
       // Add CREATE statements for all tables
       for (const schema of schemasToRestore) {
         allStatements.push(this.db.prepare(schema.sql))
       }
-      
+
       // Execute all statements in a single batch
       try {
         await this.db.batch(allStatements)
       } catch (batchError) {
         console.error('Batch execution failed:', batchError)
-        throw new Error(`Failed to restore schema: ${batchError instanceof Error ? batchError.message : 'Unknown error'}`)
+        throw new Error(
+          `Failed to restore schema: ${batchError instanceof Error ? batchError.message : 'Unknown error'}`
+        )
       }
-      
-      
+
       // Now insert data if available (separate batch for data)
       if (Object.keys(snapshotData).length > 0) {
-        
         for (const schema of schemasToRestore) {
           if (snapshotData[schema.name] && snapshotData[schema.name].length > 0) {
             const tableData = snapshotData[schema.name]
-            
+
             const columns = Object.keys(tableData[0])
             const placeholders = columns.map(() => '?').join(', ')
             const insertSQL = `INSERT INTO "${schema.name}" (${columns.join(', ')}) VALUES (${placeholders})`
-            
+
             // Insert records individually with FK disabled
             let insertedCount = 0
             for (const record of tableData) {
-              const values = columns.map(col => record[col] === undefined ? null : record[col])
+              const values = columns.map((col) => (record[col] === undefined ? null : record[col]))
               try {
                 // Ensure FK are off for inserts too
                 await this.db.prepare('PRAGMA foreign_keys = OFF').run()
-                await this.db.prepare(insertSQL).bind(...values).run()
+                await this.db
+                  .prepare(insertSQL)
+                  .bind(...values)
+                  .run()
                 insertedCount++
               } catch (insertError) {
                 // Continue with other records on error
@@ -436,23 +454,19 @@ export class SchemaSnapshotManager {
           }
         }
       }
-      
+
       // Re-enable foreign keys before creating post-restore snapshot
       await this.db.prepare('PRAGMA foreign_keys = ON').run()
-      
-      
-      
+
       return { success: true, message: 'スナップショットが正常に復元されました' }
-      
     } catch (error) {
-      
       // Try to re-enable foreign keys even on error
       try {
         await this.db.prepare('PRAGMA foreign_keys = ON').run()
       } catch (e) {
         console.warn('Failed to re-enable foreign keys:', e)
       }
-      
+
       throw error
     }
   }
@@ -461,11 +475,11 @@ export class SchemaSnapshotManager {
   private sortTablesForDeletion(tableNames: string[]): string[] {
     // Define known dependencies (reverse of creation order)
     const deletionPriority = {
-      'messages': 1,  // Delete first (depends on users and items)
-      'items': 2,     // Delete second (depends on users)
-      'users': 3      // Delete last (no dependencies)
+      messages: 1, // Delete first (depends on users and items)
+      items: 2, // Delete second (depends on users)
+      users: 3, // Delete last (no dependencies)
     }
-    
+
     return tableNames.sort((a, b) => {
       const priorityA = deletionPriority[a as keyof typeof deletionPriority] || 0
       const priorityB = deletionPriority[b as keyof typeof deletionPriority] || 0
@@ -473,7 +487,7 @@ export class SchemaSnapshotManager {
       return a.localeCompare(b)
     })
   }
-  
+
   // Delete old snapshots (keep N most recent)
   async deleteSnapshot(id: string): Promise<OperationResult> {
     // Check if snapshot exists
@@ -481,13 +495,10 @@ export class SchemaSnapshotManager {
     if (!snapshot) {
       throw new Error('Snapshot not found')
     }
-    
+
     // Delete snapshot from database
-    await this.db
-      .prepare('DELETE FROM schema_snapshots WHERE id = ?')
-      .bind(id)
-      .run()
-    
+    await this.db.prepare('DELETE FROM schema_snapshots WHERE id = ?').bind(id).run()
+
     // Try to delete associated data from R2
     if (this.systemStorage) {
       try {
@@ -498,10 +509,10 @@ export class SchemaSnapshotManager {
         console.warn('Failed to delete snapshot data from R2:', error)
       }
     }
-    
+
     return { success: true, message: 'スナップショットが削除されました' }
   }
-  
+
   async pruneSnapshots(keepCount: number): Promise<number> {
     const result = await this.db
       .prepare(`
@@ -514,7 +525,7 @@ export class SchemaSnapshotManager {
       `)
       .bind(keepCount)
       .run()
-    
+
     return result.meta.changes || 0
   }
 }

@@ -1,6 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Hono } from 'hono'
-import { securityHeaders, DEFAULT_SECURITY_CONFIG, DEVELOPMENT_CSP_OVERRIDES, getAPISecurityConfig } from '../../middleware/security-headers'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  DEFAULT_SECURITY_CONFIG,
+  DEVELOPMENT_CSP_OVERRIDES,
+  getAPISecurityConfig,
+  securityHeaders,
+} from '../../middleware/security-headers'
 import type { Env, Variables } from '../../types'
 
 // Mock environment
@@ -15,7 +20,7 @@ const mockEnv: Env = {
   VIBEBASE_AUTH_URL: 'https://auth.example.com',
   DEPLOYMENT_DOMAIN: 'example.com',
   WORKER_NAME: 'test-worker',
-  DOMAIN: 'example.com'
+  DOMAIN: 'example.com',
 }
 
 // Test app setup
@@ -40,7 +45,9 @@ describe('Security Headers Middleware', () => {
 
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Security-Policy')).toBeDefined()
-      expect(res.headers.get('Strict-Transport-Security')).toBe('max-age=31536000; includeSubDomains; preload')
+      expect(res.headers.get('Strict-Transport-Security')).toBe(
+        'max-age=31536000; includeSubDomains; preload'
+      )
       expect(res.headers.get('X-Frame-Options')).toBe('DENY')
       expect(res.headers.get('X-Content-Type-Options')).toBe('nosniff')
       expect(res.headers.get('X-XSS-Protection')).toBe('1; mode=block')
@@ -111,8 +118,8 @@ describe('Security Headers Middleware', () => {
         frameOptions: 'SAMEORIGIN' as const,
         contentTypeOptions: false,
         xssProtection: {
-          enabled: false
-        }
+          enabled: false,
+        },
       }
 
       app.use('*', securityHeaders(customConfig))
@@ -129,7 +136,7 @@ describe('Security Headers Middleware', () => {
       const customConfig = {
         frameOptions: undefined,
         referrerPolicy: undefined,
-        permissionsPolicy: undefined
+        permissionsPolicy: undefined,
       }
 
       app.use('*', securityHeaders(customConfig))
@@ -178,8 +185,8 @@ describe('Security Headers Middleware', () => {
       const customConfig = {
         contentSecurityPolicy: {
           directives: { 'default-src': ["'self'"] },
-          reportOnly: true
-        }
+          reportOnly: true,
+        },
       }
 
       app.use('*', securityHeaders(customConfig))
@@ -199,8 +206,8 @@ describe('Security Headers Middleware', () => {
         xssProtection: {
           enabled: true,
           mode: 'block' as const,
-          reportUri: '/xss-report'
-        }
+          reportUri: '/xss-report',
+        },
       }
 
       app.use('*', securityHeaders(customConfig))
@@ -214,8 +221,8 @@ describe('Security Headers Middleware', () => {
     it('should handle disabled XSS protection', async () => {
       const customConfig = {
         xssProtection: {
-          enabled: false
-        }
+          enabled: false,
+        },
       }
 
       app.use('*', securityHeaders(customConfig))
@@ -231,10 +238,10 @@ describe('Security Headers Middleware', () => {
     it('should correctly format permissions policy', async () => {
       const customConfig = {
         permissionsPolicy: {
-          'camera': [],
-          'microphone': ['self'],
-          'geolocation': ['self', 'https://example.com']
-        }
+          camera: [],
+          microphone: ['self'],
+          geolocation: ['self', 'https://example.com'],
+        },
       }
 
       app.use('*', securityHeaders(customConfig))
@@ -255,8 +262,8 @@ describe('Security Headers Middleware', () => {
         strictTransportSecurity: {
           maxAge: 86400,
           includeSubDomains: true,
-          preload: true
-        }
+          preload: true,
+        },
       }
 
       app.use('*', securityHeaders(customConfig))
@@ -271,8 +278,8 @@ describe('Security Headers Middleware', () => {
     it('should format HSTS with minimal options', async () => {
       const customConfig = {
         strictTransportSecurity: {
-          maxAge: 3600
-        }
+          maxAge: 3600,
+        },
       }
 
       app.use('*', securityHeaders(customConfig))

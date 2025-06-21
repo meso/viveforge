@@ -1,52 +1,58 @@
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
-import { Env, Variables } from '../types'
 import { ErrorHandler } from '../lib/error-handler'
+import { Env, Variables } from '../types'
 import { ErrorCode } from '../types/errors'
 
 const storage = new Hono<{ Bindings: Env; Variables: Variables }>()
 
 // Helper function for consistent error responses
 const errorResponse = (c: any, status: number, code: string, message: string) => {
-  return c.json({ 
-    success: false, 
-    error: { code, message } 
-  }, status)
+  return c.json(
+    {
+      success: false,
+      error: { code, message },
+    },
+    status
+  )
 }
 
 // ファイル一覧取得
 storage.get('/', async (c) => {
   const bucket = c.env.USER_STORAGE
   if (!bucket) {
-    return c.json({ 
-      success: false, 
-      error: { 
-        code: ErrorCode.STORAGE_OPERATION_FAILED,
-        message: 'R2 bucket not configured' 
-      } 
-    }, 500)
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: ErrorCode.STORAGE_OPERATION_FAILED,
+          message: 'R2 bucket not configured',
+        },
+      },
+      500
+    )
   }
 
   const { prefix, limit = 100, cursor } = c.req.query()
-  
+
   try {
     const result = await bucket.list({
       prefix,
       limit: parseInt(limit.toString()),
-      cursor
+      cursor,
     })
 
     return c.json({
-      objects: result.objects.map(obj => ({
+      objects: result.objects.map((obj) => ({
         key: obj.key,
         size: obj.size,
         uploaded: obj.uploaded,
         contentType: obj.httpMetadata?.contentType,
-        customMetadata: obj.customMetadata
+        customMetadata: obj.customMetadata,
       })),
       truncated: result.truncated,
       cursor: result.truncated ? result.objects[result.objects.length - 1]?.key : undefined,
-      delimitedPrefixes: result.delimitedPrefixes
+      delimitedPrefixes: result.delimitedPrefixes,
     })
   } catch (error) {
     console.error('Error listing objects:', error)
@@ -58,18 +64,26 @@ storage.get('/', async (c) => {
 storage.post('/upload', async (c) => {
   const bucket = c.env.USER_STORAGE
   if (!bucket) {
-    return c.json({ 
-      success: false, 
-      error: { 
-        code: ErrorCode.STORAGE_OPERATION_FAILED,
-        message: 'R2 bucket not configured' 
-      } 
-    }, 500)
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: ErrorCode.STORAGE_OPERATION_FAILED,
+          message: 'R2 bucket not configured',
+        },
+      },
+      500
+    )
   }
 
   const contentType = c.req.header('content-type')
   if (!contentType || !contentType.includes('multipart/form-data')) {
-    return errorResponse(c, 400, ErrorCode.VALIDATION_FAILED, 'Content-Type must be multipart/form-data')
+    return errorResponse(
+      c,
+      400,
+      ErrorCode.VALIDATION_FAILED,
+      'Content-Type must be multipart/form-data'
+    )
   }
 
   try {
@@ -78,27 +92,27 @@ storage.post('/upload', async (c) => {
     if (!file || typeof file === 'string') {
       return errorResponse(c, 400, ErrorCode.VALIDATION_FAILED, 'No file provided')
     }
-    const path = formData.get('path') as string || ''
+    const path = (formData.get('path') as string) || ''
 
-    const fileObj = file as File;
+    const fileObj = file as File
     const key = path ? `${path}/${fileObj.name}` : fileObj.name
     const buffer = await fileObj.arrayBuffer()
 
     const result = await bucket.put(key, buffer, {
       httpMetadata: {
-        contentType: fileObj.type || 'application/octet-stream'
+        contentType: fileObj.type || 'application/octet-stream',
       },
       customMetadata: {
         originalName: fileObj.name,
-        uploadedAt: new Date().toISOString()
-      }
+        uploadedAt: new Date().toISOString(),
+      },
     })
 
     return c.json({
       key: result.key,
       size: result.size,
       uploaded: result.uploaded,
-      etag: result.etag
+      etag: result.etag,
     })
   } catch (error) {
     console.error('Error uploading file:', error)
@@ -113,13 +127,16 @@ storage.post('/upload', async (c) => {
 storage.get('/download/:key{.*}', async (c) => {
   const bucket = c.env.USER_STORAGE
   if (!bucket) {
-    return c.json({ 
-      success: false, 
-      error: { 
-        code: ErrorCode.STORAGE_OPERATION_FAILED,
-        message: 'R2 bucket not configured' 
-      } 
-    }, 500)
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: ErrorCode.STORAGE_OPERATION_FAILED,
+          message: 'R2 bucket not configured',
+        },
+      },
+      500
+    )
   }
 
   const key = c.req.param('key')
@@ -168,13 +185,16 @@ storage.get('/download/:key{.*}', async (c) => {
 storage.get('/info/:key{.*}', async (c) => {
   const bucket = c.env.USER_STORAGE
   if (!bucket) {
-    return c.json({ 
-      success: false, 
-      error: { 
-        code: ErrorCode.STORAGE_OPERATION_FAILED,
-        message: 'R2 bucket not configured' 
-      } 
-    }, 500)
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: ErrorCode.STORAGE_OPERATION_FAILED,
+          message: 'R2 bucket not configured',
+        },
+      },
+      500
+    )
   }
 
   const key = c.req.param('key')
@@ -195,7 +215,7 @@ storage.get('/info/:key{.*}', async (c) => {
       etag: object.etag,
       httpEtag: object.httpEtag,
       contentType: object.httpMetadata?.contentType,
-      customMetadata: object.customMetadata
+      customMetadata: object.customMetadata,
     })
   } catch (error) {
     console.error('Error getting file info:', error)
@@ -210,13 +230,16 @@ storage.get('/info/:key{.*}', async (c) => {
 storage.delete('/:key{.*}', async (c) => {
   const bucket = c.env.USER_STORAGE
   if (!bucket) {
-    return c.json({ 
-      success: false, 
-      error: { 
-        code: ErrorCode.STORAGE_OPERATION_FAILED,
-        message: 'R2 bucket not configured' 
-      } 
-    }, 500)
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: ErrorCode.STORAGE_OPERATION_FAILED,
+          message: 'R2 bucket not configured',
+        },
+      },
+      500
+    )
   }
 
   const key = c.req.param('key')
@@ -237,33 +260,36 @@ storage.delete('/:key{.*}', async (c) => {
 storage.delete('/', async (c) => {
   const bucket = c.env.USER_STORAGE
   if (!bucket) {
-    return c.json({ 
-      success: false, 
-      error: { 
-        code: ErrorCode.STORAGE_OPERATION_FAILED,
-        message: 'R2 bucket not configured' 
-      } 
-    }, 500)
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: ErrorCode.STORAGE_OPERATION_FAILED,
+          message: 'R2 bucket not configured',
+        },
+      },
+      500
+    )
   }
 
   let keys: string[]
   try {
-    const body = await c.req.json() as { keys: string[] }
+    const body = (await c.req.json()) as { keys: string[] }
     keys = body.keys
   } catch (error) {
     return errorResponse(c, 400, ErrorCode.VALIDATION_FAILED, 'Invalid JSON in request body')
   }
-  
+
   if (!keys || !Array.isArray(keys) || keys.length === 0) {
     return errorResponse(c, 400, ErrorCode.VALIDATION_FAILED, 'Keys array is required')
   }
 
   try {
     await bucket.delete(keys)
-    return c.json({ 
-      success: true, 
+    return c.json({
+      success: true,
       message: `${keys.length} files deleted successfully`,
-      deletedKeys: keys
+      deletedKeys: keys,
     })
   } catch (error) {
     console.error('Error deleting files:', error)

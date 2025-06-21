@@ -38,7 +38,11 @@ export interface D1ExecResult {
 // R2 Storage types
 export interface R2Bucket {
   get(key: string, options?: R2GetOptions): Promise<R2Object | null>
-  put(key: string, value: ReadableStream | ArrayBuffer | ArrayBufferView | string | null | Blob, options?: R2PutOptions): Promise<R2Object>
+  put(
+    key: string,
+    value: ReadableStream | ArrayBuffer | ArrayBufferView | string | null | Blob,
+    options?: R2PutOptions
+  ): Promise<R2Object>
   delete(keys: string | string[]): Promise<void>
   list(options?: R2ListOptions): Promise<R2Objects>
   head(key: string): Promise<R2Object | null>

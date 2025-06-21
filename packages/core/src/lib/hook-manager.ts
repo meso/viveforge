@@ -1,5 +1,5 @@
-import type { D1Database } from '../types/cloudflare'
 import { nanoid } from 'nanoid'
+import type { D1Database } from '../types/cloudflare'
 
 interface RealtimeEnvironment {
   REALTIME?: any
@@ -40,7 +40,7 @@ export class HookManager {
     const result = await this.db
       .prepare('SELECT * FROM hooks ORDER BY table_name, event_type')
       .all<Hook>()
-    
+
     return result.results || []
   }
 
@@ -48,10 +48,7 @@ export class HookManager {
     return this.listHooks()
   }
 
-  async createHook(
-    tableName: string,
-    eventType: HookEventType
-  ): Promise<string> {
+  async createHook(tableName: string, eventType: HookEventType): Promise<string> {
     const id = nanoid()
     const now = new Date().toISOString()
 
@@ -73,10 +70,7 @@ export class HookManager {
       .bind(enabled, now, id)
       .run()
 
-    const result = await this.db
-      .prepare('SELECT * FROM hooks WHERE id = ?')
-      .bind(id)
-      .first<Hook>()
+    const result = await this.db.prepare('SELECT * FROM hooks WHERE id = ?').bind(id).first<Hook>()
 
     if (!result) {
       throw new Error('Hook not found')
@@ -90,31 +84,19 @@ export class HookManager {
   }
 
   async deleteHook(id: string): Promise<void> {
-    await this.db
-      .prepare('DELETE FROM hooks WHERE id = ?')
-      .bind(id)
-      .run()
+    await this.db.prepare('DELETE FROM hooks WHERE id = ?').bind(id).run()
   }
 
-  async getActiveHooks(
-    tableName: string,
-    eventType: HookEventType
-  ): Promise<Hook[]> {
+  async getActiveHooks(tableName: string, eventType: HookEventType): Promise<Hook[]> {
     const result = await this.db
-      .prepare(
-        'SELECT * FROM hooks WHERE table_name = ? AND event_type = ? AND enabled = true'
-      )
+      .prepare('SELECT * FROM hooks WHERE table_name = ? AND event_type = ? AND enabled = true')
       .bind(tableName, eventType)
       .all<Hook>()
 
     return result.results || []
   }
 
-  async queueEvent(
-    hook: Hook,
-    recordId: string,
-    eventData: any
-  ): Promise<void> {
+  async queueEvent(hook: Hook, recordId: string, eventData: any): Promise<void> {
     const id = nanoid()
     const now = new Date().toISOString()
     const data = JSON.stringify(eventData)
@@ -123,24 +105,13 @@ export class HookManager {
       .prepare(
         'INSERT INTO event_queue (id, hook_id, table_name, record_id, event_type, event_data, processed, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
       )
-      .bind(
-        id,
-        hook.id,
-        hook.table_name,
-        recordId,
-        hook.event_type,
-        data,
-        false,
-        now
-      )
+      .bind(id, hook.id, hook.table_name, recordId, hook.event_type, data, false, now)
       .run()
   }
 
   async getUnprocessedEvents(limit: number = 100): Promise<EventQueueItem[]> {
     const result = await this.db
-      .prepare(
-        'SELECT * FROM event_queue WHERE processed = false ORDER BY created_at ASC LIMIT ?'
-      )
+      .prepare('SELECT * FROM event_queue WHERE processed = false ORDER BY created_at ASC LIMIT ?')
       .bind(limit)
       .all<EventQueueItem>()
 
@@ -151,9 +122,7 @@ export class HookManager {
     const now = new Date().toISOString()
 
     await this.db
-      .prepare(
-        'UPDATE event_queue SET processed = true, processed_at = ? WHERE id = ?'
-      )
+      .prepare('UPDATE event_queue SET processed = true, processed_at = ? WHERE id = ?')
       .bind(now, id)
       .run()
   }
@@ -164,9 +133,7 @@ export class HookManager {
     const cutoffDateStr = cutoffDate.toISOString()
 
     const result = await this.db
-      .prepare(
-        'DELETE FROM event_queue WHERE processed = true AND processed_at < ?'
-      )
+      .prepare('DELETE FROM event_queue WHERE processed = true AND processed_at < ?')
       .bind(cutoffDateStr)
       .run()
 
@@ -188,7 +155,7 @@ export class HookManager {
           event_type: eventType,
           record_id: recordId,
           timestamp: new Date().toISOString(),
-          data: eventData
+          data: eventData,
         })
       }
     } catch (error) {
@@ -209,12 +176,10 @@ export class HookManager {
         this.broadcastRealtime(tableName, eventType, recordId, eventData, options.env.REALTIME)
       )
     }
-    
+
     // フック記録（バックアップ用）
     if (options?.executionCtx) {
-      options.executionCtx.waitUntil(
-        this.triggerHooks(tableName, eventType, recordId, eventData)
-      )
+      options.executionCtx.waitUntil(this.triggerHooks(tableName, eventType, recordId, eventData))
     } else {
       // fallback: 同期実行
       await this.triggerHooks(tableName, eventType, recordId, eventData)
@@ -231,11 +196,11 @@ export class HookManager {
     try {
       const id = realtimeNamespace.idFromName('global')
       const stub = realtimeNamespace.get(id)
-      
+
       const response = await stub.fetch('http://internal/broadcast', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           type: 'event',
@@ -244,15 +209,15 @@ export class HookManager {
             recordId,
             eventType,
             data: eventData,
-            timestamp: new Date().toISOString()
-          }
-        })
+            timestamp: new Date().toISOString(),
+          },
+        }),
       })
-      
+
       if (!response.ok) {
         throw new Error(`Broadcast failed: ${response.status}`)
       }
-      
+
       console.log(`Realtime broadcast successful for ${tableName}:${eventType}:${recordId}`)
     } catch (error) {
       console.error('Realtime broadcast failed:', error)

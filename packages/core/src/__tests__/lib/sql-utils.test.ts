@@ -1,12 +1,12 @@
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
-  isValidSQLIdentifier,
   escapeSQLIdentifier,
-  validateAndEscapeTableName,
+  isValidSQLIdentifier,
   validateAndEscapeColumnName,
+  validateAndEscapeTableName,
+  validateAndNormalizeSQLDataType,
   validateNotSystemTable,
   validateSQLDataType,
-  validateAndNormalizeSQLDataType
 } from '../../lib/sql-utils'
 
 describe('SQL Utils', () => {
@@ -60,8 +60,12 @@ describe('SQL Utils', () => {
     })
 
     it('should reject system tables', () => {
-      expect(() => validateNotSystemTable('admins', systemTables)).toThrow('Cannot modify system table: admins')
-      expect(() => validateNotSystemTable('sessions', systemTables)).toThrow('Cannot modify system table: sessions')
+      expect(() => validateNotSystemTable('admins', systemTables)).toThrow(
+        'Cannot modify system table: admins'
+      )
+      expect(() => validateNotSystemTable('sessions', systemTables)).toThrow(
+        'Cannot modify system table: sessions'
+      )
     })
   })
 
@@ -83,13 +87,15 @@ describe('SQL Utils', () => {
     it('should prevent malicious table names', () => {
       expect(() => validateAndEscapeTableName('users; DROP TABLE admins; --')).toThrow()
       expect(() => validateAndEscapeTableName('users" OR 1=1 --')).toThrow()
-      expect(() => validateAndEscapeTableName('users\'); DELETE FROM admins; --')).toThrow()
+      expect(() => validateAndEscapeTableName("users'); DELETE FROM admins; --")).toThrow()
     })
 
     it('should prevent malicious column names', () => {
       expect(() => validateAndEscapeColumnName('name; DROP TABLE users; --')).toThrow()
       expect(() => validateAndEscapeColumnName('name" OR 1=1 --')).toThrow()
-      expect(() => validateAndEscapeColumnName('name\'); UPDATE users SET password = "hacked"; --')).toThrow()
+      expect(() =>
+        validateAndEscapeColumnName('name\'); UPDATE users SET password = "hacked"; --')
+      ).toThrow()
     })
 
     it('should safely escape legitimate names', () => {

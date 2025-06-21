@@ -1,4 +1,4 @@
-import type { Env, Admin } from '../types'
+import type { Admin, Env } from '../types'
 
 export class Database {
   constructor(private db: D1Database) {}
@@ -7,9 +7,11 @@ export class Database {
   async createAdmin(admin: Omit<Admin, 'id' | 'createdAt' | 'updatedAt'>): Promise<Admin> {
     const id = crypto.randomUUID()
     const now = new Date().toISOString()
-    
+
     const result = await this.db
-      .prepare('INSERT INTO admins (id, email, name, provider, provider_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .prepare(
+        'INSERT INTO admins (id, email, name, provider, provider_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      )
       .bind(id, admin.email, admin.name, admin.provider, admin.providerId, now, now)
       .run()
 
@@ -26,10 +28,7 @@ export class Database {
   }
 
   async getAdminById(id: string): Promise<Admin | null> {
-    const result = await this.db
-      .prepare('SELECT * FROM admins WHERE id = ?')
-      .bind(id)
-      .first()
+    const result = await this.db.prepare('SELECT * FROM admins WHERE id = ?').bind(id).first()
 
     if (!result) return null
 
@@ -45,10 +44,7 @@ export class Database {
   }
 
   async getAdminByEmail(email: string): Promise<Admin | null> {
-    const result = await this.db
-      .prepare('SELECT * FROM admins WHERE email = ?')
-      .bind(email)
-      .first()
+    const result = await this.db.prepare('SELECT * FROM admins WHERE email = ?').bind(email).first()
 
     if (!result) return null
 
@@ -69,7 +65,9 @@ export class Database {
     const now = new Date().toISOString()
 
     const result = await this.db
-      .prepare('INSERT INTO items (id, name, description, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .prepare(
+        'INSERT INTO items (id, name, description, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+      )
       .bind(id, data.name, data.description || null, data.userId || null, now, now)
       .run()
 
@@ -118,10 +116,7 @@ export class Database {
   }
 
   async getItemById(id: string) {
-    const result = await this.db
-      .prepare('SELECT * FROM items WHERE id = ?')
-      .bind(id)
-      .first()
+    const result = await this.db.prepare('SELECT * FROM items WHERE id = ?').bind(id).first()
 
     if (!result) return null
 
@@ -137,7 +132,7 @@ export class Database {
 
   async updateItem(id: string, data: { name?: string; description?: string }) {
     const now = new Date().toISOString()
-    
+
     const setParts = []
     const params = []
 
@@ -149,7 +144,7 @@ export class Database {
       setParts.push('description = ?')
       params.push(data.description)
     }
-    
+
     setParts.push('updated_at = ?')
     params.push(now)
     params.push(id)
@@ -167,10 +162,7 @@ export class Database {
   }
 
   async deleteItem(id: string) {
-    const result = await this.db
-      .prepare('DELETE FROM items WHERE id = ?')
-      .bind(id)
-      .run()
+    const result = await this.db.prepare('DELETE FROM items WHERE id = ?').bind(id).run()
 
     if (!result.success) {
       throw new Error('Failed to delete item')
@@ -178,5 +170,4 @@ export class Database {
 
     return { success: true, id }
   }
-
 }

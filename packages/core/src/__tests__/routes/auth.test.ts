@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Hono } from 'hono'
-import { auth } from '../../routes/auth'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { VibebaseAuthClient } from '../../lib/auth-client'
+import { auth } from '../../routes/auth'
 import type { Env, Variables } from '../../types'
 
 // Mock VibebaseAuthClient
@@ -18,7 +18,7 @@ describe('Auth Routes', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    
+
     // Mock database for admin authentication
     const mockDB = {
       prepare: vi.fn((query: string) => {
@@ -26,33 +26,35 @@ describe('Auth Routes', () => {
         if (query.includes('SELECT id, is_root FROM admins WHERE github_username')) {
           return {
             bind: vi.fn((username: string) => ({
-              first: vi.fn().mockResolvedValue({ id: '1', is_root: true, github_username: username }) // Mock existing admin
-            }))
+              first: vi
+                .fn()
+                .mockResolvedValue({ id: '1', is_root: true, github_username: username }), // Mock existing admin
+            })),
           }
         } else if (query.includes('SELECT COUNT(*) as count FROM admins')) {
           return {
-            first: vi.fn().mockResolvedValue({ count: 1 }) // Mock non-empty admins table
+            first: vi.fn().mockResolvedValue({ count: 1 }), // Mock non-empty admins table
           }
         } else if (query.includes('INSERT INTO admins')) {
           return {
             bind: vi.fn(() => ({
-              run: vi.fn().mockResolvedValue({ success: true })
-            }))
+              run: vi.fn().mockResolvedValue({ success: true }),
+            })),
           }
         }
-        
+
         // Default fallback
         return {
           bind: vi.fn(() => ({
             first: vi.fn().mockResolvedValue({ id: '1', is_root: true }),
-            run: vi.fn().mockResolvedValue({ success: true })
+            run: vi.fn().mockResolvedValue({ success: true }),
           })),
           first: vi.fn().mockResolvedValue({ count: 1 }),
-          run: vi.fn().mockResolvedValue({ success: true })
+          run: vi.fn().mockResolvedValue({ success: true }),
         }
-      })
+      }),
     }
-    
+
     env = {
       VIBEBASE_AUTH_URL: 'https://auth.vibebase.workers.dev',
       DEPLOYMENT_DOMAIN: 'test.example.com',
@@ -63,20 +65,24 @@ describe('Auth Routes', () => {
       SYSTEM_STORAGE: {} as any,
       USER_STORAGE: {} as any,
       ASSETS: {
-        fetch: vi.fn(() => Promise.resolve(new Response('mock asset')))
-      }
+        fetch: vi.fn(() => Promise.resolve(new Response('mock asset'))),
+      },
     }
 
     mockAuthClient = {
       verifyToken: vi.fn(),
       verifyRequest: vi.fn(),
-      getLoginUrl: vi.fn().mockReturnValue('https://auth.vibebase.workers.dev/auth/login?origin=https%3A%2F%2Ftest.example.com&redirect_to=%2F'),
+      getLoginUrl: vi
+        .fn()
+        .mockReturnValue(
+          'https://auth.vibebase.workers.dev/auth/login?origin=https%3A%2F%2Ftest.example.com&redirect_to=%2F'
+        ),
       refreshToken: vi.fn(),
-      revokeToken: vi.fn()
+      revokeToken: vi.fn(),
     }
 
     app = new Hono<{ Bindings: Env; Variables: Variables }>()
-    
+
     // Setup middleware to inject mock auth client
     app.use('*', async (c, next) => {
       c.set('authClient', mockAuthClient)
@@ -91,11 +97,15 @@ describe('Auth Routes', () => {
       const res = await app.request('/auth/login', {}, env)
 
       expect(res.status).toBe(302)
-      expect(res.headers.get('Location')).toBe('https://auth.vibebase.workers.dev/auth/login?origin=https%3A%2F%2Ftest.example.com&redirect_to=%2F')
+      expect(res.headers.get('Location')).toBe(
+        'https://auth.vibebase.workers.dev/auth/login?origin=https%3A%2F%2Ftest.example.com&redirect_to=%2F'
+      )
     })
 
     it('should handle custom redirect parameter', async () => {
-      mockAuthClient.getLoginUrl.mockReturnValue('https://auth.vibebase.workers.dev/auth/login?origin=https%3A%2F%2Ftest.example.com&redirect_to=%2Fdashboard')
+      mockAuthClient.getLoginUrl.mockReturnValue(
+        'https://auth.vibebase.workers.dev/auth/login?origin=https%3A%2F%2Ftest.example.com&redirect_to=%2Fdashboard'
+      )
 
       const res = await app.request('/auth/login?redirect=/dashboard', {}, env)
 
@@ -115,7 +125,7 @@ describe('Auth Routes', () => {
       const res = await testApp.request('/auth/login', {}, env)
 
       expect(res.status).toBe(503)
-      const body = await res.json() as any
+      const body = (await res.json()) as any
       expect(body.error).toBe('Authentication service unavailable')
     })
   })
@@ -133,17 +143,20 @@ describe('Auth Routes', () => {
         role: 'admin',
         is_active: true,
         created_at: '2023-01-01T00:00:00.000Z',
-        updated_at: '2023-01-01T00:00:00.000Z'
+        updated_at: '2023-01-01T00:00:00.000Z',
       }
 
       mockAuthClient.verifyToken.mockResolvedValue(mockUser)
 
-      const res = await app.request('/auth/callback?token=valid-token&refresh_token=valid-refresh-token', {}, env)
-
+      const res = await app.request(
+        '/auth/callback?token=valid-token&refresh_token=valid-refresh-token',
+        {},
+        env
+      )
 
       expect(res.status).toBe(302)
       expect(res.headers.get('Location')).toBe('/')
-      
+
       // Check that cookies are set (use getSetCookie() or parse Set-Cookie header)
       const setCookieHeader = res.headers.get('Set-Cookie')
       if (setCookieHeader) {
@@ -167,12 +180,16 @@ describe('Auth Routes', () => {
         role: 'admin',
         is_active: true,
         created_at: '2023-01-01T00:00:00.000Z',
-        updated_at: '2023-01-01T00:00:00.000Z'
+        updated_at: '2023-01-01T00:00:00.000Z',
       }
 
       mockAuthClient.verifyToken.mockResolvedValue(mockUser)
 
-      const res = await app.request('/auth/callback?token=valid-token&refresh_token=valid-refresh-token&redirect_to=/dashboard', {}, env)
+      const res = await app.request(
+        '/auth/callback?token=valid-token&refresh_token=valid-refresh-token&redirect_to=/dashboard',
+        {},
+        env
+      )
 
       expect(res.status).toBe(302)
       expect(res.headers.get('Location')).toBe('/dashboard')
@@ -199,7 +216,11 @@ describe('Auth Routes', () => {
     it('should handle token verification failure', async () => {
       mockAuthClient.verifyToken.mockRejectedValue(new Error('Invalid token'))
 
-      const res = await app.request('/auth/callback?token=invalid-token&refresh_token=valid-refresh-token', {}, env)
+      const res = await app.request(
+        '/auth/callback?token=invalid-token&refresh_token=valid-refresh-token',
+        {},
+        env
+      )
 
       expect(res.status).toBe(200)
       const body = await res.text()
@@ -216,7 +237,11 @@ describe('Auth Routes', () => {
       })
       testApp.route('/auth', auth)
 
-      const res = await testApp.request('/auth/callback?token=valid-token&refresh_token=valid-refresh-token', {}, env)
+      const res = await testApp.request(
+        '/auth/callback?token=valid-token&refresh_token=valid-refresh-token',
+        {},
+        env
+      )
 
       expect(res.status).toBe(200)
       const body = await res.text()
@@ -229,15 +254,19 @@ describe('Auth Routes', () => {
     it('should logout successfully', async () => {
       mockAuthClient.revokeToken.mockResolvedValue(undefined)
 
-      const res = await app.request('/auth/logout', {
-        method: 'POST',
-        headers: {
-          'Cookie': 'refresh_token=valid-refresh-token'
-        }
-      }, env)
+      const res = await app.request(
+        '/auth/logout',
+        {
+          method: 'POST',
+          headers: {
+            Cookie: 'refresh_token=valid-refresh-token',
+          },
+        },
+        env
+      )
 
       expect(res.status).toBe(200)
-      const body = await res.json() as any
+      const body = (await res.json()) as any
       expect(body.success).toBe(true)
       expect(body.message).toBe('Logged out successfully')
 
@@ -246,27 +275,35 @@ describe('Auth Routes', () => {
     })
 
     it('should handle logout without refresh token', async () => {
-      const res = await app.request('/auth/logout', {
-        method: 'POST'
-      }, env)
+      const res = await app.request(
+        '/auth/logout',
+        {
+          method: 'POST',
+        },
+        env
+      )
 
       expect(res.status).toBe(200)
-      const body = await res.json() as any
+      const body = (await res.json()) as any
       expect(body.success).toBe(true)
     })
 
     it('should handle revoke token failure gracefully', async () => {
       mockAuthClient.revokeToken.mockRejectedValue(new Error('Revoke failed'))
 
-      const res = await app.request('/auth/logout', {
-        method: 'POST',
-        headers: {
-          'Cookie': 'refresh_token=valid-refresh-token'
-        }
-      }, env)
+      const res = await app.request(
+        '/auth/logout',
+        {
+          method: 'POST',
+          headers: {
+            Cookie: 'refresh_token=valid-refresh-token',
+          },
+        },
+        env
+      )
 
       expect(res.status).toBe(200)
-      const body = await res.json() as any
+      const body = (await res.json()) as any
       expect(body.success).toBe(true)
       expect(body.message).toBe('Logged out')
     })
@@ -276,11 +313,15 @@ describe('Auth Routes', () => {
     it('should show logout page and redirect', async () => {
       mockAuthClient.revokeToken.mockResolvedValue(undefined)
 
-      const res = await app.request('/auth/logout', {
-        headers: {
-          'Cookie': 'refresh_token=valid-refresh-token'
-        }
-      }, env)
+      const res = await app.request(
+        '/auth/logout',
+        {
+          headers: {
+            Cookie: 'refresh_token=valid-refresh-token',
+          },
+        },
+        env
+      )
 
       expect(res.status).toBe(200)
       const body = await res.text()
@@ -295,20 +336,24 @@ describe('Auth Routes', () => {
         access_token: 'new-access-token',
         refresh_token: 'new-refresh-token',
         token_type: 'Bearer',
-        expires_in: 900
+        expires_in: 900,
       }
 
       mockAuthClient.refreshToken.mockResolvedValue(mockTokens)
 
-      const res = await app.request('/auth/refresh', {
-        method: 'POST',
-        headers: {
-          'Cookie': 'refresh_token=valid-refresh-token'
-        }
-      }, env)
+      const res = await app.request(
+        '/auth/refresh',
+        {
+          method: 'POST',
+          headers: {
+            Cookie: 'refresh_token=valid-refresh-token',
+          },
+        },
+        env
+      )
 
       expect(res.status).toBe(200)
-      const body = await res.json() as any
+      const body = (await res.json()) as any
       expect(body.success).toBe(true)
       expect(body.expires_in).toBe(900)
 
@@ -317,27 +362,35 @@ describe('Auth Routes', () => {
     })
 
     it('should handle missing refresh token', async () => {
-      const res = await app.request('/auth/refresh', {
-        method: 'POST'
-      }, env)
+      const res = await app.request(
+        '/auth/refresh',
+        {
+          method: 'POST',
+        },
+        env
+      )
 
       expect(res.status).toBe(401)
-      const body = await res.json() as any
+      const body = (await res.json()) as any
       expect(body.error).toBe('No refresh token')
     })
 
     it('should handle refresh failure', async () => {
       mockAuthClient.refreshToken.mockRejectedValue(new Error('Token expired'))
 
-      const res = await app.request('/auth/refresh', {
-        method: 'POST',
-        headers: {
-          'Cookie': 'refresh_token=expired-refresh-token'
-        }
-      }, env)
+      const res = await app.request(
+        '/auth/refresh',
+        {
+          method: 'POST',
+          headers: {
+            Cookie: 'refresh_token=expired-refresh-token',
+          },
+        },
+        env
+      )
 
       expect(res.status).toBe(401)
-      const body = await res.json() as any
+      const body = (await res.json()) as any
       expect(body.error).toBe('Token refresh failed')
     })
   })
@@ -355,7 +408,7 @@ describe('Auth Routes', () => {
         role: 'admin',
         is_active: true,
         created_at: '2023-01-01T00:00:00.000Z',
-        updated_at: '2023-01-01T00:00:00.000Z'
+        updated_at: '2023-01-01T00:00:00.000Z',
       }
 
       // Create a separate app instance for this test with user context
@@ -370,13 +423,13 @@ describe('Auth Routes', () => {
       const res = await testApp.request('/auth/me', {}, env)
 
       expect(res.status).toBe(200)
-      const body = await res.json() as any
+      const body = (await res.json()) as any
       expect(body.user).toEqual({
         id: '12345',
         username: 'testuser', // This comes from user.username || user.email
         email: 'test@example.com',
         name: 'Test User',
-        scope: ['admin']
+        scope: ['admin'],
       })
     })
 
@@ -384,7 +437,7 @@ describe('Auth Routes', () => {
       const res = await app.request('/auth/me', {}, env)
 
       expect(res.status).toBe(401)
-      const body = await res.json() as any
+      const body = (await res.json()) as any
       expect(body.error).toBe('Not authenticated')
     })
   })
@@ -402,7 +455,7 @@ describe('Auth Routes', () => {
         role: 'admin',
         is_active: true,
         created_at: '2023-01-01T00:00:00.000Z',
-        updated_at: '2023-01-01T00:00:00.000Z'
+        updated_at: '2023-01-01T00:00:00.000Z',
       }
 
       // Create a separate app instance for this test with user context
@@ -417,14 +470,14 @@ describe('Auth Routes', () => {
       const res = await testApp.request('/auth/status', {}, env)
 
       expect(res.status).toBe(200)
-      const body = await res.json() as any
+      const body = (await res.json()) as any
       expect(body.authenticated).toBe(true)
       expect(body.user).toEqual({
         id: '12345',
         username: 'testuser', // This comes from user.username || user.email
         email: 'test@example.com',
         name: 'Test User',
-        scope: ['admin']
+        scope: ['admin'],
       })
     })
 
@@ -432,7 +485,7 @@ describe('Auth Routes', () => {
       const res = await app.request('/auth/status', {}, env)
 
       expect(res.status).toBe(200)
-      const body = await res.json() as any
+      const body = (await res.json()) as any
       expect(body.authenticated).toBe(false)
       expect(body.user).toBeNull()
     })

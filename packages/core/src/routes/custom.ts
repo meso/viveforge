@@ -19,7 +19,7 @@ custom.all('/:slug', async (c) => {
     if (!c.env.DB) {
       return c.json({ error: 'Database not configured' }, 500)
     }
-    
+
     const slug = c.req.param('slug')
     const method = c.req.method
 
@@ -27,7 +27,9 @@ custom.all('/:slug', async (c) => {
     const query = await c.env.DB.prepare(`
       SELECT * FROM custom_queries 
       WHERE slug = ? AND enabled = 1
-    `).bind(slug).first()
+    `)
+      .bind(slug)
+      .first()
 
     if (!query) {
       return c.json({ error: 'Custom query not found' }, 404)
@@ -35,17 +37,20 @@ custom.all('/:slug', async (c) => {
 
     // Check if the method matches
     if (query.method !== method) {
-      return c.json({ 
-        error: `Method not allowed. This endpoint expects ${query.method}` 
-      }, 405)
+      return c.json(
+        {
+          error: `Method not allowed. This endpoint expects ${query.method}`,
+        },
+        405
+      )
     }
 
     // Parse parameters definition
-    const paramDefs = JSON.parse(query.parameters as string || '[]')
-    
+    const paramDefs = JSON.parse((query.parameters as string) || '[]')
+
     // Get parameters from request
     let providedParams: Record<string, unknown> = {}
-    
+
     if (method === 'GET') {
       // Get parameters from query string
       const queryParams = c.req.query()
@@ -61,7 +66,7 @@ custom.all('/:slug', async (c) => {
 
     // Prepare parameters
     const preparedParams = prepareQueryParameters(paramDefs, providedParams)
-    
+
     const startTime = Date.now()
     let result
     let error = null
@@ -89,14 +94,16 @@ custom.all('/:slug', async (c) => {
         c.env.DB.prepare(`
         INSERT INTO custom_query_logs (id, query_id, execution_time, row_count, parameters, error)
         VALUES (?, ?, ?, ?, ?, ?)
-      `).bind(
-        generateId(),
-        query.id,
-        executionTime,
-        result?.results?.length || 0,
-        JSON.stringify(providedParams),
-        error
-      ).run()
+      `)
+          .bind(
+            generateId(),
+            query.id,
+            executionTime,
+            result?.results?.length || 0,
+            JSON.stringify(providedParams),
+            error
+          )
+          .run()
       )
     }
 
@@ -110,8 +117,8 @@ custom.all('/:slug', async (c) => {
       data: result?.results || [],
       meta: {
         row_count: result?.results?.length || 0,
-        execution_time: executionTime
-      }
+        execution_time: executionTime,
+      },
     })
 
     // Set cache headers if cache_ttl is specified
@@ -122,9 +129,12 @@ custom.all('/:slug', async (c) => {
     return response
   } catch (error) {
     console.error('Error executing custom query:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to execute custom query' 
-    }, 500)
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to execute custom query',
+      },
+      500
+    )
   }
 })
 

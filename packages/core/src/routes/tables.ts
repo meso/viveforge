@@ -1,7 +1,7 @@
+import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { zValidator } from '@hono/zod-validator'
-import { TableManager, SYSTEM_TABLES } from '../lib/table-manager'
+import { SYSTEM_TABLES, TableManager } from '../lib/table-manager'
 import type { Env, Variables } from '../types'
 
 export const tables = new Hono<{ Bindings: Env; Variables: Variables }>()
@@ -12,12 +12,12 @@ tables.use('*', async (c, next) => {
     console.error('Database not available in environment')
     return c.json({ error: 'Database not configured' }, 500)
   }
-  c.set('tableManager', new TableManager(
-    c.env.DB, 
-    c.env.SYSTEM_STORAGE as any, 
-    c.executionCtx,
-    { REALTIME: c.env.REALTIME }
-  ))
+  c.set(
+    'tableManager',
+    new TableManager(c.env.DB, c.env.SYSTEM_STORAGE as any, c.executionCtx, {
+      REALTIME: c.env.REALTIME,
+    })
+  )
   await next()
 })
 
@@ -27,21 +27,24 @@ tables.get('/', async (c) => {
     const tm = c.get('tableManager') as TableManager
     const tables = await tm.getTables()
     const baseUrl = new URL(c.req.url).origin
-    
-    return c.json({ 
+
+    return c.json({
       tables,
       documentation: {
         swagger: `${baseUrl}/api/docs/swagger`,
         openapi: `${baseUrl}/api/docs/openapi.json`,
-        description: 'Interactive API documentation for all your tables'
-      }
+        description: 'Interactive API documentation for all your tables',
+      },
     })
   } catch (error) {
     console.error('Error fetching tables:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to fetch tables',
-      details: error instanceof Error ? error.stack : undefined
-    }, 500)
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to fetch tables',
+        details: error instanceof Error ? error.stack : undefined,
+      },
+      500
+    )
   }
 })
 
@@ -74,7 +77,7 @@ tables.get('/:tableName/data', async (c) => {
     const tableName = c.req.param('tableName')
     const limit = Number(c.req.query('limit') || '100')
     const offset = Number(c.req.query('offset') || '0')
-    
+
     const result = await tm.getTableData(tableName, limit, offset)
     return c.json(result)
   } catch (error) {
@@ -86,15 +89,21 @@ tables.get('/:tableName/data', async (c) => {
 // Create new table
 const createTableSchema = z.object({
   name: z.string().regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/, 'Invalid table name'),
-  columns: z.array(z.object({
-    name: z.string().regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/, 'Invalid column name'),
-    type: z.enum(['TEXT', 'INTEGER', 'REAL', 'BLOB', 'BOOLEAN']),
-    constraints: z.string().optional(),
-    foreignKey: z.object({
-      table: z.string(),
-      column: z.string()
-    }).optional()
-  })).min(1)
+  columns: z
+    .array(
+      z.object({
+        name: z.string().regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/, 'Invalid column name'),
+        type: z.enum(['TEXT', 'INTEGER', 'REAL', 'BLOB', 'BOOLEAN']),
+        constraints: z.string().optional(),
+        foreignKey: z
+          .object({
+            table: z.string(),
+            column: z.string(),
+          })
+          .optional(),
+      })
+    )
+    .min(1),
 })
 
 tables.post('/', zValidator('json', createTableSchema), async (c) => {
@@ -109,9 +118,12 @@ tables.post('/', zValidator('json', createTableSchema), async (c) => {
     return c.json({ success: true, table: data.name }, 201)
   } catch (error) {
     console.error('Error creating table:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to create table' 
-    }, 400)
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to create table',
+      },
+      400
+    )
   }
 })
 
@@ -128,9 +140,12 @@ tables.delete('/:tableName', async (c) => {
     return c.json({ success: true, table: tableName })
   } catch (error) {
     console.error('Error dropping table:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to drop table' 
-    }, 400)
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to drop table',
+      },
+      400
+    )
   }
 })
 
@@ -144,21 +159,27 @@ tables.post('/:tableName/data', async (c) => {
   try {
     const tableName = c.req.param('tableName')
     const data = await c.req.json()
-    
+
     // Check if table is system table
-    if (SYSTEM_TABLES.includes(tableName as (typeof SYSTEM_TABLES)[number]) || tableName === '_cf_KV') {
+    if (
+      SYSTEM_TABLES.includes(tableName as (typeof SYSTEM_TABLES)[number]) ||
+      tableName === '_cf_KV'
+    ) {
       return c.json({ error: 'Cannot modify system table' }, 403)
     }
-    
+
     // Use TableManager to ensure foreign key constraints are enabled
     await tm.createRecord(tableName, data)
-    
+
     return c.json({ success: true }, 201)
   } catch (error) {
     console.error('Error creating record:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to create record' 
-    }, 400)
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to create record',
+      },
+      400
+    )
   }
 })
 
@@ -173,21 +194,27 @@ tables.put('/:tableName/data/:id', async (c) => {
     const tableName = c.req.param('tableName')
     const id = c.req.param('id')
     const data = await c.req.json()
-    
+
     // Check if table is system table
-    if (SYSTEM_TABLES.includes(tableName as (typeof SYSTEM_TABLES)[number]) || tableName === '_cf_KV') {
+    if (
+      SYSTEM_TABLES.includes(tableName as (typeof SYSTEM_TABLES)[number]) ||
+      tableName === '_cf_KV'
+    ) {
       return c.json({ error: 'Cannot modify system table' }, 403)
     }
-    
+
     // Use TableManager to ensure foreign key constraints are enabled
     await tm.updateRecord(tableName, id, data)
-    
+
     return c.json({ success: true })
   } catch (error) {
     console.error('Error updating record:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to update record' 
-    }, 400)
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to update record',
+      },
+      400
+    )
   }
 })
 
@@ -201,16 +228,19 @@ tables.delete('/:tableName/data/:id', async (c) => {
   try {
     const tableName = c.req.param('tableName')
     const id = c.req.param('id')
-    
+
     // Use TableManager to ensure foreign key constraints are enabled
     await tm.deleteRecord(tableName, id)
-    
+
     return c.json({ success: true })
   } catch (error) {
     console.error('Error deleting record:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to delete record' 
-    }, 400)
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to delete record',
+      },
+      400
+    )
   }
 })
 
@@ -219,10 +249,12 @@ const addColumnSchema = z.object({
   name: z.string().regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/, 'Invalid column name'),
   type: z.enum(['TEXT', 'INTEGER', 'REAL', 'BLOB', 'BOOLEAN']),
   constraints: z.string().optional(),
-  foreignKey: z.object({
-    table: z.string(),
-    column: z.string()
-  }).optional()
+  foreignKey: z
+    .object({
+      table: z.string(),
+      column: z.string(),
+    })
+    .optional(),
 })
 
 tables.post('/:tableName/columns', zValidator('json', addColumnSchema), async (c) => {
@@ -234,21 +266,24 @@ tables.post('/:tableName/columns', zValidator('json', addColumnSchema), async (c
   try {
     const tableName = c.req.param('tableName')
     const column = c.req.valid('json')
-    
+
     await tm.addColumn(tableName, column)
     return c.json({ success: true, column: column.name }, 201)
   } catch (error) {
     console.error('Error adding column:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to add column' 
-    }, 400)
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to add column',
+      },
+      400
+    )
   }
 })
 
 // Rename column
 const renameColumnSchema = z.object({
   oldName: z.string(),
-  newName: z.string().regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/, 'Invalid column name')
+  newName: z.string().regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/, 'Invalid column name'),
 })
 
 tables.put('/:tableName/columns/:columnName', zValidator('json', renameColumnSchema), async (c) => {
@@ -260,14 +295,17 @@ tables.put('/:tableName/columns/:columnName', zValidator('json', renameColumnSch
   try {
     const tableName = c.req.param('tableName')
     const { oldName, newName } = c.req.valid('json')
-    
+
     await tm.renameColumn(tableName, oldName, newName)
     return c.json({ success: true, oldName, newName })
   } catch (error) {
     console.error('Error renaming column:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to rename column' 
-    }, 400)
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to rename column',
+      },
+      400
+    )
   }
 })
 
@@ -281,19 +319,22 @@ tables.delete('/:tableName/columns/:columnName', async (c) => {
   try {
     const tableName = c.req.param('tableName')
     const columnName = c.req.param('columnName')
-    
+
     // Prevent dropping system columns
     if (['id', 'created_at', 'updated_at'].includes(columnName)) {
       return c.json({ error: 'Cannot drop system column' }, 403)
     }
-    
+
     await tm.dropColumn(tableName, columnName)
     return c.json({ success: true, column: columnName })
   } catch (error) {
     console.error('Error dropping column:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to drop column' 
-    }, 400)
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to drop column',
+      },
+      400
+    )
   }
 })
 
@@ -301,64 +342,81 @@ tables.delete('/:tableName/columns/:columnName', async (c) => {
 const modifyColumnSchema = z.object({
   type: z.enum(['TEXT', 'INTEGER', 'REAL', 'BLOB', 'BOOLEAN']).optional(),
   notNull: z.boolean().optional(),
-  foreignKey: z.object({
-    table: z.string(),
-    column: z.string()
-  }).nullable().optional()
+  foreignKey: z
+    .object({
+      table: z.string(),
+      column: z.string(),
+    })
+    .nullable()
+    .optional(),
 })
 
-tables.patch('/:tableName/columns/:columnName', zValidator('json', modifyColumnSchema), async (c) => {
-  const tm = c.get('tableManager') as TableManager
-  if (!tm) {
-    return c.json({ error: 'Database not available' }, 500)
-  }
-
-  try {
-    const tableName = c.req.param('tableName')
-    const columnName = c.req.param('columnName')
-    const changes = c.req.valid('json')
-    
-    // Prevent modifying system columns
-    if (['id', 'created_at', 'updated_at'].includes(columnName)) {
-      return c.json({ error: 'Cannot modify system column' }, 403)
+tables.patch(
+  '/:tableName/columns/:columnName',
+  zValidator('json', modifyColumnSchema),
+  async (c) => {
+    const tm = c.get('tableManager') as TableManager
+    if (!tm) {
+      return c.json({ error: 'Database not available' }, 500)
     }
-    
-    await tm.modifyColumn(tableName, columnName, changes)
-    return c.json({ success: true, column: columnName, changes })
-  } catch (error) {
-    console.error('Error modifying column:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to modify column' 
-    }, 400)
+
+    try {
+      const tableName = c.req.param('tableName')
+      const columnName = c.req.param('columnName')
+      const changes = c.req.valid('json')
+
+      // Prevent modifying system columns
+      if (['id', 'created_at', 'updated_at'].includes(columnName)) {
+        return c.json({ error: 'Cannot modify system column' }, 403)
+      }
+
+      await tm.modifyColumn(tableName, columnName, changes)
+      return c.json({ success: true, column: columnName, changes })
+    } catch (error) {
+      console.error('Error modifying column:', error)
+      return c.json(
+        {
+          error: error instanceof Error ? error.message : 'Failed to modify column',
+        },
+        400
+      )
+    }
   }
-})
+)
 
 // Validate column changes before applying
-tables.post('/:tableName/columns/:columnName/validate', zValidator('json', modifyColumnSchema), async (c) => {
-  const tm = c.get('tableManager') as TableManager
-  if (!tm) {
-    return c.json({ error: 'Database not available' }, 500)
-  }
+tables.post(
+  '/:tableName/columns/:columnName/validate',
+  zValidator('json', modifyColumnSchema),
+  async (c) => {
+    const tm = c.get('tableManager') as TableManager
+    if (!tm) {
+      return c.json({ error: 'Database not available' }, 500)
+    }
 
-  try {
-    const tableName = c.req.param('tableName')
-    const columnName = c.req.param('columnName')
-    const changes = c.req.valid('json')
-    
-    const validation = await tm.validateColumnChanges(tableName, columnName, changes)
-    return c.json(validation)
-  } catch (error) {
-    console.error('Error validating column changes:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to validate column changes' 
-    }, 400)
+    try {
+      const tableName = c.req.param('tableName')
+      const columnName = c.req.param('columnName')
+      const changes = c.req.valid('json')
+
+      const validation = await tm.validateColumnChanges(tableName, columnName, changes)
+      return c.json(validation)
+    } catch (error) {
+      console.error('Error validating column changes:', error)
+      return c.json(
+        {
+          error: error instanceof Error ? error.message : 'Failed to validate column changes',
+        },
+        400
+      )
+    }
   }
-})
+)
 
 // Execute SQL query
 const executeSQLSchema = z.object({
   sql: z.string().min(1),
-  params: z.array(z.unknown()).optional()
+  params: z.array(z.unknown()).optional(),
 })
 
 tables.post('/query', zValidator('json', executeSQLSchema), async (c) => {
@@ -373,9 +431,12 @@ tables.post('/query', zValidator('json', executeSQLSchema), async (c) => {
     return c.json({ result })
   } catch (error) {
     console.error('Error executing SQL:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to execute SQL' 
-    }, 400)
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to execute SQL',
+      },
+      400
+    )
   }
 })
 
@@ -392,9 +453,12 @@ tables.get('/indexes', async (c) => {
     return c.json({ indexes })
   } catch (error) {
     console.error('Error getting all indexes:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to get indexes' 
-    }, 500)
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to get indexes',
+      },
+      500
+    )
   }
 })
 
@@ -403,14 +467,17 @@ tables.get('/:tableName/indexes', async (c) => {
   try {
     const tableName = c.req.param('tableName')
     const tableManager = c.get('tableManager')!
-    
+
     const indexes = await tableManager.getTableIndexes(tableName)
     return c.json({ indexes })
   } catch (error) {
     console.error('Error getting table indexes:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to get table indexes' 
-    }, 500)
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to get table indexes',
+      },
+      500
+    )
   }
 })
 
@@ -418,7 +485,7 @@ tables.get('/:tableName/indexes', async (c) => {
 const createIndexSchema = z.object({
   name: z.string().regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/, 'Invalid index name'),
   columns: z.array(z.string()).min(1, 'At least one column is required'),
-  unique: z.boolean().optional().default(false)
+  unique: z.boolean().optional().default(false),
 })
 
 tables.post('/:tableName/indexes', zValidator('json', createIndexSchema), async (c) => {
@@ -426,23 +493,26 @@ tables.post('/:tableName/indexes', zValidator('json', createIndexSchema), async 
     const tableName = c.req.param('tableName')
     const { name, columns, unique } = c.req.valid('json')
     const tableManager = c.get('tableManager')!
-    
+
     await tableManager.createIndex(name, tableName, columns, { unique })
-    
+
     // Get the created index info
     const indexes = await tableManager.getTableIndexes(tableName)
-    const createdIndex = indexes.find(idx => idx.name === name)
-    
-    return c.json({ 
-      success: true, 
+    const createdIndex = indexes.find((idx) => idx.name === name)
+
+    return c.json({
+      success: true,
       index: createdIndex,
-      message: `Index "${name}" created successfully` 
+      message: `Index "${name}" created successfully`,
     })
   } catch (error) {
     console.error('Error creating index:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to create index' 
-    }, 400)
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to create index',
+      },
+      400
+    )
   }
 })
 
@@ -451,18 +521,21 @@ tables.delete('/:tableName/indexes/:indexName', async (c) => {
   try {
     const indexName = c.req.param('indexName')
     const tableManager = c.get('tableManager')!
-    
+
     await tableManager.dropIndex(indexName)
-    
-    return c.json({ 
-      success: true, 
-      message: `Index "${indexName}" dropped successfully` 
+
+    return c.json({
+      success: true,
+      message: `Index "${indexName}" dropped successfully`,
     })
   } catch (error) {
     console.error('Error dropping index:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to drop index' 
-    }, 400)
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to drop index',
+      },
+      400
+    )
   }
 })
 
@@ -470,11 +543,19 @@ tables.delete('/:tableName/indexes/:indexName', async (c) => {
 const searchQuerySchema = z.object({
   column: z.string().min(1, 'Column name is required'),
   operator: z.enum(['eq', 'lt', 'le', 'gt', 'ge', 'ne', 'is_null', 'is_not_null'], {
-    errorMap: () => ({ message: 'Invalid operator. Supported: eq, lt, le, gt, ge, ne, is_null, is_not_null' })
+    errorMap: () => ({
+      message: 'Invalid operator. Supported: eq, lt, le, gt, ge, ne, is_null, is_not_null',
+    }),
   }),
   value: z.string().optional(),
-  limit: z.string().optional().transform(val => val ? parseInt(val) : undefined),
-  offset: z.string().optional().transform(val => val ? parseInt(val) : 0)
+  limit: z
+    .string()
+    .optional()
+    .transform((val) => (val ? parseInt(val) : undefined)),
+  offset: z
+    .string()
+    .optional()
+    .transform((val) => (val ? parseInt(val) : 0)),
 })
 
 tables.get('/:tableName/search', zValidator('query', searchQuerySchema), async (c) => {
@@ -485,76 +566,92 @@ tables.get('/:tableName/search', zValidator('query', searchQuerySchema), async (
 
     // Check if table is a system table
     if (SYSTEM_TABLES.includes(tableName as (typeof SYSTEM_TABLES)[number])) {
-      return c.json({
-        error: {
-          code: 'SYSTEM_TABLE_ACCESS_DENIED',
-          message: `Search is not allowed on system table '${tableName}'`
-        }
-      }, 403)
+      return c.json(
+        {
+          error: {
+            code: 'SYSTEM_TABLE_ACCESS_DENIED',
+            message: `Search is not allowed on system table '${tableName}'`,
+          },
+        },
+        403
+      )
     }
 
     // Validate value requirement for non-null operators
     if (!['is_null', 'is_not_null'].includes(operator) && !value) {
-      return c.json({
-        error: {
-          code: 'MISSING_VALUE',
-          message: `Value is required for operator '${operator}'`
-        }
-      }, 400)
+      return c.json(
+        {
+          error: {
+            code: 'MISSING_VALUE',
+            message: `Value is required for operator '${operator}'`,
+          },
+        },
+        400
+      )
     }
 
     // Get searchable columns for the table
     const searchableColumns = await tableManager.getSearchableColumns(tableName)
-    
-    if (!searchableColumns.find(col => col.name === column)) {
-      return c.json({
-        error: {
-          code: 'COLUMN_NOT_SEARCHABLE',
-          message: `Column '${column}' is not searchable (no index found)`,
-          details: {
-            table: tableName,
-            column: column,
-            searchableColumns: searchableColumns.map(col => col.name)
-          }
-        }
-      }, 400)
+
+    if (!searchableColumns.find((col) => col.name === column)) {
+      return c.json(
+        {
+          error: {
+            code: 'COLUMN_NOT_SEARCHABLE',
+            message: `Column '${column}' is not searchable (no index found)`,
+            details: {
+              table: tableName,
+              column: column,
+              searchableColumns: searchableColumns.map((col) => col.name),
+            },
+          },
+        },
+        400
+      )
     }
 
     // Get column info to validate operator
-    const columnInfo = searchableColumns.find(col => col.name === column)!
-    const supportedOperators = columnInfo.type === 'TEXT' 
-      ? ['eq', 'is_null', 'is_not_null']
-      : ['eq', 'lt', 'le', 'gt', 'ge', 'ne', 'is_null', 'is_not_null']
+    const columnInfo = searchableColumns.find((col) => col.name === column)!
+    const supportedOperators =
+      columnInfo.type === 'TEXT'
+        ? ['eq', 'is_null', 'is_not_null']
+        : ['eq', 'lt', 'le', 'gt', 'ge', 'ne', 'is_null', 'is_not_null']
 
     if (!supportedOperators.includes(operator)) {
-      return c.json({
-        error: {
-          code: 'INVALID_OPERATOR',
-          message: `Operator '${operator}' is not supported for ${columnInfo.type} columns`,
-          details: {
-            column: column,
-            columnType: columnInfo.type,
-            supportedOperators: supportedOperators
-          }
-        }
-      }, 400)
+      return c.json(
+        {
+          error: {
+            code: 'INVALID_OPERATOR',
+            message: `Operator '${operator}' is not supported for ${columnInfo.type} columns`,
+            details: {
+              column: column,
+              columnType: columnInfo.type,
+              supportedOperators: supportedOperators,
+            },
+          },
+        },
+        400
+      )
     }
 
     // Validate value type for INTEGER columns
     if (columnInfo.type === 'INTEGER' && value && !['is_null', 'is_not_null'].includes(operator)) {
       const numValue = Number(value)
       if (isNaN(numValue) || !Number.isInteger(numValue)) {
-        return c.json({
-          error: {
-            code: 'TYPE_MISMATCH',
-            message: 'Invalid value type for INTEGER column',
-            details: {
-              column: column,
-              expectedType: 'INTEGER',
-              receivedValue: value
-            }
-          }
-        }, 400)
+        return c.json(
+          {
+            error: {
+              code: 'TYPE_MISMATCH',
+              message: 'Invalid value type for INTEGER column',
+              details: {
+                column: column,
+                expectedType: 'INTEGER',
+                receivedValue: value,
+              },
+            },
+          },
+          400
+        )
       }
     }
 
@@ -564,7 +661,7 @@ tables.get('/:tableName/search', zValidator('query', searchQuerySchema), async (
       operator,
       value,
       limit,
-      offset: offset || 0
+      offset: offset || 0,
     })
 
     return c.json({
@@ -573,21 +670,23 @@ tables.get('/:tableName/search', zValidator('query', searchQuerySchema), async (
         total: result.total,
         limit: limit || result.total,
         offset: offset || 0,
-        hasMore: result.hasMore
+        hasMore: result.hasMore,
       },
       query: {
         table: tableName,
         column,
         operator,
-        value
-      }
+        value,
+      },
     })
-
   } catch (error) {
     console.error('Error searching records:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to search records' 
-    }, 500)
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to search records',
+      },
+      500
+    )
   }
 })
 
@@ -596,35 +695,38 @@ tables.get('/:tableName/policy', async (c) => {
   try {
     const tableName = c.req.param('tableName')
     const tableManager = c.get('tableManager')!
-    
+
     // Check if table is a system table
     if (SYSTEM_TABLES.includes(tableName as (typeof SYSTEM_TABLES)[number])) {
       return c.json({
         table_name: tableName,
         access_policy: 'system',
-        message: 'System tables have fixed access policies'
+        message: 'System tables have fixed access policies',
       })
     }
-    
+
     const policy = await tableManager.getTableAccessPolicy(tableName)
-    
+
     return c.json({
       table_name: tableName,
-      access_policy: policy
+      access_policy: policy,
     })
   } catch (error) {
     console.error('Error getting table policy:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to get table policy' 
-    }, 500)
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to get table policy',
+      },
+      500
+    )
   }
 })
 
 // Update table access policy (admin only)
 const policyUpdateSchema = z.object({
   access_policy: z.enum(['public', 'private'], {
-    errorMap: () => ({ message: 'Access policy must be either "public" or "private"' })
-  })
+    errorMap: () => ({ message: 'Access policy must be either "public" or "private"' }),
+  }),
 })
 
 tables.put('/:tableName/policy', zValidator('json', policyUpdateSchema), async (c) => {
@@ -632,47 +734,59 @@ tables.put('/:tableName/policy', zValidator('json', policyUpdateSchema), async (
     const tableName = c.req.param('tableName')
     const { access_policy } = c.req.valid('json')
     const tableManager = c.get('tableManager')!
-    
+
     // Check if table is a system table
     if (SYSTEM_TABLES.includes(tableName as (typeof SYSTEM_TABLES)[number])) {
-      return c.json({
-        error: 'Cannot modify access policy for system tables'
-      }, 403)
+      return c.json(
+        {
+          error: 'Cannot modify access policy for system tables',
+        },
+        403
+      )
     }
-    
+
     // Verify table exists
     const tables = await tableManager.getTables()
-    const table = tables.find(t => t.name === tableName)
+    const table = tables.find((t) => t.name === tableName)
     if (!table) {
-      return c.json({
-        error: `Table '${tableName}' not found`
-      }, 404)
+      return c.json(
+        {
+          error: `Table '${tableName}' not found`,
+        },
+        404
+      )
     }
-    
+
     // When changing from public to private, verify owner_id column exists
     if (table.access_policy === 'public' && access_policy === 'private') {
       const columns = await tableManager.getTableColumns(tableName)
-      const hasOwnerIdColumn = columns.some(col => col.name === 'owner_id')
-      
+      const hasOwnerIdColumn = columns.some((col) => col.name === 'owner_id')
+
       if (!hasOwnerIdColumn) {
-        return c.json({
-          error: `Cannot change table '${tableName}' to private: missing owner_id column. Private tables require an owner_id column for access control.`
-        }, 400)
+        return c.json(
+          {
+            error: `Cannot change table '${tableName}' to private: missing owner_id column. Private tables require an owner_id column for access control.`,
+          },
+          400
+        )
       }
     }
-    
+
     await tableManager.setTableAccessPolicy(tableName, access_policy)
-    
+
     return c.json({
       success: true,
       table_name: tableName,
       access_policy: access_policy,
-      message: `Access policy for table '${tableName}' updated to '${access_policy}'`
+      message: `Access policy for table '${tableName}' updated to '${access_policy}'`,
     })
   } catch (error) {
     console.error('Error updating table policy:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to update table policy' 
-    }, 500)
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to update table policy',
+      },
+      500
+    )
   }
 })

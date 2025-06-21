@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Hono } from 'hono'
-import { requireAuth, optionalAuth, getCurrentUser } from '../../middleware/auth'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { VibebaseAuthClient } from '../../lib/auth-client'
+import { getCurrentUser, optionalAuth, requireAuth } from '../../middleware/auth'
 import type { Env, Variables } from '../../types'
 
 // Mock VibebaseAuthClient
@@ -14,7 +14,7 @@ describe('Auth Middleware', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    
+
     env = {
       VIBEBASE_AUTH_URL: 'https://auth.vibebase.workers.dev',
       DEPLOYMENT_DOMAIN: 'test.example.com',
@@ -25,17 +25,21 @@ describe('Auth Middleware', () => {
       SYSTEM_STORAGE: {} as any,
       USER_STORAGE: {} as any,
       ASSETS: {
-        fetch: vi.fn(() => Promise.resolve(new Response('mock asset')))
-      }
+        fetch: vi.fn(() => Promise.resolve(new Response('mock asset'))),
+      },
     }
 
     mockAuthClient = {
       verifyRequest: vi.fn(),
-      getLoginUrl: vi.fn().mockReturnValue('https://auth.vibebase.workers.dev/auth/login?origin=https%3A%2F%2Ftest.example.com&redirect_to=%2F')
+      getLoginUrl: vi
+        .fn()
+        .mockReturnValue(
+          'https://auth.vibebase.workers.dev/auth/login?origin=https%3A%2F%2Ftest.example.com&redirect_to=%2F'
+        ),
     }
 
     app = new Hono<{ Bindings: Env; Variables: Variables }>()
-    
+
     // Setup middleware to inject mock auth client
     app.use('*', async (c, next) => {
       c.set('authClient', mockAuthClient)
@@ -56,7 +60,7 @@ describe('Auth Middleware', () => {
         role: 'admin',
         is_active: true,
         created_at: '2023-01-01T00:00:00.000Z',
-        updated_at: '2023-01-01T00:00:00.000Z'
+        updated_at: '2023-01-01T00:00:00.000Z',
       }
 
       mockAuthClient.verifyRequest.mockResolvedValue(mockUser)
@@ -69,7 +73,7 @@ describe('Auth Middleware', () => {
       const res = await app.request('/protected', {}, { env })
 
       expect(res.status).toBe(200)
-      const body = await res.json() as any
+      const body = (await res.json()) as any
       expect(body.message).toBe('success')
       expect(body.user).toEqual(mockUser)
     })
@@ -81,14 +85,20 @@ describe('Auth Middleware', () => {
         return c.json({ message: 'should not reach here' })
       })
 
-      const res = await app.request('/protected', {
-        headers: {
-          'Accept': 'text/html'
-        }
-      }, { env })
+      const res = await app.request(
+        '/protected',
+        {
+          headers: {
+            Accept: 'text/html',
+          },
+        },
+        { env }
+      )
 
       expect(res.status).toBe(302)
-      expect(res.headers.get('Location')).toBe('https://auth.vibebase.workers.dev/auth/login?origin=https%3A%2F%2Ftest.example.com&redirect_to=%2F')
+      expect(res.headers.get('Location')).toBe(
+        'https://auth.vibebase.workers.dev/auth/login?origin=https%3A%2F%2Ftest.example.com&redirect_to=%2F'
+      )
     })
 
     it('should return JSON error for unauthenticated API requests', async () => {
@@ -98,16 +108,22 @@ describe('Auth Middleware', () => {
         return c.json({ message: 'should not reach here' })
       })
 
-      const res = await app.request('/api/protected', {
-        headers: {
-          'Accept': 'application/json'
-        }
-      }, { env })
+      const res = await app.request(
+        '/api/protected',
+        {
+          headers: {
+            Accept: 'application/json',
+          },
+        },
+        { env }
+      )
 
       expect(res.status).toBe(401)
-      const body = await res.json() as any
+      const body = (await res.json()) as any
       expect(body.error).toBe('Authentication required')
-      expect(body.login_url).toBe('https://auth.vibebase.workers.dev/auth/login?origin=https%3A%2F%2Ftest.example.com&redirect_to=%2F')
+      expect(body.login_url).toBe(
+        'https://auth.vibebase.workers.dev/auth/login?origin=https%3A%2F%2Ftest.example.com&redirect_to=%2F'
+      )
     })
 
     it('should handle auth service unavailable', async () => {
@@ -123,7 +139,7 @@ describe('Auth Middleware', () => {
       const res = await app.request('/protected', {}, { env })
 
       expect(res.status).toBe(503)
-      const body = await res.json() as any
+      const body = (await res.json()) as any
       expect(body.error).toBe('Authentication service unavailable')
     })
 
@@ -137,7 +153,7 @@ describe('Auth Middleware', () => {
       const res = await app.request('/protected', {}, { env })
 
       expect(res.status).toBe(503)
-      const body = await res.json() as any
+      const body = (await res.json()) as any
       expect(body.error).toBe('Authentication service error')
     })
   })
@@ -155,7 +171,7 @@ describe('Auth Middleware', () => {
         role: 'admin',
         is_active: true,
         created_at: '2023-01-01T00:00:00.000Z',
-        updated_at: '2023-01-01T00:00:00.000Z'
+        updated_at: '2023-01-01T00:00:00.000Z',
       }
 
       mockAuthClient.verifyRequest.mockResolvedValue(mockUser)
@@ -168,7 +184,7 @@ describe('Auth Middleware', () => {
       const res = await app.request('/optional', {}, { env })
 
       expect(res.status).toBe(200)
-      const body = await res.json() as any
+      const body = (await res.json()) as any
       expect(body.user).toEqual(mockUser)
     })
 
@@ -183,7 +199,7 @@ describe('Auth Middleware', () => {
       const res = await app.request('/optional', {}, { env })
 
       expect(res.status).toBe(200)
-      const body = await res.json() as any
+      const body = (await res.json()) as any
       expect(body.user).toBeNull()
     })
 
@@ -201,7 +217,7 @@ describe('Auth Middleware', () => {
       const res = await app.request('/optional', {}, { env })
 
       expect(res.status).toBe(200)
-      const body = await res.json() as any
+      const body = (await res.json()) as any
       expect(body.user).toBeNull()
     })
 
@@ -216,7 +232,7 @@ describe('Auth Middleware', () => {
       const res = await app.request('/optional', {}, { env })
 
       expect(res.status).toBe(200)
-      const body = await res.json() as any
+      const body = (await res.json()) as any
       expect(body.user).toBeNull()
     })
   })
@@ -234,7 +250,7 @@ describe('Auth Middleware', () => {
         role: 'admin',
         is_active: true,
         created_at: '2023-01-01T00:00:00.000Z',
-        updated_at: '2023-01-01T00:00:00.000Z'
+        updated_at: '2023-01-01T00:00:00.000Z',
       }
 
       app.get('/user', (c) => {
@@ -245,7 +261,7 @@ describe('Auth Middleware', () => {
 
       const res = await app.request('/user', {}, { env })
       expect(res.status).toBe(200)
-      const body = await res.json() as { user: typeof mockUser }
+      const body = (await res.json()) as { user: typeof mockUser }
       expect(body.user).toEqual(mockUser)
     })
 
@@ -257,7 +273,7 @@ describe('Auth Middleware', () => {
 
       const res = await app.request('/user', {}, { env })
       expect(res.status).toBe(200)
-      const body = await res.json() as { user: null }
+      const body = (await res.json()) as { user: null }
       expect(body.user).toBeNull()
     })
   })

@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { TableManager } from '../lib/table-manager'
-import { createMockD1Database, createMockR2Bucket, createMockExecutionContext } from './setup'
-import type { MockD1Database, MockR2Bucket, MockExecutionContext } from './setup'
+import type { MockD1Database, MockExecutionContext, MockR2Bucket } from './setup'
+import { createMockD1Database, createMockExecutionContext, createMockR2Bucket } from './setup'
 
 describe('Search Functionality', () => {
   let tableManager: TableManager
@@ -13,23 +13,20 @@ describe('Search Functionality', () => {
     mockDb = createMockD1Database()
     mockStorage = createMockR2Bucket()
     mockCtx = createMockExecutionContext()
-    tableManager = new TableManager(
-      mockDb as any, 
-      mockStorage as any, 
-      mockCtx as any,
-      { REALTIME: undefined }
-    )
+    tableManager = new TableManager(mockDb as any, mockStorage as any, mockCtx as any, {
+      REALTIME: undefined,
+    })
 
     // Create a test table with some indexed columns
     await tableManager.createTable('searchtable', [
       { name: 'name', type: 'TEXT', constraints: 'NOT NULL' },
       { name: 'age', type: 'INTEGER', constraints: '' },
-      { name: 'email', type: 'TEXT', constraints: '' }
+      { name: 'email', type: 'TEXT', constraints: '' },
     ])
 
     // Create an index on name column
     await tableManager.createIndex('idx_searchtable_name', 'searchtable', ['name'])
-    
+
     // Create an index on age column
     await tableManager.createIndex('idx_searchtable_age', 'searchtable', ['age'])
 
@@ -37,24 +34,24 @@ describe('Search Functionality', () => {
     await tableManager.createRecord('searchtable', {
       name: 'John Doe',
       age: 30,
-      email: 'john@example.com'
+      email: 'john@example.com',
     })
 
     await tableManager.createRecord('searchtable', {
       name: 'Jane Smith',
       age: 25,
-      email: 'jane@example.com'
+      email: 'jane@example.com',
     })
 
     await tableManager.createRecord('searchtable', {
       name: 'Bob Wilson',
       age: 35,
-      email: 'bob@example.com'
+      email: 'bob@example.com',
     })
   })
 
   afterEach(async () => {
-    // Clean up - Note: deleteTable method doesn't exist, 
+    // Clean up - Note: deleteTable method doesn't exist,
     // but in tests we can rely on the mock DB being reset
     // try {
     //   await tableManager.deleteTable('searchtable')
@@ -66,23 +63,23 @@ describe('Search Functionality', () => {
   describe('getSearchableColumns', () => {
     it('should return indexed TEXT and INTEGER columns', async () => {
       const searchableColumns = await tableManager.getSearchableColumns('searchtable')
-      
+
       expect(searchableColumns).toHaveLength(2) // name, age (excluding primary key)
-      expect(searchableColumns.map(col => col.name)).toContain('name')
-      expect(searchableColumns.map(col => col.name)).toContain('age')
-      
-      const nameColumn = searchableColumns.find(col => col.name === 'name')
+      expect(searchableColumns.map((col) => col.name)).toContain('name')
+      expect(searchableColumns.map((col) => col.name)).toContain('age')
+
+      const nameColumn = searchableColumns.find((col) => col.name === 'name')
       expect(nameColumn?.type).toBe('TEXT')
-      
-      const ageColumn = searchableColumns.find(col => col.name === 'age')
+
+      const ageColumn = searchableColumns.find((col) => col.name === 'age')
       expect(ageColumn?.type).toBe('INTEGER')
     })
 
     it('should not include non-indexed columns', async () => {
       const searchableColumns = await tableManager.getSearchableColumns('searchtable')
-      
+
       // email column is not indexed, so it should not be searchable
-      expect(searchableColumns.map(col => col.name)).not.toContain('email')
+      expect(searchableColumns.map((col) => col.name)).not.toContain('email')
     })
   })
 
@@ -92,7 +89,7 @@ describe('Search Functionality', () => {
         column: 'name',
         operator: 'eq',
         value: 'John Doe',
-        offset: 0
+        offset: 0,
       })
 
       expect(result.total).toBe(1)
@@ -107,7 +104,7 @@ describe('Search Functionality', () => {
         column: 'age',
         operator: 'gt',
         value: '30',
-        offset: 0
+        offset: 0,
       })
 
       expect(gtResult.total).toBe(1)
@@ -118,7 +115,7 @@ describe('Search Functionality', () => {
         column: 'age',
         operator: 'le',
         value: '30',
-        offset: 0
+        offset: 0,
       })
 
       expect(leResult.total).toBe(2) // John (30) and Jane (25)
@@ -128,13 +125,13 @@ describe('Search Functionality', () => {
       // Add a record with null age
       await tableManager.createRecord('searchtable', {
         name: 'Null Age Person',
-        email: 'null@example.com'
+        email: 'null@example.com',
       })
 
       const nullResult = await tableManager.searchRecords('searchtable', {
         column: 'age',
         operator: 'is_null',
-        offset: 0
+        offset: 0,
       })
 
       expect(nullResult.total).toBe(1)
@@ -143,7 +140,7 @@ describe('Search Functionality', () => {
       const notNullResult = await tableManager.searchRecords('searchtable', {
         column: 'age',
         operator: 'is_not_null',
-        offset: 0
+        offset: 0,
       })
 
       expect(notNullResult.total).toBe(3) // John, Jane, Bob
@@ -154,7 +151,7 @@ describe('Search Functionality', () => {
         column: 'age',
         operator: 'is_not_null',
         limit: 2,
-        offset: 0
+        offset: 0,
       })
 
       expect(result.total).toBe(3)
@@ -165,7 +162,7 @@ describe('Search Functionality', () => {
         column: 'age',
         operator: 'is_not_null',
         limit: 2,
-        offset: 2
+        offset: 2,
       })
 
       expect(result2.total).toBe(3)
@@ -178,7 +175,7 @@ describe('Search Functionality', () => {
         column: 'name',
         operator: 'eq',
         value: 'Nonexistent Person',
-        offset: 0
+        offset: 0,
       })
 
       expect(result.total).toBe(0)

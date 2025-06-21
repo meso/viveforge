@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { DataManager } from '../../lib/data-manager'
-import { createMockD1Database } from '../setup'
 import type { MockD1Database } from '../setup'
+import { createMockD1Database } from '../setup'
 
 describe('Data Access Control', () => {
   let dm: DataManager
@@ -23,12 +23,12 @@ describe('Data Access Control', () => {
         'test_table',
         'public',
         'user123',
-        10,    // limit
-        0,     // offset
-        'id',  // sortBy
-        'ASC'  // sortOrder
+        10, // limit
+        0, // offset
+        'id', // sortBy
+        'ASC' // sortOrder
       )
-      
+
       expect(result).toHaveProperty('data')
       expect(Array.isArray(result.data)).toBe(true)
       // Mock may not include pagination structure, just check data exists
@@ -39,12 +39,12 @@ describe('Data Access Control', () => {
         'private_table',
         'private',
         'user123',
-        10,    // limit
-        0,     // offset  
-        'id',  // sortBy
-        'ASC'  // sortOrder
+        10, // limit
+        0, // offset
+        'id', // sortBy
+        'ASC' // sortOrder
       )
-      
+
       expect(result).toHaveProperty('data')
       expect(Array.isArray(result.data)).toBe(true)
     })
@@ -54,12 +54,12 @@ describe('Data Access Control', () => {
         'public_table',
         'public',
         'user123',
-        10,    // limit
-        0,     // offset  
-        'id',  // sortBy
-        'ASC'  // sortOrder
+        10, // limit
+        0, // offset
+        'id', // sortBy
+        'ASC' // sortOrder
       )
-      
+
       expect(result).toHaveProperty('data')
       expect(Array.isArray(result.data)).toBe(true)
     })
@@ -69,12 +69,12 @@ describe('Data Access Control', () => {
         'public_table',
         'public',
         undefined,
-        10,    // limit
-        0,     // offset  
-        'id',  // sortBy
-        'ASC'  // sortOrder
+        10, // limit
+        0, // offset
+        'id', // sortBy
+        'ASC' // sortOrder
       )
-      
+
       expect(result).toHaveProperty('data')
       expect(Array.isArray(result.data)).toBe(true)
     })
@@ -85,12 +85,12 @@ describe('Data Access Control', () => {
         'private_table',
         'private',
         undefined,
-        10,    // limit
-        0,     // offset  
-        'id',  // sortBy
-        'ASC'  // sortOrder
+        10, // limit
+        0, // offset
+        'id', // sortBy
+        'ASC' // sortOrder
       )
-      
+
       expect(result).toHaveProperty('data')
       expect(Array.isArray(result.data)).toBe(true)
     })
@@ -100,12 +100,12 @@ describe('Data Access Control', () => {
         'test_table',
         'public',
         'user123',
-        5,            // limit
-        5,            // offset (page 2 = skip 5)
+        5, // limit
+        5, // offset (page 2 = skip 5)
         'created_at', // sortBy
-        'DESC'        // sortOrder
+        'DESC' // sortOrder
       )
-      
+
       expect(result).toHaveProperty('data')
       expect(Array.isArray(result.data)).toBe(true)
       // Mock implementation may vary in structure
@@ -125,20 +125,20 @@ describe('Data Access Control', () => {
       // Test that both methods can coexist
       const regularResult = await dm.getTableData(
         'test_table',
-        10,    // limit
-        0      // offset
+        10, // limit
+        0 // offset
       )
-      
+
       const accessControlResult = await dm.getTableDataWithAccessControl(
         'test_table',
         'public',
         'user123',
-        10,    // limit
-        0,     // offset  
-        'id',  // sortBy
-        'ASC'  // sortOrder
+        10, // limit
+        0, // offset
+        'id', // sortBy
+        'ASC' // sortOrder
       )
-      
+
       expect(regularResult).toHaveProperty('data')
       expect(accessControlResult).toHaveProperty('data')
       expect(Array.isArray(regularResult.data)).toBe(true)

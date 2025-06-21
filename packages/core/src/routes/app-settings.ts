@@ -17,7 +17,7 @@ appSettings.get('/', async (c) => {
 
     const settingsManager = new AppSettingsManager(c.env.DB)
     const settings = await settingsManager.getSettingsForAPI()
-    
+
     return c.json({ settings })
   } catch (error) {
     console.error('Failed to get app settings:', error)
@@ -29,18 +29,18 @@ appSettings.get('/', async (c) => {
 appSettings.get('/:key', async (c) => {
   try {
     const key = c.req.param('key')
-    
+
     if (!c.env.DB) {
       return c.json({ error: 'Database not available' }, 503)
     }
 
     const settingsManager = new AppSettingsManager(c.env.DB)
     const value = await settingsManager.getSetting(key)
-    
+
     if (value === null) {
       return c.json({ error: `Setting '${key}' not found` }, 404)
     }
-    
+
     return c.json({ key, value })
   } catch (error) {
     console.error('Failed to get app setting:', error)
@@ -52,7 +52,7 @@ appSettings.get('/:key', async (c) => {
 appSettings.put('/', async (c) => {
   try {
     const body = await c.req.json()
-    
+
     if (!c.env.DB) {
       return c.json({ error: 'Database not available' }, 503)
     }
@@ -60,30 +60,33 @@ appSettings.put('/', async (c) => {
     // Validate input
     const allowedKeys = ['app_name', 'app_url', 'support_email', 'app_description']
     const settings: Record<string, string> = {}
-    
+
     for (const [key, value] of Object.entries(body)) {
       if (allowedKeys.includes(key) && typeof value === 'string') {
         settings[key] = value
       }
     }
-    
+
     if (Object.keys(settings).length === 0) {
-      return c.json({ 
-        error: 'No valid settings provided',
-        allowed_keys: allowedKeys
-      }, 400)
+      return c.json(
+        {
+          error: 'No valid settings provided',
+          allowed_keys: allowedKeys,
+        },
+        400
+      )
     }
 
     const settingsManager = new AppSettingsManager(c.env.DB)
     await settingsManager.updateSettings(settings)
-    
+
     // Return updated settings
     const updatedSettings = await settingsManager.getSettingsForAPI()
-    
+
     return c.json({
       success: true,
       message: 'App settings updated successfully',
-      settings: updatedSettings
+      settings: updatedSettings,
     })
   } catch (error) {
     console.error('Failed to update app settings:', error)

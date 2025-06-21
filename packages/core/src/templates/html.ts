@@ -16,7 +16,7 @@ export const getDashboardHTML = (user: any, jsFile: string, cssFile: string) => 
           id: user.id,
           username: user.username,
           email: user.email,
-          name: user.name
+          name: user.name,
         })}
       };
     </script>

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 describe('Admin System Integration', () => {
   it('should have admin routes defined', async () => {

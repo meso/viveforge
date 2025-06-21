@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { TableManager } from '../lib/table-manager'
-import { createMockD1Database, createMockR2Bucket, createMockExecutionContext } from './setup'
-import type { MockD1Database, MockR2Bucket, MockExecutionContext } from './setup'
+import type { MockD1Database, MockExecutionContext, MockR2Bucket } from './setup'
+import { createMockD1Database, createMockExecutionContext, createMockR2Bucket } from './setup'
 
 describe('Search Functionality - Simple', () => {
   let tableManager: TableManager
@@ -13,12 +13,9 @@ describe('Search Functionality - Simple', () => {
     mockDb = createMockD1Database()
     mockStorage = createMockR2Bucket()
     mockCtx = createMockExecutionContext()
-    tableManager = new TableManager(
-      mockDb as any, 
-      mockStorage as any, 
-      mockCtx as any,
-      { REALTIME: undefined }
-    )
+    tableManager = new TableManager(mockDb as any, mockStorage as any, mockCtx as any, {
+      REALTIME: undefined,
+    })
   })
 
   it('should have getSearchableColumns method', () => {

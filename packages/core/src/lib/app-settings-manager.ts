@@ -21,10 +21,13 @@ export class AppSettingsManager {
    * Get a single setting value
    */
   async getSetting(key: string): Promise<string | null> {
-    const result = await this.db.prepare(`
+    const result = await this.db
+      .prepare(`
       SELECT value FROM app_settings WHERE key = ?
-    `).bind(key).first<{ value: string }>()
-    
+    `)
+      .bind(key)
+      .first<{ value: string }>()
+
     return result?.value || null
   }
 
@@ -32,21 +35,25 @@ export class AppSettingsManager {
    * Get all settings as a structured object
    */
   async getAllSettings(): Promise<AppSettings> {
-    const results = await this.db.prepare(`
+    const results = await this.db
+      .prepare(`
       SELECT key, value FROM app_settings
-    `).all<{ key: string; value: string }>()
-    
+    `)
+      .all<{ key: string; value: string }>()
+
     const settings: Record<string, string> = {}
-    results.results.forEach(row => {
+    results.results.forEach((row) => {
       settings[row.key] = row.value
     })
-    
+
     return {
       app_name: settings.app_name || 'My Vibebase App',
       app_url: settings.app_url || undefined,
       support_email: settings.support_email || undefined,
       app_description: settings.app_description || undefined,
-      allowed_callback_urls: settings.allowed_callback_urls ? JSON.parse(settings.allowed_callback_urls) : []
+      allowed_callback_urls: settings.allowed_callback_urls
+        ? JSON.parse(settings.allowed_callback_urls)
+        : [],
     }
   }
 
@@ -55,11 +62,14 @@ export class AppSettingsManager {
    */
   async updateSetting(key: string, value: string): Promise<void> {
     const now = new Date().toISOString()
-    
-    await this.db.prepare(`
+
+    await this.db
+      .prepare(`
       INSERT OR REPLACE INTO app_settings (key, value, updated_at)
       VALUES (?, ?, ?)
-    `).bind(key, value, now).run()
+    `)
+      .bind(key, value, now)
+      .run()
   }
 
   /**
@@ -67,24 +77,27 @@ export class AppSettingsManager {
    */
   async updateSettings(settings: Partial<AppSettings>): Promise<void> {
     const now = new Date().toISOString()
-    
+
     const batch: D1PreparedStatement[] = []
-    
+
     for (const [key, value] of Object.entries(settings)) {
       if (value !== undefined) {
-        const serializedValue = key === 'allowed_callback_urls' && Array.isArray(value) 
-          ? JSON.stringify(value) 
-          : value as string
-        
+        const serializedValue =
+          key === 'allowed_callback_urls' && Array.isArray(value)
+            ? JSON.stringify(value)
+            : (value as string)
+
         batch.push(
-          this.db.prepare(`
+          this.db
+            .prepare(`
             INSERT OR REPLACE INTO app_settings (key, value, updated_at)
             VALUES (?, ?, ?)
-          `).bind(key, serializedValue, now) as unknown as D1PreparedStatement
+          `)
+            .bind(key, serializedValue, now) as unknown as D1PreparedStatement
         )
       }
     }
-    
+
     if (batch.length > 0) {
       await this.db.batch(batch)
     }
@@ -94,11 +107,13 @@ export class AppSettingsManager {
    * Get settings for API response
    */
   async getSettingsForAPI(): Promise<AppSetting[]> {
-    const results = await this.db.prepare(`
+    const results = await this.db
+      .prepare(`
       SELECT key, value, updated_at FROM app_settings
       ORDER BY key
-    `).all<AppSetting>()
-    
+    `)
+      .all<AppSetting>()
+
     return results.results
   }
 
@@ -108,7 +123,7 @@ export class AppSettingsManager {
   async getAllowedCallbackUrls(): Promise<string[]> {
     const value = await this.getSetting('allowed_callback_urls')
     if (!value) return []
-    
+
     try {
       return JSON.parse(value)
     } catch {
@@ -128,23 +143,23 @@ export class AppSettingsManager {
    */
   async isCallbackUrlAllowed(url: string): Promise<boolean> {
     const allowedUrls = await this.getAllowedCallbackUrls()
-    
+
     // If no URLs are configured, allow any URL (backward compatibility)
     if (allowedUrls.length === 0) {
       return true
     }
-    
+
     // Check for exact match
     if (allowedUrls.includes(url)) {
       return true
     }
-    
+
     // For development, allow localhost URLs if any localhost URL is in the list
     const localhostPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/
     if (localhostPattern.test(url)) {
-      return allowedUrls.some(allowedUrl => localhostPattern.test(allowedUrl))
+      return allowedUrls.some((allowedUrl) => localhostPattern.test(allowedUrl))
     }
-    
+
     return false
   }
 
@@ -155,14 +170,14 @@ export class AppSettingsManager {
     if (!url || typeof url !== 'string') {
       return false
     }
-    
+
     try {
       const urlObj = new URL(url)
-      
+
       // Allow https, http (for localhost), and custom schemes for mobile apps
       const allowedProtocols = ['https:', 'http:']
       const customSchemePattern = /^[a-z][a-z0-9+.-]*:$/i
-      
+
       if (allowedProtocols.includes(urlObj.protocol)) {
         // For http, only allow localhost/127.0.0.1
         if (urlObj.protocol === 'http:') {
@@ -171,12 +186,12 @@ export class AppSettingsManager {
         }
         return true
       }
-      
+
       // Allow custom schemes for mobile/desktop apps (e.g., myapp://)
       if (customSchemePattern.test(urlObj.protocol)) {
         return true
       }
-      
+
       return false
     } catch {
       return false

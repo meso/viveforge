@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
-import { APIKeyManager, type CreateAPIKeyRequest, API_SCOPES } from '../lib/api-key-manager'
-import { requireAuth, getAuthContext, requireScope, getCurrentUser } from '../middleware/auth'
+import { API_SCOPES, APIKeyManager, type CreateAPIKeyRequest } from '../lib/api-key-manager'
+import { getAuthContext, getCurrentUser, requireAuth, requireScope } from '../middleware/auth'
 import type { Env, Variables } from '../types'
 
 export const apiKeys = new Hono<{ Bindings: Env; Variables: Variables }>()
@@ -13,7 +13,7 @@ apiKeys.use('*', async (c, next) => {
   if (!c.env.DB) {
     return c.json({ error: 'Database not available' }, 503)
   }
-  
+
   const apiKeyManager = new APIKeyManager(c.env.DB)
   c.set('apiKeyManager', apiKeyManager)
   await next()
@@ -26,10 +26,13 @@ apiKeys.post('/init', async (c) => {
     await apiKeyManager.initializeTable()
     return c.json({ success: true, message: 'API keys table initialized' })
   } catch (error) {
-    return c.json({ 
-      error: 'Failed to initialize API keys table',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, 500)
+    return c.json(
+      {
+        error: 'Failed to initialize API keys table',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      },
+      500
+    )
   }
 })
 
@@ -47,23 +50,29 @@ apiKeys.get('/', async (c) => {
     }
 
     // Get admin ID from database using GitHub username
-    const adminResult = await c.env.DB!.prepare(`
+    const adminResult = await c.env
+      .DB!.prepare(`
       SELECT id FROM admins WHERE github_username = ?
-    `).bind((user as any).username || user.email).first()
-    
+    `)
+      .bind((user as any).username || user.email)
+      .first()
+
     if (!adminResult) {
       return c.json({ error: 'Admin not found in database' }, 404)
     }
 
     const apiKeyManager = c.get('apiKeyManager') as APIKeyManager
     const apiKeys = await apiKeyManager.listAPIKeys(adminResult.id as string)
-    
+
     return c.json({ data: apiKeys })
   } catch (error) {
-    return c.json({ 
-      error: 'Failed to list API keys',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, 500)
+    return c.json(
+      {
+        error: 'Failed to list API keys',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      },
+      500
+    )
   }
 })
 
@@ -76,50 +85,65 @@ apiKeys.post('/', async (c) => {
     }
 
     // Get admin ID from database using GitHub username
-    const adminResult = await c.env.DB!.prepare(`
+    const adminResult = await c.env
+      .DB!.prepare(`
       SELECT id FROM admins WHERE github_username = ?
-    `).bind((user as any).username || user.email).first()
-    
+    `)
+      .bind((user as any).username || user.email)
+      .first()
+
     if (!adminResult) {
       return c.json({ error: 'Admin not found in database' }, 404)
     }
 
-    const body = await c.req.json() as CreateAPIKeyRequest
-    
+    const body = (await c.req.json()) as CreateAPIKeyRequest
+
     // Validate request
     if (!body.name || !body.scopes || !Array.isArray(body.scopes)) {
-      return c.json({ 
-        error: 'Validation failed',
-        details: ['name and scopes are required', 'scopes must be an array']
-      }, 400)
+      return c.json(
+        {
+          error: 'Validation failed',
+          details: ['name and scopes are required', 'scopes must be an array'],
+        },
+        400
+      )
     }
 
     // Validate scopes
     const validScopes = Object.keys(API_SCOPES)
-    const invalidScopes = body.scopes.filter(scope => !validScopes.includes(scope))
-    
+    const invalidScopes = body.scopes.filter((scope) => !validScopes.includes(scope))
+
     if (invalidScopes.length > 0) {
-      return c.json({
-        error: 'Invalid scopes',
-        details: [`Invalid scopes: ${invalidScopes.join(', ')}`],
-        valid_scopes: validScopes
-      }, 400)
+      return c.json(
+        {
+          error: 'Invalid scopes',
+          details: [`Invalid scopes: ${invalidScopes.join(', ')}`],
+          valid_scopes: validScopes,
+        },
+        400
+      )
     }
 
     const apiKeyManager = c.get('apiKeyManager') as APIKeyManager
     const result = await apiKeyManager.createAPIKey(body, adminResult.id as string)
-    
-    return c.json({
-      success: true,
-      data: result,
-      message: 'API key created successfully. Save the key securely - it will not be shown again.'
-    }, 201)
-    
+
+    return c.json(
+      {
+        success: true,
+        data: result,
+        message:
+          'API key created successfully. Save the key securely - it will not be shown again.',
+      },
+      201
+    )
   } catch (error) {
-    return c.json({ 
-      error: 'Failed to create API key',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, 500)
+    return c.json(
+      {
+        error: 'Failed to create API key',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      },
+      500
+    )
   }
 })
 
@@ -127,7 +151,7 @@ apiKeys.post('/', async (c) => {
 apiKeys.patch('/:id/revoke', async (c) => {
   const keyId = c.req.param('id')
   let adminId: string | undefined
-  
+
   try {
     const user = getCurrentUser(c)
     if (!user) {
@@ -135,48 +159,59 @@ apiKeys.patch('/:id/revoke', async (c) => {
     }
 
     // Get admin ID from database using GitHub username
-    const adminResult = await c.env.DB!.prepare(`
+    const adminResult = await c.env
+      .DB!.prepare(`
       SELECT id FROM admins WHERE github_username = ?
-    `).bind((user as any).username || user.email).first()
-    
+    `)
+      .bind((user as any).username || user.email)
+      .first()
+
     if (!adminResult) {
       return c.json({ error: 'Admin not found in database' }, 404)
     }
 
     adminId = adminResult.id as string
     const apiKeyManager = c.get('apiKeyManager') as APIKeyManager
-    
+
     // First check if the key exists and belongs to this admin
     const existingKeys = await apiKeyManager.listAPIKeys(adminId)
-    const keyToRevoke = existingKeys.find(key => key.id === keyId)
-    
+    const keyToRevoke = existingKeys.find((key) => key.id === keyId)
+
     if (!keyToRevoke) {
-      return c.json({ 
-        error: 'API key not found or access denied'
-      }, 404)
+      return c.json(
+        {
+          error: 'API key not found or access denied',
+        },
+        404
+      )
     }
-    
+
     const success = await apiKeyManager.revokeAPIKey(keyId, adminId)
-    
+
     if (!success) {
       // Double-check if the update actually failed
       const updatedKeys = await apiKeyManager.listAPIKeys(adminId)
-      const updatedKey = updatedKeys.find(k => k.id === keyId)
-      return c.json({ 
-        error: 'Failed to revoke API key'
-      }, 500)
+      const updatedKey = updatedKeys.find((k) => k.id === keyId)
+      return c.json(
+        {
+          error: 'Failed to revoke API key',
+        },
+        500
+      )
     }
-    
-    return c.json({ 
+
+    return c.json({
       success: true,
-      message: 'API key revoked successfully'
+      message: 'API key revoked successfully',
     })
-    
   } catch (error) {
-    return c.json({ 
-      error: 'Failed to revoke API key',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, 500)
+    return c.json(
+      {
+        error: 'Failed to revoke API key',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      },
+      500
+    )
   }
 })
 
@@ -189,32 +224,37 @@ apiKeys.delete('/:id', async (c) => {
     }
 
     // Get admin ID from database using GitHub username
-    const adminResult = await c.env.DB!.prepare(`
+    const adminResult = await c.env
+      .DB!.prepare(`
       SELECT id FROM admins WHERE github_username = ?
-    `).bind((user as any).username || user.email).first()
-    
+    `)
+      .bind((user as any).username || user.email)
+      .first()
+
     if (!adminResult) {
       return c.json({ error: 'Admin not found in database' }, 404)
     }
 
     const id = c.req.param('id')
     const apiKeyManager = c.get('apiKeyManager') as APIKeyManager
-    
+
     const success = await apiKeyManager.deleteAPIKey(id, adminResult.id as string)
-    
+
     if (!success) {
       return c.json({ error: 'API key not found or access denied' }, 404)
     }
-    
-    return c.json({ 
+
+    return c.json({
       success: true,
-      message: 'API key deleted successfully'
+      message: 'API key deleted successfully',
     })
-    
   } catch (error) {
-    return c.json({ 
-      error: 'Failed to delete API key',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, 500)
+    return c.json(
+      {
+        error: 'Failed to delete API key',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      },
+      500
+    )
   }
 })

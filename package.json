@@ -9,10 +9,13 @@
     "build": "pnpm -r build",
     "deploy": "pnpm --filter @vibebase/dashboard build && pnpm --filter @vibebase/core run deploy",
     "test": "pnpm -r test",
-    "lint": "pnpm -r lint",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
     "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.0.2",
     "@types/node": "^20.11.5",
     "typescript": "^5.3.3",
     "vitest": "^1.2.0"

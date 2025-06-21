@@ -79,7 +79,6 @@ export interface SchemaSnapshot {
   d1BookmarkId?: string
 }
 
-
 // API client functions
 export const api = {
   // Health check
@@ -144,7 +143,9 @@ export const api = {
     return response.json()
   },
 
-  async getTableSchema(tableName: string): Promise<{ tableName: string; columns: ColumnInfo[]; foreignKeys: ForeignKeyInfo[] }> {
+  async getTableSchema(
+    tableName: string
+  ): Promise<{ tableName: string; columns: ColumnInfo[]; foreignKeys: ForeignKeyInfo[] }> {
     const response = await fetch(`${API_BASE}/api/tables/${tableName}/schema`)
     if (!response.ok) {
       throw new Error('Failed to fetch table schema')
@@ -152,15 +153,29 @@ export const api = {
     return response.json()
   },
 
-  async getTableData(tableName: string, limit = 100, offset = 0): Promise<{ data: any[]; total: number }> {
-    const response = await fetch(`${API_BASE}/api/tables/${tableName}/data?limit=${limit}&offset=${offset}`)
+  async getTableData(
+    tableName: string,
+    limit = 100,
+    offset = 0
+  ): Promise<{ data: any[]; total: number }> {
+    const response = await fetch(
+      `${API_BASE}/api/tables/${tableName}/data?limit=${limit}&offset=${offset}`
+    )
     if (!response.ok) {
       throw new Error('Failed to fetch table data')
     }
     return response.json()
   },
 
-  async createTable(name: string, columns: { name: string; type: string; constraints?: string; foreignKey?: { table: string; column: string } }[]): Promise<{ success: boolean; table: string }> {
+  async createTable(
+    name: string,
+    columns: {
+      name: string
+      type: string
+      constraints?: string
+      foreignKey?: { table: string; column: string }
+    }[]
+  ): Promise<{ success: boolean; table: string }> {
     const response = await fetch(`${API_BASE}/api/tables`, {
       method: 'POST',
       headers: {
@@ -202,7 +217,15 @@ export const api = {
   },
 
   // Column management
-  async addColumn(tableName: string, column: { name: string; type: string; constraints?: string; foreignKey?: { table: string; column: string } }): Promise<{ success: boolean; column: string }> {
+  async addColumn(
+    tableName: string,
+    column: {
+      name: string
+      type: string
+      constraints?: string
+      foreignKey?: { table: string; column: string }
+    }
+  ): Promise<{ success: boolean; column: string }> {
     const response = await fetch(`${API_BASE}/api/tables/${tableName}/columns`, {
       method: 'POST',
       headers: {
@@ -217,7 +240,11 @@ export const api = {
     return response.json()
   },
 
-  async renameColumn(tableName: string, oldName: string, newName: string): Promise<{ success: boolean; oldName: string; newName: string }> {
+  async renameColumn(
+    tableName: string,
+    oldName: string,
+    newName: string
+  ): Promise<{ success: boolean; oldName: string; newName: string }> {
     const response = await fetch(`${API_BASE}/api/tables/${tableName}/columns/${oldName}`, {
       method: 'PUT',
       headers: {
@@ -232,7 +259,10 @@ export const api = {
     return response.json()
   },
 
-  async dropColumn(tableName: string, columnName: string): Promise<{ success: boolean; column: string }> {
+  async dropColumn(
+    tableName: string,
+    columnName: string
+  ): Promise<{ success: boolean; column: string }> {
     const response = await fetch(`${API_BASE}/api/tables/${tableName}/columns/${columnName}`, {
       method: 'DELETE',
     })
@@ -243,7 +273,15 @@ export const api = {
     return response.json()
   },
 
-  async modifyColumn(tableName: string, columnName: string, changes: { type?: string; notNull?: boolean; foreignKey?: { table: string; column: string } | null }): Promise<{ success: boolean; column: string; changes: any }> {
+  async modifyColumn(
+    tableName: string,
+    columnName: string,
+    changes: {
+      type?: string
+      notNull?: boolean
+      foreignKey?: { table: string; column: string } | null
+    }
+  ): Promise<{ success: boolean; column: string; changes: any }> {
     const response = await fetch(`${API_BASE}/api/tables/${tableName}/columns/${columnName}`, {
       method: 'PATCH',
       headers: {
@@ -258,14 +296,25 @@ export const api = {
     return response.json()
   },
 
-  async validateColumnChanges(tableName: string, columnName: string, changes: { type?: string; notNull?: boolean; foreignKey?: { table: string; column: string } | null }): Promise<{ valid: boolean; errors: string[]; conflictingRows: number }> {
-    const response = await fetch(`${API_BASE}/api/tables/${tableName}/columns/${columnName}/validate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(changes),
-    })
+  async validateColumnChanges(
+    tableName: string,
+    columnName: string,
+    changes: {
+      type?: string
+      notNull?: boolean
+      foreignKey?: { table: string; column: string } | null
+    }
+  ): Promise<{ valid: boolean; errors: string[]; conflictingRows: number }> {
+    const response = await fetch(
+      `${API_BASE}/api/tables/${tableName}/columns/${columnName}/validate`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(changes),
+      }
+    )
     if (!response.ok) {
       const error = await response.json()
       throw new Error(error.error || 'Failed to validate column changes')
@@ -274,7 +323,11 @@ export const api = {
   },
 
   // Record management
-  async updateRecord(tableName: string, id: string, data: Record<string, any>): Promise<{ success: boolean }> {
+  async updateRecord(
+    tableName: string,
+    id: string,
+    data: Record<string, any>
+  ): Promise<{ success: boolean }> {
     const response = await fetch(`${API_BASE}/api/tables/${tableName}/data/${id}`, {
       method: 'PUT',
       headers: {
@@ -288,16 +341,19 @@ export const api = {
     }
     return response.json()
   },
-  
+
   // Schema snapshots
-  async getSnapshots(limit = 20, offset = 0): Promise<{ snapshots: SchemaSnapshot[]; total: number }> {
+  async getSnapshots(
+    limit = 20,
+    offset = 0
+  ): Promise<{ snapshots: SchemaSnapshot[]; total: number }> {
     const response = await fetch(`${API_BASE}/api/snapshots?limit=${limit}&offset=${offset}`)
     if (!response.ok) {
       throw new Error('Failed to fetch snapshots')
     }
     return response.json()
   },
-  
+
   async getSnapshot(id: string): Promise<SchemaSnapshot> {
     const response = await fetch(`${API_BASE}/api/snapshots/${id}`)
     if (!response.ok) {
@@ -305,8 +361,11 @@ export const api = {
     }
     return response.json()
   },
-  
-  async createSnapshot(data: { name?: string; description?: string }): Promise<{ success: boolean; id: string }> {
+
+  async createSnapshot(data: {
+    name?: string
+    description?: string
+  }): Promise<{ success: boolean; id: string }> {
     const response = await fetch(`${API_BASE}/api/snapshots`, {
       method: 'POST',
       headers: {
@@ -320,7 +379,7 @@ export const api = {
     }
     return response.json()
   },
-  
+
   async restoreSnapshot(id: string): Promise<{ success: boolean; message: string }> {
     const response = await fetch(`${API_BASE}/api/snapshots/${id}/restore`, {
       method: 'POST',
@@ -328,15 +387,15 @@ export const api = {
         'Content-Type': 'application/json',
       },
     })
-    
+
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Failed to restore snapshot' }))
       throw new Error(error.error || 'Failed to restore snapshot')
     }
-    
+
     return response.json()
   },
-  
+
   async deleteSnapshot(id: string): Promise<{ success: boolean; message: string }> {
     const response = await fetch(`${API_BASE}/api/snapshots/${id}`, {
       method: 'DELETE',
@@ -344,15 +403,15 @@ export const api = {
         'Content-Type': 'application/json',
       },
     })
-    
+
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Failed to delete snapshot' }))
       throw new Error(error.error || 'Failed to delete snapshot')
     }
-    
+
     return response.json()
   },
-  
+
   async compareSnapshots(id1: string, id2: string): Promise<any> {
     const response = await fetch(`${API_BASE}/api/snapshots/compare/${id1}/${id2}`)
     if (!response.ok) {
@@ -381,7 +440,7 @@ export const api = {
   },
 
   async createIndex(
-    tableName: string, 
+    tableName: string,
     data: { name: string; columns: string[]; unique?: boolean }
   ): Promise<{ success: boolean; index: IndexInfo }> {
     const response = await fetch(`${API_BASE}/api/tables/${tableName}/indexes`, {
@@ -398,7 +457,10 @@ export const api = {
     return response.json()
   },
 
-  async dropIndex(tableName: string, indexName: string): Promise<{ success: boolean; message: string }> {
+  async dropIndex(
+    tableName: string,
+    indexName: string
+  ): Promise<{ success: boolean; message: string }> {
     const response = await fetch(`${API_BASE}/api/tables/${tableName}/indexes/${indexName}`, {
       method: 'DELETE',
     })
@@ -438,13 +500,16 @@ export const api = {
     return response.json()
   },
 
-  async updateOAuthProvider(provider: string, data: {
-    client_id: string
-    client_secret: string
-    is_enabled?: boolean
-    scopes?: string[]
-    redirect_uri?: string
-  }): Promise<{ success: boolean; message: string; provider: any }> {
+  async updateOAuthProvider(
+    provider: string,
+    data: {
+      client_id: string
+      client_secret: string
+      is_enabled?: boolean
+      scopes?: string[]
+      redirect_uri?: string
+    }
+  ): Promise<{ success: boolean; message: string; provider: any }> {
     const response = await fetch(`${API_BASE}/api/admin/oauth/providers/${provider}`, {
       method: 'PUT',
       headers: {
@@ -459,7 +524,10 @@ export const api = {
     return response.json()
   },
 
-  async toggleOAuthProvider(provider: string, enabled: boolean): Promise<{ success: boolean; message: string }> {
+  async toggleOAuthProvider(
+    provider: string,
+    enabled: boolean
+  ): Promise<{ success: boolean; message: string }> {
     const response = await fetch(`${API_BASE}/api/admin/oauth/providers/${provider}/toggle`, {
       method: 'PATCH',
       headers: {
@@ -505,7 +573,9 @@ export const api = {
   },
 
   // Table access policy management
-  async getTablePolicy(tableName: string): Promise<{ table_name: string; access_policy: 'public' | 'private' | 'system' }> {
+  async getTablePolicy(
+    tableName: string
+  ): Promise<{ table_name: string; access_policy: 'public' | 'private' | 'system' }> {
     const response = await fetch(`${API_BASE}/api/tables/${tableName}/policy`)
     if (!response.ok) {
       const error = await response.json()
@@ -514,7 +584,10 @@ export const api = {
     return response.json()
   },
 
-  async updateTablePolicy(tableName: string, policy: 'public' | 'private'): Promise<{ success: boolean; message: string }> {
+  async updateTablePolicy(
+    tableName: string,
+    policy: 'public' | 'private'
+  ): Promise<{ success: boolean; message: string }> {
     const response = await fetch(`${API_BASE}/api/tables/${tableName}/policy`, {
       method: 'PUT',
       headers: {

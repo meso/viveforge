@@ -1,6 +1,6 @@
+import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { zValidator } from '@hono/zod-validator'
 import { generateId } from '../lib/utils'
 import type { Env, Variables } from '../types'
 
@@ -36,7 +36,7 @@ const parameterSchema = z.object({
   type: z.enum(['string', 'number', 'boolean', 'date']),
   required: z.boolean().default(false),
   description: z.string().optional(),
-  default: z.union([z.string(), z.number(), z.boolean()]).optional()
+  default: z.union([z.string(), z.number(), z.boolean()]).optional(),
 })
 
 // Helper function to determine HTTP method based on SQL
@@ -53,18 +53,23 @@ function isReadonlyQuery(sql: string): boolean {
 
 // Create/Update custom query schema
 const customQuerySchema = z.object({
-  slug: z.string().regex(/^[a-z0-9_-]+$/, 'Slug must be lowercase alphanumeric with hyphens and underscores'),
+  slug: z
+    .string()
+    .regex(/^[a-z0-9_-]+$/, 'Slug must be lowercase alphanumeric with hyphens and underscores'),
   name: z.string().min(1),
-  description: z.string().optional().transform(val => val || undefined),
+  description: z
+    .string()
+    .optional()
+    .transform((val) => val || undefined),
   sql_query: z.string().min(1),
   parameters: z.array(parameterSchema).default([]),
   cache_ttl: z.number().min(0).default(0),
-  enabled: z.boolean().default(true)
+  enabled: z.boolean().default(true),
 })
 
 // Test query schema
 const testQuerySchema = z.object({
-  parameters: z.record(z.unknown()).default({})
+  parameters: z.record(z.unknown()).default({}),
 })
 
 // Get all custom queries
@@ -73,7 +78,7 @@ customQueries.get('/', async (c) => {
     if (!c.env.DB) {
       return c.json({ error: 'Database not configured' }, 500)
     }
-    
+
     const result = await c.env.DB.prepare(`
       SELECT id, slug, name, description, sql_query, parameters, method, is_readonly, cache_ttl, enabled, created_at, updated_at
       FROM custom_queries
@@ -81,9 +86,9 @@ customQueries.get('/', async (c) => {
     `).all()
 
     // Parse parameters JSON for each query
-    const queries = (result.results || []).map(query => ({
+    const queries = (result.results || []).map((query) => ({
       ...query,
-      parameters: JSON.parse(query.parameters as string || '[]')
+      parameters: JSON.parse((query.parameters as string) || '[]'),
     }))
 
     return c.json({ queries })
@@ -99,11 +104,13 @@ customQueries.get('/:id', async (c) => {
     if (!c.env.DB) {
       return c.json({ error: 'Database not configured' }, 500)
     }
-    
+
     const id = c.req.param('id')
     const result = await c.env.DB.prepare(`
       SELECT * FROM custom_queries WHERE id = ?
-    `).bind(id).first()
+    `)
+      .bind(id)
+      .first()
 
     if (!result) {
       return c.json({ error: 'Custom query not found' }, 404)
@@ -112,7 +119,7 @@ customQueries.get('/:id', async (c) => {
     // Parse parameters JSON
     const query = {
       ...result,
-      parameters: JSON.parse(result.parameters as string || '[]')
+      parameters: JSON.parse((result.parameters as string) || '[]'),
     }
 
     return c.json({ query })
@@ -122,127 +129,43 @@ customQueries.get('/:id', async (c) => {
   }
 })
 
-// Create custom query  
-customQueries.post('/', zValidator('json', customQuerySchema, (result, c) => {
-  if (!result.success) {
-    console.error('Validation error:', result.error.flatten())
-    return c.json({ 
-      error: 'Validation failed', 
-      details: result.error.flatten()
-    }, 400)
-  }
-}), async (c) => {
-  try {
-    if (!c.env.DB) {
-      return c.json({ error: 'Database not configured' }, 500)
+// Create custom query
+customQueries.post(
+  '/',
+  zValidator('json', customQuerySchema, (result, c) => {
+    if (!result.success) {
+      console.error('Validation error:', result.error.flatten())
+      return c.json(
+        {
+          error: 'Validation failed',
+          details: result.error.flatten(),
+        },
+        400
+      )
     }
-    
-    const data = c.req.valid('json')
-    const id = generateId()
+  }),
+  async (c) => {
+    try {
+      if (!c.env.DB) {
+        return c.json({ error: 'Database not configured' }, 500)
+      }
 
-    // Automatically determine method and readonly status based on SQL
-    const method = determineHttpMethod(data.sql_query)
-    const is_readonly = isReadonlyQuery(data.sql_query)
+      const data = c.req.valid('json')
+      const id = generateId()
 
-    // Check if slug already exists
-    const existing = await c.env.DB.prepare(
-      'SELECT id FROM custom_queries WHERE slug = ?'
-    ).bind(data.slug).first()
+      // Automatically determine method and readonly status based on SQL
+      const method = determineHttpMethod(data.sql_query)
+      const is_readonly = isReadonlyQuery(data.sql_query)
 
-    if (existing) {
-      return c.json({ error: 'A query with this slug already exists' }, 409)
-    }
+      // Check if slug already exists
+      const existing = await c.env.DB.prepare('SELECT id FROM custom_queries WHERE slug = ?')
+        .bind(data.slug)
+        .first()
 
-    // Extract parameter names from SQL
-    const paramRegex = /:(\w+)/g
-    const sqlParams = new Set<string>()
-    let match
-    while ((match = paramRegex.exec(data.sql_query)) !== null) {
-      sqlParams.add(match[1])
-    }
-
-    // Validate that all SQL parameters are defined
-    const definedParams = new Set(data.parameters.map(p => p.name))
-    const undefinedParams = Array.from(sqlParams).filter(p => !definedParams.has(p))
-    if (undefinedParams.length > 0) {
-      return c.json({ 
-        error: `SQL query contains undefined parameters: ${undefinedParams.join(', ')}` 
-      }, 400)
-    }
-
-    // Insert the custom query
-    await c.env.DB.prepare(`
-      INSERT INTO custom_queries (
-        id, slug, name, description, sql_query, parameters, 
-        method, is_readonly, cache_ttl, enabled
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      id,
-      data.slug,
-      data.name,
-      data.description || null,
-      data.sql_query,
-      JSON.stringify(data.parameters),
-      method,
-      is_readonly ? 1 : 0,
-      data.cache_ttl,
-      data.enabled ? 1 : 0
-    ).run()
-
-    return c.json({ 
-      success: true, 
-      id,
-      slug: data.slug,
-      message: `Custom query '${data.name}' created successfully` 
-    }, 201)
-  } catch (error) {
-    console.error('Error creating custom query:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to create custom query' 
-    }, 500)
-  }
-})
-
-// Update custom query
-customQueries.put('/:id', zValidator('json', customQuerySchema.partial(), (result, c) => {
-  if (!result.success) {
-    console.error('Update validation error:', result.error.flatten())
-    return c.json({ 
-      error: 'Validation failed', 
-      details: result.error.flatten()
-    }, 400)
-  }
-}), async (c) => {
-  try {
-    if (!c.env.DB) {
-      return c.json({ error: 'Database not configured' }, 500)
-    }
-    
-    const id = c.req.param('id')
-    const data = c.req.valid('json')
-
-    // Check if query exists
-    const existing = await c.env.DB.prepare(
-      'SELECT * FROM custom_queries WHERE id = ?'
-    ).bind(id).first()
-
-    if (!existing) {
-      return c.json({ error: 'Custom query not found' }, 404)
-    }
-
-    // If slug is being changed, check for conflicts
-    if (data.slug && data.slug !== existing.slug) {
-      const slugExists = await c.env.DB.prepare(
-        'SELECT id FROM custom_queries WHERE slug = ? AND id != ?'
-      ).bind(data.slug, id).first()
-
-      if (slugExists) {
+      if (existing) {
         return c.json({ error: 'A query with this slug already exists' }, 409)
       }
-    }
 
-    // If SQL query is being updated, validate parameters
-    if (data.sql_query && data.parameters) {
       // Extract parameter names from SQL
       const paramRegex = /:(\w+)/g
       const sqlParams = new Set<string>()
@@ -252,74 +175,193 @@ customQueries.put('/:id', zValidator('json', customQuerySchema.partial(), (resul
       }
 
       // Validate that all SQL parameters are defined
-      const definedParams = new Set(data.parameters.map(p => p.name))
-      const undefinedParams = Array.from(sqlParams).filter(p => !definedParams.has(p))
+      const definedParams = new Set(data.parameters.map((p) => p.name))
+      const undefinedParams = Array.from(sqlParams).filter((p) => !definedParams.has(p))
       if (undefinedParams.length > 0) {
-        return c.json({ 
-          error: `SQL query contains undefined parameters: ${undefinedParams.join(', ')}` 
-        }, 400)
+        return c.json(
+          {
+            error: `SQL query contains undefined parameters: ${undefinedParams.join(', ')}`,
+          },
+          400
+        )
       }
-    }
 
-    // Build update query dynamically
-    const updates: string[] = []
-    const values: (string | number | boolean | null)[] = []
+      // Insert the custom query
+      await c.env.DB.prepare(`
+      INSERT INTO custom_queries (
+        id, slug, name, description, sql_query, parameters, 
+        method, is_readonly, cache_ttl, enabled
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `)
+        .bind(
+          id,
+          data.slug,
+          data.name,
+          data.description || null,
+          data.sql_query,
+          JSON.stringify(data.parameters),
+          method,
+          is_readonly ? 1 : 0,
+          data.cache_ttl,
+          data.enabled ? 1 : 0
+        )
+        .run()
 
-    if (data.slug !== undefined) {
-      updates.push('slug = ?')
-      values.push(data.slug)
+      return c.json(
+        {
+          success: true,
+          id,
+          slug: data.slug,
+          message: `Custom query '${data.name}' created successfully`,
+        },
+        201
+      )
+    } catch (error) {
+      console.error('Error creating custom query:', error)
+      return c.json(
+        {
+          error: error instanceof Error ? error.message : 'Failed to create custom query',
+        },
+        500
+      )
     }
-    if (data.name !== undefined) {
-      updates.push('name = ?')
-      values.push(data.name)
-    }
-    if (data.description !== undefined) {
-      updates.push('description = ?')
-      values.push(data.description || null)
-    }
-    if (data.sql_query !== undefined) {
-      updates.push('sql_query = ?')
-      values.push(data.sql_query)
-      
-      // Auto-determine method and readonly status when SQL changes
-      updates.push('method = ?')
-      values.push(determineHttpMethod(data.sql_query))
-      
-      updates.push('is_readonly = ?')
-      values.push(isReadonlyQuery(data.sql_query) ? 1 : 0)
-    }
-    if (data.parameters !== undefined) {
-      updates.push('parameters = ?')
-      values.push(JSON.stringify(data.parameters))
-    }
-    if (data.cache_ttl !== undefined) {
-      updates.push('cache_ttl = ?')
-      values.push(data.cache_ttl)
-    }
-    if (data.enabled !== undefined) {
-      updates.push('enabled = ?')
-      values.push(data.enabled ? 1 : 0)
-    }
+  }
+)
 
-    updates.push('updated_at = datetime("now")')
+// Update custom query
+customQueries.put(
+  '/:id',
+  zValidator('json', customQuerySchema.partial(), (result, c) => {
+    if (!result.success) {
+      console.error('Update validation error:', result.error.flatten())
+      return c.json(
+        {
+          error: 'Validation failed',
+          details: result.error.flatten(),
+        },
+        400
+      )
+    }
+  }),
+  async (c) => {
+    try {
+      if (!c.env.DB) {
+        return c.json({ error: 'Database not configured' }, 500)
+      }
 
-    await c.env.DB.prepare(`
+      const id = c.req.param('id')
+      const data = c.req.valid('json')
+
+      // Check if query exists
+      const existing = await c.env.DB.prepare('SELECT * FROM custom_queries WHERE id = ?')
+        .bind(id)
+        .first()
+
+      if (!existing) {
+        return c.json({ error: 'Custom query not found' }, 404)
+      }
+
+      // If slug is being changed, check for conflicts
+      if (data.slug && data.slug !== existing.slug) {
+        const slugExists = await c.env.DB.prepare(
+          'SELECT id FROM custom_queries WHERE slug = ? AND id != ?'
+        )
+          .bind(data.slug, id)
+          .first()
+
+        if (slugExists) {
+          return c.json({ error: 'A query with this slug already exists' }, 409)
+        }
+      }
+
+      // If SQL query is being updated, validate parameters
+      if (data.sql_query && data.parameters) {
+        // Extract parameter names from SQL
+        const paramRegex = /:(\w+)/g
+        const sqlParams = new Set<string>()
+        let match
+        while ((match = paramRegex.exec(data.sql_query)) !== null) {
+          sqlParams.add(match[1])
+        }
+
+        // Validate that all SQL parameters are defined
+        const definedParams = new Set(data.parameters.map((p) => p.name))
+        const undefinedParams = Array.from(sqlParams).filter((p) => !definedParams.has(p))
+        if (undefinedParams.length > 0) {
+          return c.json(
+            {
+              error: `SQL query contains undefined parameters: ${undefinedParams.join(', ')}`,
+            },
+            400
+          )
+        }
+      }
+
+      // Build update query dynamically
+      const updates: string[] = []
+      const values: (string | number | boolean | null)[] = []
+
+      if (data.slug !== undefined) {
+        updates.push('slug = ?')
+        values.push(data.slug)
+      }
+      if (data.name !== undefined) {
+        updates.push('name = ?')
+        values.push(data.name)
+      }
+      if (data.description !== undefined) {
+        updates.push('description = ?')
+        values.push(data.description || null)
+      }
+      if (data.sql_query !== undefined) {
+        updates.push('sql_query = ?')
+        values.push(data.sql_query)
+
+        // Auto-determine method and readonly status when SQL changes
+        updates.push('method = ?')
+        values.push(determineHttpMethod(data.sql_query))
+
+        updates.push('is_readonly = ?')
+        values.push(isReadonlyQuery(data.sql_query) ? 1 : 0)
+      }
+      if (data.parameters !== undefined) {
+        updates.push('parameters = ?')
+        values.push(JSON.stringify(data.parameters))
+      }
+      if (data.cache_ttl !== undefined) {
+        updates.push('cache_ttl = ?')
+        values.push(data.cache_ttl)
+      }
+      if (data.enabled !== undefined) {
+        updates.push('enabled = ?')
+        values.push(data.enabled ? 1 : 0)
+      }
+
+      updates.push('updated_at = datetime("now")')
+
+      await c.env.DB.prepare(`
       UPDATE custom_queries 
       SET ${updates.join(', ')}
       WHERE id = ?
-    `).bind(...values, id).run()
+    `)
+        .bind(...values, id)
+        .run()
 
-    return c.json({ 
-      success: true,
-      message: 'Custom query updated successfully'
-    })
-  } catch (error) {
-    console.error('Error updating custom query:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to update custom query' 
-    }, 500)
+      return c.json({
+        success: true,
+        message: 'Custom query updated successfully',
+      })
+    } catch (error) {
+      console.error('Error updating custom query:', error)
+      return c.json(
+        {
+          error: error instanceof Error ? error.message : 'Failed to update custom query',
+        },
+        500
+      )
+    }
   }
-})
+)
 
 // Delete custom query
 customQueries.delete('/:id', async (c) => {
@@ -327,26 +369,27 @@ customQueries.delete('/:id', async (c) => {
     if (!c.env.DB) {
       return c.json({ error: 'Database not configured' }, 500)
     }
-    
+
     const id = c.req.param('id')
 
-    const result = await c.env.DB.prepare(
-      'DELETE FROM custom_queries WHERE id = ?'
-    ).bind(id).run()
+    const result = await c.env.DB.prepare('DELETE FROM custom_queries WHERE id = ?').bind(id).run()
 
     if (result.meta.changes === 0) {
       return c.json({ error: 'Custom query not found' }, 404)
     }
 
-    return c.json({ 
+    return c.json({
       success: true,
-      message: 'Custom query deleted successfully'
+      message: 'Custom query deleted successfully',
     })
   } catch (error) {
     console.error('Error deleting custom query:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to delete custom query' 
-    }, 500)
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to delete custom query',
+      },
+      500
+    )
   }
 })
 
@@ -356,14 +399,14 @@ customQueries.post('/:id/test', zValidator('json', testQuerySchema), async (c) =
     if (!c.env.DB) {
       return c.json({ error: 'Database not configured' }, 500)
     }
-    
+
     const id = c.req.param('id')
     const { parameters } = c.req.valid('json')
 
     // Fetch the query
-    const query = await c.env.DB.prepare(
-      'SELECT * FROM custom_queries WHERE id = ?'
-    ).bind(id).first()
+    const query = await c.env.DB.prepare('SELECT * FROM custom_queries WHERE id = ?')
+      .bind(id)
+      .first()
 
     if (!query) {
       return c.json({ error: 'Custom query not found' }, 404)
@@ -371,12 +414,12 @@ customQueries.post('/:id/test', zValidator('json', testQuerySchema), async (c) =
 
     const queryDef = {
       ...query,
-      parameters: JSON.parse(query.parameters as string || '[]')
+      parameters: JSON.parse((query.parameters as string) || '[]'),
     } as CustomQuery
 
     // Validate and prepare parameters
     const preparedParams = prepareQueryParameters(queryDef.parameters, parameters)
-    
+
     const startTime = Date.now()
     let result
     let error = null
@@ -402,14 +445,16 @@ customQueries.post('/:id/test', zValidator('json', testQuerySchema), async (c) =
     await c.env.DB.prepare(`
       INSERT INTO custom_query_logs (id, query_id, execution_time, row_count, parameters, error)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).bind(
-      generateId(),
-      id,
-      executionTime,
-      result?.results?.length || 0,
-      JSON.stringify(parameters),
-      error
-    ).run()
+    `)
+      .bind(
+        generateId(),
+        id,
+        executionTime,
+        result?.results?.length || 0,
+        JSON.stringify(parameters),
+        error
+      )
+      .run()
 
     if (error) {
       return c.json({ error }, 400)
@@ -419,13 +464,16 @@ customQueries.post('/:id/test', zValidator('json', testQuerySchema), async (c) =
       success: true,
       data: result?.results || [],
       execution_time: executionTime,
-      row_count: result?.results?.length || 0
+      row_count: result?.results?.length || 0,
     })
   } catch (error) {
     console.error('Error testing custom query:', error)
-    return c.json({ 
-      error: error instanceof Error ? error.message : 'Failed to test custom query' 
-    }, 500)
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to test custom query',
+      },
+      500
+    )
   }
 })
 

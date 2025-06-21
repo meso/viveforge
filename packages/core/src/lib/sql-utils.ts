@@ -8,15 +8,79 @@ const VALID_IDENTIFIER_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/
 
 // SQL reserved words that should not be used as identifiers
 const SQL_RESERVED_WORDS = new Set([
-  'SELECT', 'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'DROP', 'ALTER', 'TABLE',
-  'INDEX', 'VIEW', 'TRIGGER', 'PROCEDURE', 'FUNCTION', 'DATABASE', 'SCHEMA',
-  'FROM', 'WHERE', 'JOIN', 'INNER', 'LEFT', 'RIGHT', 'OUTER', 'ON', 'UNION',
-  'GROUP', 'ORDER', 'BY', 'HAVING', 'LIMIT', 'OFFSET', 'INTO', 'VALUES',
-  'SET', 'AND', 'OR', 'NOT', 'NULL', 'TRUE', 'FALSE', 'CASE', 'WHEN', 'THEN',
-  'ELSE', 'END', 'IF', 'EXISTS', 'DISTINCT', 'AS', 'IS', 'IN', 'BETWEEN', 'LIKE',
-  'GLOB', 'REGEXP', 'MATCH', 'ESCAPE', 'ISNULL', 'NOTNULL', 'COLLATE', 'ASC', 'DESC',
-  'PRIMARY', 'FOREIGN', 'KEY', 'REFERENCES', 'CONSTRAINT', 'UNIQUE', 'CHECK',
-  'DEFAULT', 'AUTOINCREMENT', 'ROWID', 'OID', '_ROWID_'
+  'SELECT',
+  'INSERT',
+  'UPDATE',
+  'DELETE',
+  'CREATE',
+  'DROP',
+  'ALTER',
+  'TABLE',
+  'INDEX',
+  'VIEW',
+  'TRIGGER',
+  'PROCEDURE',
+  'FUNCTION',
+  'DATABASE',
+  'SCHEMA',
+  'FROM',
+  'WHERE',
+  'JOIN',
+  'INNER',
+  'LEFT',
+  'RIGHT',
+  'OUTER',
+  'ON',
+  'UNION',
+  'GROUP',
+  'ORDER',
+  'BY',
+  'HAVING',
+  'LIMIT',
+  'OFFSET',
+  'INTO',
+  'VALUES',
+  'SET',
+  'AND',
+  'OR',
+  'NOT',
+  'NULL',
+  'TRUE',
+  'FALSE',
+  'CASE',
+  'WHEN',
+  'THEN',
+  'ELSE',
+  'END',
+  'IF',
+  'EXISTS',
+  'DISTINCT',
+  'AS',
+  'IS',
+  'IN',
+  'BETWEEN',
+  'LIKE',
+  'GLOB',
+  'REGEXP',
+  'MATCH',
+  'ESCAPE',
+  'ISNULL',
+  'NOTNULL',
+  'COLLATE',
+  'ASC',
+  'DESC',
+  'PRIMARY',
+  'FOREIGN',
+  'KEY',
+  'REFERENCES',
+  'CONSTRAINT',
+  'UNIQUE',
+  'CHECK',
+  'DEFAULT',
+  'AUTOINCREMENT',
+  'ROWID',
+  'OID',
+  '_ROWID_',
 ])
 
 /**
@@ -64,7 +128,9 @@ export function escapeSQLIdentifier(identifier: string): string {
  */
 export function validateAndEscapeTableName(tableName: string): string {
   if (!isValidSQLIdentifier(tableName)) {
-    throw new Error(`Invalid table name: "${tableName}". Table names must start with a letter or underscore, contain only letters, numbers, and underscores, and not be SQL reserved words.`)
+    throw new Error(
+      `Invalid table name: "${tableName}". Table names must start with a letter or underscore, contain only letters, numbers, and underscores, and not be SQL reserved words.`
+    )
   }
   return escapeSQLIdentifier(tableName)
 }
@@ -74,7 +140,9 @@ export function validateAndEscapeTableName(tableName: string): string {
  */
 export function validateAndEscapeColumnName(columnName: string): string {
   if (!isValidSQLIdentifier(columnName)) {
-    throw new Error(`Invalid column name: "${columnName}". Column names must start with a letter or underscore, contain only letters, numbers, and underscores, and not be SQL reserved words.`)
+    throw new Error(
+      `Invalid column name: "${columnName}". Column names must start with a letter or underscore, contain only letters, numbers, and underscores, and not be SQL reserved words.`
+    )
   }
   return escapeSQLIdentifier(columnName)
 }
@@ -84,7 +152,9 @@ export function validateAndEscapeColumnName(columnName: string): string {
  */
 export function validateAndEscapeIndexName(indexName: string): string {
   if (!isValidSQLIdentifier(indexName)) {
-    throw new Error(`Invalid index name: "${indexName}". Index names must start with a letter or underscore, contain only letters, numbers, and underscores, and not be SQL reserved words.`)
+    throw new Error(
+      `Invalid index name: "${indexName}". Index names must start with a letter or underscore, contain only letters, numbers, and underscores, and not be SQL reserved words.`
+    )
   }
   return escapeSQLIdentifier(indexName)
 }
@@ -117,11 +187,22 @@ export function validateNotSystemTable(tableName: string, systemTables: readonly
  */
 export function validateSQLDataType(dataType: string): boolean {
   const validTypes = [
-    'TEXT', 'INTEGER', 'REAL', 'BLOB', 'NUMERIC',
-    'VARCHAR', 'CHAR', 'BOOLEAN', 'DATE', 'DATETIME', 'TIMESTAMP',
-    'DECIMAL', 'FLOAT', 'DOUBLE'
+    'TEXT',
+    'INTEGER',
+    'REAL',
+    'BLOB',
+    'NUMERIC',
+    'VARCHAR',
+    'CHAR',
+    'BOOLEAN',
+    'DATE',
+    'DATETIME',
+    'TIMESTAMP',
+    'DECIMAL',
+    'FLOAT',
+    'DOUBLE',
   ]
-  
+
   // Handle types with parameters like VARCHAR(255)
   const baseType = dataType.split('(')[0].toUpperCase()
   return validTypes.includes(baseType)

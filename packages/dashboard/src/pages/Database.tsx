@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'preact/hooks'
-import { api, type TableInfo, type ForeignKeyInfo, type IndexInfo } from '../lib/api'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import { SchemaHistory } from '../components/SchemaHistory'
+import { api, type ForeignKeyInfo, type IndexInfo, type TableInfo } from '../lib/api'
 
 // Utility function to truncate IDs
 const truncateId = (id: string | null): string => {
@@ -10,16 +10,27 @@ const truncateId = (id: string | null): string => {
 
 // System tables that should not be available for FK references
 // NOTE: Keep this in sync with SYSTEM_TABLES in packages/core/src/lib/table-manager.ts
-const SYSTEM_TABLES = ['admins', 'sessions', 'schema_snapshots', 'schema_snapshot_counter', 'd1_migrations', 'api_keys', 'user_sessions', 'oauth_providers', 'app_settings', 'table_policies']
+const SYSTEM_TABLES = [
+  'admins',
+  'sessions',
+  'schema_snapshots',
+  'schema_snapshot_counter',
+  'd1_migrations',
+  'api_keys',
+  'user_sessions',
+  'oauth_providers',
+  'app_settings',
+  'table_policies',
+]
 
 // Filter out system tables for FK references
 const getUserTables = (tables: TableInfo[]): TableInfo[] => {
-  return tables.filter(table => !SYSTEM_TABLES.includes(table.name))
+  return tables.filter((table) => !SYSTEM_TABLES.includes(table.name))
 }
 
 // Generate default index name
 const generateIndexName = (tableName: string, columns: string[]): string => {
-  const columnPart = columns.filter(col => col.trim() !== '').join('_')
+  const columnPart = columns.filter((col) => col.trim() !== '').join('_')
   return `idx_${tableName}_${columnPart}`.toLowerCase()
 }
 
@@ -57,40 +68,79 @@ export function DatabasePage() {
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [showCreateTableForm, setShowCreateTableForm] = useState(false)
   const [newRecord, setNewRecord] = useState<Record<string, any>>({})
-  const [newTable, setNewTable] = useState({ 
-    name: '', 
-    columns: [{ name: '', type: 'TEXT', notNull: false, foreignKey: { enabled: false, table: '', column: '' } }],
-    indexes: [] as { name: string; columns: string[]; unique: boolean }[]
+  const [newTable, setNewTable] = useState({
+    name: '',
+    columns: [
+      {
+        name: '',
+        type: 'TEXT',
+        notNull: false,
+        foreignKey: { enabled: false, table: '', column: '' },
+      },
+    ],
+    indexes: [] as { name: string; columns: string[]; unique: boolean }[],
   })
   const [openDropdownTable, setOpenDropdownTable] = useState<string | null>(null)
   const [copiedCell, setCopiedCell] = useState<string | null>(null)
   const [showSchemaEditor, setShowSchemaEditor] = useState(false)
-  const [newColumn, setNewColumn] = useState({ name: '', type: 'TEXT', notNull: false, foreignKey: { enabled: false, table: '', column: '' } })
-  const [editingColumn, setEditingColumn] = useState<{ oldName: string; newName: string } | null>(null)
-  const [modifyingColumn, setModifyingColumn] = useState<{ name: string; type: string; notNull: boolean; foreignKey: { enabled: boolean; table: string; column: string } } | null>(null)
-  const [validationWarning, setValidationWarning] = useState<{ errors: string[]; conflictingRows: number; onConfirm: () => void } | null>(null)
-  const [confirmationModal, setConfirmationModal] = useState<{ title: string; message: string; onConfirm: () => void; variant?: 'danger' | 'warning' } | null>(null)
-  const [editingCell, setEditingCell] = useState<{ rowId: string; columnName: string; value: any } | null>(null)
-  const [editingRecord, setEditingRecord] = useState<{ id: string; data: Record<string, any> } | null>(null)
-  const [clickCount, setClickCount] = useState<{[key: string]: { count: number; timeout: number }}>({})
-  const [fkValidation, setFkValidation] = useState<{[key: string]: { isValid: boolean; isChecking: boolean; displayName?: string }}>({})
+  const [newColumn, setNewColumn] = useState({
+    name: '',
+    type: 'TEXT',
+    notNull: false,
+    foreignKey: { enabled: false, table: '', column: '' },
+  })
+  const [editingColumn, setEditingColumn] = useState<{ oldName: string; newName: string } | null>(
+    null
+  )
+  const [modifyingColumn, setModifyingColumn] = useState<{
+    name: string
+    type: string
+    notNull: boolean
+    foreignKey: { enabled: boolean; table: string; column: string }
+  } | null>(null)
+  const [validationWarning, setValidationWarning] = useState<{
+    errors: string[]
+    conflictingRows: number
+    onConfirm: () => void
+  } | null>(null)
+  const [confirmationModal, setConfirmationModal] = useState<{
+    title: string
+    message: string
+    onConfirm: () => void
+    variant?: 'danger' | 'warning'
+  } | null>(null)
+  const [editingCell, setEditingCell] = useState<{
+    rowId: string
+    columnName: string
+    value: any
+  } | null>(null)
+  const [editingRecord, setEditingRecord] = useState<{
+    id: string
+    data: Record<string, any>
+  } | null>(null)
+  const [clickCount, setClickCount] = useState<{
+    [key: string]: { count: number; timeout: number }
+  }>({})
+  const [fkValidation, setFkValidation] = useState<{
+    [key: string]: { isValid: boolean; isChecking: boolean; displayName?: string }
+  }>({})
   const editInputRef = useRef<HTMLInputElement | null>(null)
   const hasInitializedFocus = useRef(false)
   const [showSchemaHistory, setShowSchemaHistory] = useState(false)
   const [tableIndexes, setTableIndexes] = useState<IndexInfo[]>([])
   const [showIndexManager, setShowIndexManager] = useState(false)
-  const [newIndex, setNewIndex] = useState({ 
-    name: '', 
-    columns: [''], 
-    unique: false 
+  const [newIndex, setNewIndex] = useState({
+    name: '',
+    columns: [''],
+    unique: false,
   })
   const [changingPolicy, setChangingPolicy] = useState<string | null>(null)
 
   // Update index name when columns change
   useEffect(() => {
-    if (selectedTable && newIndex.columns.some(col => col.trim() !== '')) {
+    if (selectedTable && newIndex.columns.some((col) => col.trim() !== '')) {
       const defaultName = generateIndexName(selectedTable, newIndex.columns)
-      setNewIndex(prev => ({ ...prev, name: defaultName }))
+      setNewIndex((prev) => ({ ...prev, name: defaultName }))
     }
   }, [selectedTable, newIndex.columns])
 
@@ -107,7 +157,7 @@ export function DatabasePage() {
       minute: '2-digit',
       second: '2-digit',
       hour12: false,
-      timeZoneName: 'short'
+      timeZoneName: 'short',
     })
   }
 
@@ -154,14 +204,14 @@ export function DatabasePage() {
       const result = await api.getTableSchema(selectedTable)
       setTableColumns(result.columns)
       setTableForeignKeys(result.foreignKeys || [])
-      
+
       // Load table indexes
       const indexResult = await api.getTableIndexes(selectedTable)
       setTableIndexes(indexResult.indexes)
-      
+
       // Initialize new record with empty values for each column
       const initialRecord: Record<string, any> = {}
-      result.columns.forEach(col => {
+      result.columns.forEach((col) => {
         if (!['id', 'created_at', 'updated_at'].includes(col.name)) {
           initialRecord[col.name] = ''
         }
@@ -193,25 +243,22 @@ export function DatabasePage() {
     try {
       // Convert empty strings to null for proper constraint checking
       const recordToSend = Object.fromEntries(
-        Object.entries(newRecord).map(([key, value]) => [
-          key, 
-          value === '' ? null : value
-        ])
+        Object.entries(newRecord).map(([key, value]) => [key, value === '' ? null : value])
       )
-      
+
       console.log('Sending record data:', recordToSend)
-      
+
       const response = await fetch(`${window.location.origin}/api/tables/${selectedTable}/data`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(recordToSend)
+        body: JSON.stringify(recordToSend),
       })
-      
+
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.error || `HTTP ${response.status}: Failed to create record`)
       }
-      
+
       await loadTableData()
       setShowCreateForm(false)
       setError(null) // Clear any previous errors
@@ -221,10 +268,11 @@ export function DatabasePage() {
       if (err instanceof Error) {
         // Make error messages more user-friendly
         let userFriendlyMessage = err.message
-        
+
         // Handle common constraint errors
         if (err.message.includes('FOREIGN KEY constraint failed')) {
-          userFriendlyMessage = 'Foreign key constraint failed: The referenced record does not exist'
+          userFriendlyMessage =
+            'Foreign key constraint failed: The referenced record does not exist'
         } else if (err.message.includes('NOT NULL constraint failed')) {
           const match = err.message.match(/NOT NULL constraint failed: (\w+)\.(\w+)/)
           if (match) {
@@ -240,7 +288,7 @@ export function DatabasePage() {
             userFriendlyMessage = 'This value must be unique'
           }
         }
-        
+
         setError(userFriendlyMessage)
       } else {
         setError('Failed to create record')
@@ -259,42 +307,46 @@ export function DatabasePage() {
         setConfirmationModal(null)
         try {
           await fetch(`${window.location.origin}/api/tables/${selectedTable}/data/${id}`, {
-            method: 'DELETE'
+            method: 'DELETE',
           })
           await loadTableData()
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Failed to delete record')
         }
-      }
+      },
     })
   }
 
   const handleCreateTable = async (e: Event) => {
     e.preventDefault()
-    
+
     try {
       const columnsToCreate = newTable.columns
-        .filter(col => col.name)
-        .map(col => ({
+        .filter((col) => col.name)
+        .map((col) => ({
           name: col.name,
           type: col.type,
           constraints: col.notNull ? 'NOT NULL' : undefined,
-          ...(col.foreignKey?.enabled && col.foreignKey?.table && col.foreignKey?.column 
+          ...(col.foreignKey?.enabled && col.foreignKey?.table && col.foreignKey?.column
             ? { foreignKey: { table: col.foreignKey.table, column: col.foreignKey.column } }
-            : {})
+            : {}),
         }))
-      
+
       console.log('Creating table:', newTable.name, 'with columns:', columnsToCreate)
       await api.createTable(newTable.name, columnsToCreate)
-      
+
       // Create indexes if specified
       for (const index of newTable.indexes) {
-        if (index.name && index.columns.length > 0 && index.columns.some(col => col.trim() !== '')) {
+        if (
+          index.name &&
+          index.columns.length > 0 &&
+          index.columns.some((col) => col.trim() !== '')
+        ) {
           try {
             await api.createIndex(newTable.name, {
               name: index.name,
-              columns: index.columns.filter(col => col.trim() !== ''),
-              unique: index.unique
+              columns: index.columns.filter((col) => col.trim() !== ''),
+              unique: index.unique,
             })
           } catch (indexError) {
             console.warn('Failed to create index:', indexError)
@@ -302,13 +354,20 @@ export function DatabasePage() {
           }
         }
       }
-      
+
       await loadTables()
       setShowCreateTableForm(false)
-      setNewTable({ 
-        name: '', 
-        columns: [{ name: '', type: 'TEXT', notNull: false, foreignKey: { enabled: false, table: '', column: '' } }],
-        indexes: []
+      setNewTable({
+        name: '',
+        columns: [
+          {
+            name: '',
+            type: 'TEXT',
+            notNull: false,
+            foreignKey: { enabled: false, table: '', column: '' },
+          },
+        ],
+        indexes: [],
       })
       setError(null) // Clear any previous errors
     } catch (err) {
@@ -333,7 +392,7 @@ export function DatabasePage() {
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Failed to drop table')
         }
-      }
+      },
     })
   }
 
@@ -341,16 +400,14 @@ export function DatabasePage() {
     try {
       setChangingPolicy(tableName)
       await api.updateTablePolicy(tableName, newPolicy)
-      
+
       // Update the local state to reflect the change
-      setTables(prevTables => 
-        prevTables.map(table => 
-          table.name === tableName 
-            ? { ...table, access_policy: newPolicy }
-            : table
+      setTables((prevTables) =>
+        prevTables.map((table) =>
+          table.name === tableName ? { ...table, access_policy: newPolicy } : table
         )
       )
-      
+
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update table policy')
@@ -368,7 +425,12 @@ export function DatabasePage() {
     }
   }
 
-  const handleIdClick = async (event: MouseEvent, id: string, rowIndex: number, columnName: string) => {
+  const handleIdClick = async (
+    event: MouseEvent,
+    id: string,
+    rowIndex: number,
+    columnName: string
+  ) => {
     if (event.metaKey || event.ctrlKey) {
       // Cmd+Click (Mac) or Ctrl+Click (Windows): Jump to record with this ID
       await jumpToRecord(id, columnName)
@@ -400,21 +462,21 @@ export function DatabasePage() {
     // If the column name ends with '_id', try to find the referenced table
     if (columnName.endsWith('_id')) {
       const baseTableName = columnName.replace('_id', '') + 's' // user_id -> users
-      const table = tables.find(t => t.name === baseTableName)
+      const table = tables.find((t) => t.name === baseTableName)
       if (table) return table.name
     }
-    
+
     // Fallback: search through all tables for a record with this ID
     for (const table of tables) {
       try {
         const result = await api.getTableData(table.name, 1, 0)
-        const hasRecord = result.data.some(record => record.id === id)
+        const hasRecord = result.data.some((record) => record.id === id)
         if (hasRecord) return table.name
       } catch (error) {
         // Continue searching other tables
       }
     }
-    
+
     return null
   }
 
@@ -427,14 +489,26 @@ export function DatabasePage() {
         name: newColumn.name,
         type: newColumn.type,
         constraints: newColumn.notNull ? 'NOT NULL' : undefined,
-        ...(newColumn.foreignKey?.enabled && newColumn.foreignKey?.table && newColumn.foreignKey?.column 
-          ? { foreignKey: { table: newColumn.foreignKey.table, column: newColumn.foreignKey.column } }
-          : {})
+        ...(newColumn.foreignKey?.enabled &&
+        newColumn.foreignKey?.table &&
+        newColumn.foreignKey?.column
+          ? {
+              foreignKey: {
+                table: newColumn.foreignKey.table,
+                column: newColumn.foreignKey.column,
+              },
+            }
+          : {}),
       }
-      
+
       await api.addColumn(selectedTable, columnData)
       await loadTableSchema()
-      setNewColumn({ name: '', type: 'TEXT', notNull: false, foreignKey: { enabled: false, table: '', column: '' } })
+      setNewColumn({
+        name: '',
+        type: 'TEXT',
+        notNull: false,
+        foreignKey: { enabled: false, table: '', column: '' },
+      })
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add column')
@@ -470,17 +544,24 @@ export function DatabasePage() {
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Failed to drop column')
         }
-      }
+      },
     })
   }
 
-  const handleModifyColumn = async (columnName: string, changes: { type?: string; notNull?: boolean; foreignKey?: { table: string; column: string } | null }) => {
+  const handleModifyColumn = async (
+    columnName: string,
+    changes: {
+      type?: string
+      notNull?: boolean
+      foreignKey?: { table: string; column: string } | null
+    }
+  ) => {
     if (!selectedTable) return
 
     try {
       // Validate changes first
       const validation = await api.validateColumnChanges(selectedTable, columnName, changes)
-      
+
       if (!validation.valid) {
         // Show validation warning modal instead of browser alert
         setValidationWarning({
@@ -496,7 +577,7 @@ export function DatabasePage() {
             } catch (err) {
               setError(err instanceof Error ? err.message : 'Failed to modify column')
             }
-          }
+          },
         })
         return
       }
@@ -512,39 +593,39 @@ export function DatabasePage() {
 
   // Helper function to get foreign key info for a column
   const getForeignKeyForColumn = (columnName: string): ForeignKeyInfo | null => {
-    return tableForeignKeys.find(fk => fk.from === columnName) || null
+    return tableForeignKeys.find((fk) => fk.from === columnName) || null
   }
 
   // Validate FK reference
   const validateForeignKey = async (value: string, fkInfo: ForeignKeyInfo) => {
     if (!value.trim()) return null
-    
+
     const validationKey = `${fkInfo.table}-${value}`
-    setFkValidation(prev => ({ ...prev, [validationKey]: { isValid: false, isChecking: true } }))
-    
+    setFkValidation((prev) => ({ ...prev, [validationKey]: { isValid: false, isChecking: true } }))
+
     try {
       // Check if the ID exists in the referenced table
       const result = await api.getTableData(fkInfo.table)
-      const exists = result.data.some(record => record.id === value)
-      
-      setFkValidation(prev => ({ 
-        ...prev, 
-        [validationKey]: { 
-          isValid: exists, 
+      const exists = result.data.some((record) => record.id === value)
+
+      setFkValidation((prev) => ({
+        ...prev,
+        [validationKey]: {
+          isValid: exists,
           isChecking: false,
-          displayName: exists ? `Valid ID in ${fkInfo.table}` : `ID not found in ${fkInfo.table}`
-        } 
+          displayName: exists ? `Valid ID in ${fkInfo.table}` : `ID not found in ${fkInfo.table}`,
+        },
       }))
-      
+
       return exists
     } catch (err) {
-      setFkValidation(prev => ({ 
-        ...prev, 
-        [validationKey]: { 
-          isValid: false, 
+      setFkValidation((prev) => ({
+        ...prev,
+        [validationKey]: {
+          isValid: false,
           isChecking: false,
-          displayName: `Error checking ${fkInfo.table}`
-        } 
+          displayName: `Error checking ${fkInfo.table}`,
+        },
       }))
       return false
     }
@@ -556,14 +637,14 @@ export function DatabasePage() {
     if (['id', 'created_at', 'updated_at'].includes(columnName)) {
       return
     }
-    
+
     // Check if it's a simple field that can be edited inline
-    const column = tableColumns.find(col => col.name === columnName)
+    const column = tableColumns.find((col) => col.name === columnName)
     const hasFK = getForeignKeyForColumn(columnName)
-    
+
     if (hasFK || !column) {
       // Open modal for FK references or complex fields
-      const record = tableData.find(row => row.id === rowId)
+      const record = tableData.find((row) => row.id === rowId)
       if (record) {
         setEditingRecord({ id: rowId, data: { ...record } })
       }
@@ -582,12 +663,8 @@ export function DatabasePage() {
     setEditingCell(null)
 
     // ローカルでデータを即座に更新（楽観的更新）
-    setTableData(prevData => 
-      prevData.map(row => 
-        row.id === rowId 
-          ? { ...row, [columnName]: newValue }
-          : row
-      )
+    setTableData((prevData) =>
+      prevData.map((row) => (row.id === rowId ? { ...row, [columnName]: newValue } : row))
     )
 
     try {
@@ -633,7 +710,7 @@ export function DatabasePage() {
     if (!selectedTable) return
 
     try {
-      const columnsToIndex = newIndex.columns.filter(col => col.trim() !== '')
+      const columnsToIndex = newIndex.columns.filter((col) => col.trim() !== '')
       if (columnsToIndex.length === 0) {
         setError('At least one column is required for the index')
         return
@@ -642,7 +719,7 @@ export function DatabasePage() {
       await api.createIndex(selectedTable, {
         name: newIndex.name,
         columns: columnsToIndex,
-        unique: newIndex.unique
+        unique: newIndex.unique,
       })
 
       await loadTableSchema()
@@ -670,21 +747,19 @@ export function DatabasePage() {
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Failed to drop index')
         }
-      }
+      },
     })
   }
 
-  const userTables = tables.filter(t => t.type === 'user')
-  const systemTables = tables.filter(t => t.type === 'system')
+  const userTables = tables.filter((t) => t.type === 'user')
+  const systemTables = tables.filter((t) => t.type === 'system')
 
   return (
     <div>
       <div class="sm:flex sm:items-center">
         <div class="sm:flex-auto">
           <h2 class="text-2xl font-bold text-gray-900">Database</h2>
-          <p class="mt-2 text-sm text-gray-700">
-            Manage your D1 database tables and data
-          </p>
+          <p class="mt-2 text-sm text-gray-700">Manage your D1 database tables and data</p>
         </div>
         <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none flex space-x-3">
           <button
@@ -693,7 +768,12 @@ export function DatabasePage() {
             class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:w-auto"
           >
             <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
             History
           </button>
@@ -728,139 +808,156 @@ export function DatabasePage() {
               <input
                 type="text"
                 value={newTable.name}
-                onInput={(e) => setNewTable({ ...newTable, name: (e.target as HTMLInputElement).value })}
+                onInput={(e) =>
+                  setNewTable({ ...newTable, name: (e.target as HTMLInputElement).value })
+                }
                 class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 placeholder="my_table"
                 pattern="[a-zA-Z_][a-zA-Z0-9_]*"
                 required
               />
             </div>
-            
+
             <div class="mb-4">
               <label class="block text-sm font-medium text-gray-700 mb-2">Columns</label>
               <div class="space-y-2">
                 {newTable.columns.map((col, idx) => (
                   <div key={idx}>
                     <div class="flex space-x-2">
-                    <input
-                      type="text"
-                      value={col.name}
-                      onInput={(e) => {
-                        const newColumns = [...newTable.columns]
-                        newColumns[idx].name = (e.target as HTMLInputElement).value
-                        setNewTable({ ...newTable, columns: newColumns })
-                      }}
-                      class="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                      placeholder="column_name"
-                      pattern="[a-zA-Z_][a-zA-Z0-9_]*"
-                    />
-                    <select
-                      value={col.type}
-                      onChange={(e) => {
-                        const newColumns = [...newTable.columns]
-                        newColumns[idx].type = (e.target as HTMLSelectElement).value
-                        setNewTable({ ...newTable, columns: newColumns })
-                      }}
-                      class="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    >
-                      <option value="TEXT">TEXT</option>
-                      <option value="INTEGER">INTEGER</option>
-                      <option value="REAL">REAL</option>
-                      <option value="BLOB">BLOB</option>
-                      <option value="BOOLEAN">BOOLEAN</option>
-                    </select>
-                    
-                    {/* NOT NULL Toggle */}
-                    <label class="flex items-center space-x-1">
-                      <input
-                        type="checkbox"
-                        checked={col.notNull || false}
-                        onChange={(e) => {
-                          const newColumns = [...newTable.columns]
-                          newColumns[idx].notNull = (e.target as HTMLInputElement).checked
-                          setNewTable({ ...newTable, columns: newColumns })
-                        }}
-                        class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                      />
-                      <span class="text-xs text-gray-700">NN</span>
-                    </label>
-                    
-                    {/* Foreign Key Toggle */}
-                    <label class="flex items-center space-x-1">
-                      <input
-                        type="checkbox"
-                        checked={col.foreignKey?.enabled || false}
-                        onChange={(e) => {
-                          const newColumns = [...newTable.columns]
-                          const isEnabled = (e.target as HTMLInputElement).checked
-                          newColumns[idx].foreignKey = {
-                            ...newColumns[idx].foreignKey,
-                            enabled: isEnabled,
-                            column: isEnabled ? 'id' : ''  // Set default column when enabling FK
-                          }
-                          setNewTable({ ...newTable, columns: newColumns })
-                        }}
-                        class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                      />
-                      <span class="text-xs text-gray-700">FK</span>
-                    </label>
-                    
-                    {idx > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const newColumns = newTable.columns.filter((_, i) => i !== idx)
-                          setNewTable({ ...newTable, columns: newColumns })
-                        }}
-                        class="text-red-600 hover:text-red-900 text-sm"
-                      >
-                        Remove
-                      </button>
-                    )}
-                    </div>
-                  
-                    {/* Foreign Key Settings */}
-                    {col.foreignKey?.enabled && (
-                    <div class="flex space-x-2 ml-4 mt-1">
-                      <select
-                        value={col.foreignKey?.table || ''}
-                        onChange={(e) => {
-                          const newColumns = [...newTable.columns]
-                          newColumns[idx].foreignKey = {
-                            ...newColumns[idx].foreignKey,
-                            table: (e.target as HTMLSelectElement).value
-                          }
-                          setNewTable({ ...newTable, columns: newColumns })
-                        }}
-                        class="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                      >
-                        <option value="">Select table...</option>
-                        {getUserTables(tables).map(table => (
-                          <option key={table.name} value={table.name}>{table.name}</option>
-                        ))}
-                      </select>
                       <input
                         type="text"
-                        value={col.foreignKey?.column || ''}
-                        onChange={(e) => {
+                        value={col.name}
+                        onInput={(e) => {
                           const newColumns = [...newTable.columns]
-                          newColumns[idx].foreignKey = {
-                            ...newColumns[idx].foreignKey,
-                            column: (e.target as HTMLInputElement).value
-                          }
+                          newColumns[idx].name = (e.target as HTMLInputElement).value
                           setNewTable({ ...newTable, columns: newColumns })
                         }}
-                        placeholder="id"
                         class="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                        placeholder="column_name"
+                        pattern="[a-zA-Z_][a-zA-Z0-9_]*"
                       />
+                      <select
+                        value={col.type}
+                        onChange={(e) => {
+                          const newColumns = [...newTable.columns]
+                          newColumns[idx].type = (e.target as HTMLSelectElement).value
+                          setNewTable({ ...newTable, columns: newColumns })
+                        }}
+                        class="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                      >
+                        <option value="TEXT">TEXT</option>
+                        <option value="INTEGER">INTEGER</option>
+                        <option value="REAL">REAL</option>
+                        <option value="BLOB">BLOB</option>
+                        <option value="BOOLEAN">BOOLEAN</option>
+                      </select>
+
+                      {/* NOT NULL Toggle */}
+                      <label class="flex items-center space-x-1">
+                        <input
+                          type="checkbox"
+                          checked={col.notNull || false}
+                          onChange={(e) => {
+                            const newColumns = [...newTable.columns]
+                            newColumns[idx].notNull = (e.target as HTMLInputElement).checked
+                            setNewTable({ ...newTable, columns: newColumns })
+                          }}
+                          class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                        />
+                        <span class="text-xs text-gray-700">NN</span>
+                      </label>
+
+                      {/* Foreign Key Toggle */}
+                      <label class="flex items-center space-x-1">
+                        <input
+                          type="checkbox"
+                          checked={col.foreignKey?.enabled || false}
+                          onChange={(e) => {
+                            const newColumns = [...newTable.columns]
+                            const isEnabled = (e.target as HTMLInputElement).checked
+                            newColumns[idx].foreignKey = {
+                              ...newColumns[idx].foreignKey,
+                              enabled: isEnabled,
+                              column: isEnabled ? 'id' : '', // Set default column when enabling FK
+                            }
+                            setNewTable({ ...newTable, columns: newColumns })
+                          }}
+                          class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                        />
+                        <span class="text-xs text-gray-700">FK</span>
+                      </label>
+
+                      {idx > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newColumns = newTable.columns.filter((_, i) => i !== idx)
+                            setNewTable({ ...newTable, columns: newColumns })
+                          }}
+                          class="text-red-600 hover:text-red-900 text-sm"
+                        >
+                          Remove
+                        </button>
+                      )}
                     </div>
+
+                    {/* Foreign Key Settings */}
+                    {col.foreignKey?.enabled && (
+                      <div class="flex space-x-2 ml-4 mt-1">
+                        <select
+                          value={col.foreignKey?.table || ''}
+                          onChange={(e) => {
+                            const newColumns = [...newTable.columns]
+                            newColumns[idx].foreignKey = {
+                              ...newColumns[idx].foreignKey,
+                              table: (e.target as HTMLSelectElement).value,
+                            }
+                            setNewTable({ ...newTable, columns: newColumns })
+                          }}
+                          class="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                        >
+                          <option value="">Select table...</option>
+                          {getUserTables(tables).map((table) => (
+                            <option key={table.name} value={table.name}>
+                              {table.name}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="text"
+                          value={col.foreignKey?.column || ''}
+                          onChange={(e) => {
+                            const newColumns = [...newTable.columns]
+                            newColumns[idx].foreignKey = {
+                              ...newColumns[idx].foreignKey,
+                              column: (e.target as HTMLInputElement).value,
+                            }
+                            setNewTable({ ...newTable, columns: newColumns })
+                          }}
+                          placeholder="id"
+                          class="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                        />
+                      </div>
                     )}
                   </div>
                 ))}
               </div>
               <button
                 type="button"
-                onClick={() => setNewTable({ ...newTable, columns: [...newTable.columns, { name: '', type: 'TEXT', notNull: false, foreignKey: { enabled: false, table: '', column: '' } }] })}
+                onClick={() =>
+                  setNewTable({
+                    ...newTable,
+                    columns: [
+                      ...newTable.columns,
+                      {
+                        name: '',
+                        type: 'TEXT',
+                        notNull: false,
+                        foreignKey: { enabled: false, table: '', column: '' },
+                      },
+                    ],
+                  })
+                }
                 class="mt-2 text-sm text-indigo-600 hover:text-indigo-500"
               >
                 Add Column
@@ -877,15 +974,22 @@ export function DatabasePage() {
                 <button
                   type="button"
                   onClick={() => {
-                    const defaultColumns = newTable.columns.filter(col => col.name.trim() !== '').map(col => col.name)
-                    const defaultName = newTable.name ? generateIndexName(newTable.name, defaultColumns.slice(0, 1)) : ''
-                    setNewTable({ 
-                      ...newTable, 
-                      indexes: [...newTable.indexes, { 
-                        name: defaultName, 
-                        columns: defaultColumns.slice(0, 1), 
-                        unique: false 
-                      }] 
+                    const defaultColumns = newTable.columns
+                      .filter((col) => col.name.trim() !== '')
+                      .map((col) => col.name)
+                    const defaultName = newTable.name
+                      ? generateIndexName(newTable.name, defaultColumns.slice(0, 1))
+                      : ''
+                    setNewTable({
+                      ...newTable,
+                      indexes: [
+                        ...newTable.indexes,
+                        {
+                          name: defaultName,
+                          columns: defaultColumns.slice(0, 1),
+                          unique: false,
+                        },
+                      ],
                     })
                   }}
                   class="text-sm text-indigo-600 hover:text-indigo-500"
@@ -893,7 +997,7 @@ export function DatabasePage() {
                   Add Index
                 </button>
               </div>
-              
+
               <div class="space-y-3">
                 {newTable.indexes.map((index, idx) => (
                   <div key={idx} class="p-3 bg-gray-50 rounded-md">
@@ -933,7 +1037,7 @@ export function DatabasePage() {
                         Remove
                       </button>
                     </div>
-                    
+
                     <div class="space-y-1">
                       <label class="text-xs text-gray-700">Columns:</label>
                       {index.columns.map((column, colIdx) => (
@@ -942,26 +1046,37 @@ export function DatabasePage() {
                             value={column}
                             onChange={(e) => {
                               const newIndexes = [...newTable.indexes]
-                              newIndexes[idx].columns[colIdx] = (e.target as HTMLSelectElement).value
+                              newIndexes[idx].columns[colIdx] = (
+                                e.target as HTMLSelectElement
+                              ).value
                               // Update index name when columns change
                               if (newTable.name) {
-                                newIndexes[idx].name = generateIndexName(newTable.name, newIndexes[idx].columns.filter(c => c.trim() !== ''))
+                                newIndexes[idx].name = generateIndexName(
+                                  newTable.name,
+                                  newIndexes[idx].columns.filter((c) => c.trim() !== '')
+                                )
                               }
                               setNewTable({ ...newTable, indexes: newIndexes })
                             }}
                             class="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                           >
                             <option value="">Select column...</option>
-                            {newTable.columns.filter(col => col.name.trim() !== '').map(col => (
-                              <option key={col.name} value={col.name}>{col.name}</option>
-                            ))}
+                            {newTable.columns
+                              .filter((col) => col.name.trim() !== '')
+                              .map((col) => (
+                                <option key={col.name} value={col.name}>
+                                  {col.name}
+                                </option>
+                              ))}
                           </select>
                           {index.columns.length > 1 && (
                             <button
                               type="button"
                               onClick={() => {
                                 const newIndexes = [...newTable.indexes]
-                                newIndexes[idx].columns = newIndexes[idx].columns.filter((_, i) => i !== colIdx)
+                                newIndexes[idx].columns = newIndexes[idx].columns.filter(
+                                  (_, i) => i !== colIdx
+                                )
                                 setNewTable({ ...newTable, indexes: newIndexes })
                               }}
                               class="text-red-600 hover:text-red-500 text-sm"
@@ -987,7 +1102,7 @@ export function DatabasePage() {
                 ))}
               </div>
             </div>
-            
+
             <div class="flex space-x-3">
               <button
                 type="submit"
@@ -999,10 +1114,17 @@ export function DatabasePage() {
                 type="button"
                 onClick={() => {
                   setShowCreateTableForm(false)
-                  setNewTable({ 
-                    name: '', 
-                    columns: [{ name: '', type: 'TEXT', notNull: false, foreignKey: { enabled: false, table: '', column: '' } }],
-                    indexes: []
+                  setNewTable({
+                    name: '',
+                    columns: [
+                      {
+                        name: '',
+                        type: 'TEXT',
+                        notNull: false,
+                        foreignKey: { enabled: false, table: '', column: '' },
+                      },
+                    ],
+                    indexes: [],
                   })
                   setError(null) // Clear error when canceling
                 }}
@@ -1021,7 +1143,7 @@ export function DatabasePage() {
           <div class="bg-white shadow rounded-lg">
             <div class="px-4 py-5 sm:p-6">
               <h3 class="text-lg font-medium text-gray-900 mb-4">Tables</h3>
-              
+
               {loading && !selectedTable ? (
                 <div class="text-sm text-gray-500">Loading...</div>
               ) : (
@@ -1030,25 +1152,29 @@ export function DatabasePage() {
                   <div>
                     <h4 class="text-sm font-medium text-gray-700 mb-2">User Tables</h4>
                     <div class="space-y-1">
-                      {userTables.map(table => (
+                      {userTables.map((table) => (
                         <div
                           key={table.name}
                           class={`flex items-center justify-between p-2 rounded hover:bg-gray-50 ${
-                            selectedTable === table.name ? 'bg-indigo-50 border border-indigo-200' : ''
+                            selectedTable === table.name
+                              ? 'bg-indigo-50 border border-indigo-200'
+                              : ''
                           }`}
                         >
-                          <div 
+                          <div
                             class="flex-1 cursor-pointer"
                             onClick={() => setSelectedTable(table.name)}
                           >
                             <div class="flex items-center gap-2">
                               <div class="text-sm font-medium text-gray-900">{table.name}</div>
                               {table.access_policy && (
-                                <span class={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                                  table.access_policy === 'private' 
-                                    ? 'bg-red-100 text-red-800' 
-                                    : 'bg-green-100 text-green-800'
-                                }`}>
+                                <span
+                                  class={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                    table.access_policy === 'private'
+                                      ? 'bg-red-100 text-red-800'
+                                      : 'bg-green-100 text-green-800'
+                                  }`}
+                                >
                                   {table.access_policy}
                                 </span>
                               )}
@@ -1060,7 +1186,9 @@ export function DatabasePage() {
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation()
-                                  setOpenDropdownTable(openDropdownTable === table.name ? null : table.name)
+                                  setOpenDropdownTable(
+                                    openDropdownTable === table.name ? null : table.name
+                                  )
                                 }}
                                 class="p-1 text-gray-400 hover:text-gray-600 rounded"
                               >
@@ -1096,11 +1224,13 @@ export function DatabasePage() {
                   <div>
                     <h4 class="text-sm font-medium text-gray-700 mb-2">System Tables</h4>
                     <div class="space-y-1">
-                      {systemTables.map(table => (
+                      {systemTables.map((table) => (
                         <div
                           key={table.name}
                           class={`flex items-center justify-between p-2 rounded cursor-pointer hover:bg-gray-50 ${
-                            selectedTable === table.name ? 'bg-indigo-50 border border-indigo-200' : ''
+                            selectedTable === table.name
+                              ? 'bg-indigo-50 border border-indigo-200'
+                              : ''
                           }`}
                           onClick={() => setSelectedTable(table.name)}
                         >
@@ -1128,20 +1258,22 @@ export function DatabasePage() {
                   <div class="flex items-center gap-3">
                     <h3 class="text-lg font-medium text-gray-900">{selectedTable}</h3>
                     {(() => {
-                      const currentTable = tables.find(t => t.name === selectedTable)
+                      const currentTable = tables.find((t) => t.name === selectedTable)
                       if (currentTable?.type === 'user' && currentTable.access_policy) {
                         return (
                           <div class="flex items-center gap-2">
                             <select
                               value={currentTable.access_policy}
                               onChange={(e) => {
-                                const newPolicy = (e.target as HTMLSelectElement).value as 'public' | 'private'
+                                const newPolicy = (e.target as HTMLSelectElement).value as
+                                  | 'public'
+                                  | 'private'
                                 handleChangeAccessPolicy(selectedTable, newPolicy)
                               }}
                               disabled={changingPolicy === selectedTable}
                               class={`text-xs px-2 py-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                                currentTable.access_policy === 'private' 
-                                  ? 'border-red-300 bg-red-50 text-red-800' 
+                                currentTable.access_policy === 'private'
+                                  ? 'border-red-300 bg-red-50 text-red-800'
                                   : 'border-green-300 bg-green-50 text-green-800'
                               }`}
                             >
@@ -1157,7 +1289,7 @@ export function DatabasePage() {
                       return null
                     })()}
                   </div>
-                  {tables.find(t => t.name === selectedTable)?.type === 'user' && (
+                  {tables.find((t) => t.name === selectedTable)?.type === 'user' && (
                     <div class="flex space-x-2">
                       <button
                         type="button"
@@ -1171,7 +1303,7 @@ export function DatabasePage() {
                         onClick={() => {
                           // Reinitialize the form when opening
                           const initialRecord: Record<string, any> = {}
-                          tableColumns.forEach(col => {
+                          tableColumns.forEach((col) => {
                             if (!['id', 'created_at', 'updated_at'].includes(col.name)) {
                               initialRecord[col.name] = ''
                             }
@@ -1191,25 +1323,35 @@ export function DatabasePage() {
                 {showSchemaEditor && (
                   <div class="mb-6 p-4 border border-gray-200 rounded-lg">
                     <h4 class="text-sm font-medium text-gray-900 mb-3">Table Schema</h4>
-                    
+
                     {/* Existing columns */}
                     <div class="mb-4">
                       <h5 class="text-xs font-medium text-gray-700 mb-2">Columns</h5>
                       <div class="space-y-2">
-                        {tableColumns.map(col => (
-                          <div key={col.name} class="flex items-center justify-between p-2 bg-gray-50 rounded">
+                        {tableColumns.map((col) => (
+                          <div
+                            key={col.name}
+                            class="flex items-center justify-between p-2 bg-gray-50 rounded"
+                          >
                             {editingColumn?.oldName === col.name ? (
                               <input
                                 type="text"
                                 value={editingColumn?.newName || ''}
                                 onInput={(e) => {
                                   if (editingColumn) {
-                                    setEditingColumn({ ...editingColumn, newName: (e.target as HTMLInputElement).value })
+                                    setEditingColumn({
+                                      ...editingColumn,
+                                      newName: (e.target as HTMLInputElement).value,
+                                    })
                                   }
                                 }}
                                 onKeyDown={(e) => {
                                   if (editingColumn) {
-                                    if (e.key === 'Enter') handleRenameColumn(editingColumn.oldName, editingColumn.newName)
+                                    if (e.key === 'Enter')
+                                      handleRenameColumn(
+                                        editingColumn.oldName,
+                                        editingColumn.newName
+                                      )
                                     if (e.key === 'Escape') setEditingColumn(null)
                                   }
                                 }}
@@ -1225,20 +1367,27 @@ export function DatabasePage() {
                               <div class="flex-1">
                                 <span class="text-sm font-medium text-gray-900">{col.name}</span>
                                 <span class="ml-2 text-xs text-gray-500">{col.type}</span>
-                                {col.notnull ? <span class="ml-1 text-xs text-red-500">NOT NULL</span> : null}
-                                {col.pk ? <span class="ml-1 text-xs text-blue-500">PRIMARY KEY</span> : null}
+                                {col.notnull ? (
+                                  <span class="ml-1 text-xs text-red-500">NOT NULL</span>
+                                ) : null}
+                                {col.pk ? (
+                                  <span class="ml-1 text-xs text-blue-500">PRIMARY KEY</span>
+                                ) : null}
                                 {getForeignKeyForColumn(col.name) && (
                                   <span class="ml-1 text-xs text-green-600">
-                                    FK → {getForeignKeyForColumn(col.name)!.table}.{getForeignKeyForColumn(col.name)!.to}
+                                    FK → {getForeignKeyForColumn(col.name)!.table}.
+                                    {getForeignKeyForColumn(col.name)!.to}
                                   </span>
                                 )}
                               </div>
                             )}
-                            
+
                             {!['id', 'created_at', 'updated_at'].includes(col.name) && (
                               <div class="flex space-x-2">
                                 <button
-                                  onClick={() => setEditingColumn({ oldName: col.name, newName: col.name })}
+                                  onClick={() =>
+                                    setEditingColumn({ oldName: col.name, newName: col.name })
+                                  }
                                   class="text-xs text-indigo-600 hover:text-indigo-500"
                                 >
                                   Rename
@@ -1246,15 +1395,15 @@ export function DatabasePage() {
                                 <button
                                   onClick={() => {
                                     const fkInfo = getForeignKeyForColumn(col.name)
-                                    setModifyingColumn({ 
-                                      name: col.name, 
-                                      type: col.type, 
+                                    setModifyingColumn({
+                                      name: col.name,
+                                      type: col.type,
                                       notNull: col.notnull === 1,
-                                      foreignKey: { 
-                                        enabled: !!fkInfo, 
-                                        table: fkInfo?.table || '', 
-                                        column: fkInfo?.to || '' 
-                                      }
+                                      foreignKey: {
+                                        enabled: !!fkInfo,
+                                        table: fkInfo?.table || '',
+                                        column: fkInfo?.to || '',
+                                      },
                                     })
                                   }}
                                   class="text-xs text-blue-600 hover:text-blue-500"
@@ -1273,7 +1422,7 @@ export function DatabasePage() {
                         ))}
                       </div>
                     </div>
-                    
+
                     {/* Add new column form */}
                     <div class="border-t pt-4">
                       <h5 class="text-xs font-medium text-gray-700 mb-2">Add Column</h5>
@@ -1282,7 +1431,12 @@ export function DatabasePage() {
                           <input
                             type="text"
                             value={newColumn.name}
-                            onInput={(e) => setNewColumn({ ...newColumn, name: (e.target as HTMLInputElement).value })}
+                            onInput={(e) =>
+                              setNewColumn({
+                                ...newColumn,
+                                name: (e.target as HTMLInputElement).value,
+                              })
+                            }
                             placeholder="column_name"
                             pattern="[a-zA-Z_][a-zA-Z0-9_]*"
                             class="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
@@ -1290,7 +1444,12 @@ export function DatabasePage() {
                           />
                           <select
                             value={newColumn.type}
-                            onChange={(e) => setNewColumn({ ...newColumn, type: (e.target as HTMLSelectElement).value })}
+                            onChange={(e) =>
+                              setNewColumn({
+                                ...newColumn,
+                                type: (e.target as HTMLSelectElement).value,
+                              })
+                            }
                             class="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                           >
                             <option value="TEXT">TEXT</option>
@@ -1299,34 +1458,41 @@ export function DatabasePage() {
                             <option value="BLOB">BLOB</option>
                             <option value="BOOLEAN">BOOLEAN</option>
                           </select>
-                          
+
                           <label class="flex items-center space-x-1">
                             <input
                               type="checkbox"
                               checked={newColumn.notNull}
-                              onChange={(e) => setNewColumn({ ...newColumn, notNull: (e.target as HTMLInputElement).checked })}
+                              onChange={(e) =>
+                                setNewColumn({
+                                  ...newColumn,
+                                  notNull: (e.target as HTMLInputElement).checked,
+                                })
+                              }
                               class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                             />
                             <span class="text-xs text-gray-700">NN</span>
                           </label>
-                          
+
                           <label class="flex items-center space-x-1">
                             <input
                               type="checkbox"
                               checked={newColumn.foreignKey?.enabled}
-                              onChange={(e) => setNewColumn({ 
-                                ...newColumn, 
-                                foreignKey: { 
-                                  ...newColumn.foreignKey, 
-                                  enabled: (e.target as HTMLInputElement).checked,
-                                  column: (e.target as HTMLInputElement).checked ? 'id' : ''
-                                } 
-                              })}
+                              onChange={(e) =>
+                                setNewColumn({
+                                  ...newColumn,
+                                  foreignKey: {
+                                    ...newColumn.foreignKey,
+                                    enabled: (e.target as HTMLInputElement).checked,
+                                    column: (e.target as HTMLInputElement).checked ? 'id' : '',
+                                  },
+                                })
+                              }
                               class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                             />
                             <span class="text-xs text-gray-700">FK</span>
                           </label>
-                          
+
                           <button
                             type="submit"
                             class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -1334,36 +1500,42 @@ export function DatabasePage() {
                             Add
                           </button>
                         </div>
-                        
+
                         {/* Foreign Key Settings */}
                         {newColumn.foreignKey?.enabled && (
                           <div class="flex space-x-2 mt-2">
                             <select
                               value={newColumn.foreignKey?.table || ''}
-                              onChange={(e) => setNewColumn({ 
-                                ...newColumn, 
-                                foreignKey: { 
-                                  ...newColumn.foreignKey, 
-                                  table: (e.target as HTMLSelectElement).value 
-                                } 
-                              })}
+                              onChange={(e) =>
+                                setNewColumn({
+                                  ...newColumn,
+                                  foreignKey: {
+                                    ...newColumn.foreignKey,
+                                    table: (e.target as HTMLSelectElement).value,
+                                  },
+                                })
+                              }
                               class="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                             >
                               <option value="">Select table...</option>
-                              {getUserTables(tables).map(table => (
-                                <option key={table.name} value={table.name}>{table.name}</option>
+                              {getUserTables(tables).map((table) => (
+                                <option key={table.name} value={table.name}>
+                                  {table.name}
+                                </option>
                               ))}
                             </select>
                             <input
                               type="text"
                               value={newColumn.foreignKey?.column || ''}
-                              onChange={(e) => setNewColumn({ 
-                                ...newColumn, 
-                                foreignKey: { 
-                                  ...newColumn.foreignKey, 
-                                  column: (e.target as HTMLInputElement).value 
-                                } 
-                              })}
+                              onChange={(e) =>
+                                setNewColumn({
+                                  ...newColumn,
+                                  foreignKey: {
+                                    ...newColumn.foreignKey,
+                                    column: (e.target as HTMLInputElement).value,
+                                  },
+                                })
+                              }
                               placeholder="id"
                               class="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                             />
@@ -1387,13 +1559,18 @@ export function DatabasePage() {
 
                       {/* Existing Indexes */}
                       <div class="space-y-2 mb-3">
-                        {tableIndexes.map(index => (
-                          <div key={index.name} class="flex items-center justify-between p-2 bg-gray-50 rounded">
+                        {tableIndexes.map((index) => (
+                          <div
+                            key={index.name}
+                            class="flex items-center justify-between p-2 bg-gray-50 rounded"
+                          >
                             <div class="flex-1">
                               <div class="flex items-center space-x-2">
                                 <span class="text-sm font-medium text-gray-900">{index.name}</span>
                                 {index.unique && (
-                                  <span class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">UNIQUE</span>
+                                  <span class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
+                                    UNIQUE
+                                  </span>
                                 )}
                               </div>
                               <div class="text-xs text-gray-500">
@@ -1415,14 +1592,22 @@ export function DatabasePage() {
 
                       {/* Create Index Form */}
                       {showIndexManager && (
-                        <form onSubmit={handleCreateIndex} class="space-y-3 p-3 bg-blue-50 rounded-md">
+                        <form
+                          onSubmit={handleCreateIndex}
+                          class="space-y-3 p-3 bg-blue-50 rounded-md"
+                        >
                           <h6 class="text-xs font-medium text-gray-700">Create New Index</h6>
-                          
+
                           <div>
                             <input
                               type="text"
                               value={newIndex.name}
-                              onInput={(e) => setNewIndex({ ...newIndex, name: (e.target as HTMLInputElement).value })}
+                              onInput={(e) =>
+                                setNewIndex({
+                                  ...newIndex,
+                                  name: (e.target as HTMLInputElement).value,
+                                })
+                              }
                               placeholder="index_name"
                               pattern="[a-zA-Z_][a-zA-Z0-9_]*"
                               class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
@@ -1444,15 +1629,19 @@ export function DatabasePage() {
                                   class="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                                 >
                                   <option value="">Select column...</option>
-                                  {tableColumns.map(col => (
-                                    <option key={col.name} value={col.name}>{col.name}</option>
+                                  {tableColumns.map((col) => (
+                                    <option key={col.name} value={col.name}>
+                                      {col.name}
+                                    </option>
                                   ))}
                                 </select>
                                 {newIndex.columns.length > 1 && (
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      const newColumns = newIndex.columns.filter((_, i) => i !== idx)
+                                      const newColumns = newIndex.columns.filter(
+                                        (_, i) => i !== idx
+                                      )
                                       setNewIndex({ ...newIndex, columns: newColumns })
                                     }}
                                     class="text-red-600 hover:text-red-500 text-sm"
@@ -1464,7 +1653,9 @@ export function DatabasePage() {
                             ))}
                             <button
                               type="button"
-                              onClick={() => setNewIndex({ ...newIndex, columns: [...newIndex.columns, ''] })}
+                              onClick={() =>
+                                setNewIndex({ ...newIndex, columns: [...newIndex.columns, ''] })
+                              }
                               class="text-xs text-indigo-600 hover:text-indigo-500"
                             >
                               Add Column
@@ -1476,7 +1667,12 @@ export function DatabasePage() {
                               <input
                                 type="checkbox"
                                 checked={newIndex.unique}
-                                onChange={(e) => setNewIndex({ ...newIndex, unique: (e.target as HTMLInputElement).checked })}
+                                onChange={(e) =>
+                                  setNewIndex({
+                                    ...newIndex,
+                                    unique: (e.target as HTMLInputElement).checked,
+                                  })
+                                }
                                 class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                               />
                               <span class="text-sm text-gray-700">Unique Index</span>
@@ -1511,17 +1707,21 @@ export function DatabasePage() {
                 {modifyingColumn && (
                   <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-                      <h4 class="text-lg font-medium text-gray-900 mb-4">Modify Column: {modifyingColumn.name}</h4>
-                      
+                      <h4 class="text-lg font-medium text-gray-900 mb-4">
+                        Modify Column: {modifyingColumn.name}
+                      </h4>
+
                       <div class="space-y-4">
                         <div>
                           <label class="block text-sm font-medium text-gray-700">Type</label>
                           <select
                             value={modifyingColumn.type}
-                            onChange={(e) => setModifyingColumn({ 
-                              ...modifyingColumn, 
-                              type: (e.target as HTMLSelectElement).value 
-                            })}
+                            onChange={(e) =>
+                              setModifyingColumn({
+                                ...modifyingColumn,
+                                type: (e.target as HTMLSelectElement).value,
+                              })
+                            }
                             class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                           >
                             <option value="TEXT">TEXT</option>
@@ -1531,89 +1731,111 @@ export function DatabasePage() {
                             <option value="BOOLEAN">BOOLEAN</option>
                           </select>
                         </div>
-                        
+
                         <div>
                           <label class="flex items-center space-x-2">
                             <input
                               type="checkbox"
                               checked={modifyingColumn.notNull}
-                              onChange={(e) => setModifyingColumn({ 
-                                ...modifyingColumn, 
-                                notNull: (e.target as HTMLInputElement).checked 
-                              })}
+                              onChange={(e) =>
+                                setModifyingColumn({
+                                  ...modifyingColumn,
+                                  notNull: (e.target as HTMLInputElement).checked,
+                                })
+                              }
                               class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                             />
                             <span class="text-sm text-gray-700">NOT NULL</span>
                           </label>
                         </div>
-                        
+
                         <div>
                           <label class="flex items-center space-x-2">
                             <input
                               type="checkbox"
                               checked={modifyingColumn.foreignKey.enabled}
-                              onChange={(e) => setModifyingColumn({ 
-                                ...modifyingColumn, 
-                                foreignKey: { 
-                                  ...modifyingColumn.foreignKey, 
-                                  enabled: (e.target as HTMLInputElement).checked,
-                                  column: (e.target as HTMLInputElement).checked ? 'id' : ''
-                                } 
-                              })}
+                              onChange={(e) =>
+                                setModifyingColumn({
+                                  ...modifyingColumn,
+                                  foreignKey: {
+                                    ...modifyingColumn.foreignKey,
+                                    enabled: (e.target as HTMLInputElement).checked,
+                                    column: (e.target as HTMLInputElement).checked ? 'id' : '',
+                                  },
+                                })
+                              }
                               class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                             />
                             <span class="text-sm text-gray-700">Foreign Key</span>
                           </label>
                         </div>
-                        
+
                         {modifyingColumn.foreignKey.enabled && (
                           <div class="space-y-2">
                             <select
                               value={modifyingColumn.foreignKey.table}
-                              onChange={(e) => setModifyingColumn({ 
-                                ...modifyingColumn, 
-                                foreignKey: { 
-                                  ...modifyingColumn.foreignKey, 
-                                  table: (e.target as HTMLSelectElement).value 
-                                } 
-                              })}
+                              onChange={(e) =>
+                                setModifyingColumn({
+                                  ...modifyingColumn,
+                                  foreignKey: {
+                                    ...modifyingColumn.foreignKey,
+                                    table: (e.target as HTMLSelectElement).value,
+                                  },
+                                })
+                              }
                               class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                             >
                               <option value="">Select table...</option>
-                              {getUserTables(tables).map(table => (
-                                <option key={table.name} value={table.name}>{table.name}</option>
+                              {getUserTables(tables).map((table) => (
+                                <option key={table.name} value={table.name}>
+                                  {table.name}
+                                </option>
                               ))}
                             </select>
                             <input
                               type="text"
                               value={modifyingColumn.foreignKey.column}
-                              onChange={(e) => setModifyingColumn({ 
-                                ...modifyingColumn, 
-                                foreignKey: { 
-                                  ...modifyingColumn.foreignKey, 
-                                  column: (e.target as HTMLInputElement).value 
-                                } 
-                              })}
+                              onChange={(e) =>
+                                setModifyingColumn({
+                                  ...modifyingColumn,
+                                  foreignKey: {
+                                    ...modifyingColumn.foreignKey,
+                                    column: (e.target as HTMLInputElement).value,
+                                  },
+                                })
+                              }
                               placeholder="id"
                               class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                             />
                           </div>
                         )}
                       </div>
-                      
+
                       <div class="mt-6 flex space-x-3">
                         <button
                           onClick={() => {
                             const changes: any = {}
-                            if (modifyingColumn.type !== tableColumns.find(c => c.name === modifyingColumn.name)?.type) {
+                            if (
+                              modifyingColumn.type !==
+                              tableColumns.find((c) => c.name === modifyingColumn.name)?.type
+                            ) {
                               changes.type = modifyingColumn.type
                             }
-                            const currentNotNull = tableColumns.find(c => c.name === modifyingColumn.name)?.notnull === 1
+                            const currentNotNull =
+                              tableColumns.find((c) => c.name === modifyingColumn.name)?.notnull ===
+                              1
                             if (modifyingColumn.notNull !== currentNotNull) {
                               changes.notNull = modifyingColumn.notNull
                             }
-                            if (modifyingColumn.foreignKey.enabled && modifyingColumn.foreignKey.table && modifyingColumn.foreignKey.column) {
-                              changes.foreignKey = { table: modifyingColumn.foreignKey.table, column: modifyingColumn.foreignKey.column }
+                            if (
+                              modifyingColumn.foreignKey.enabled &&
+                              modifyingColumn.foreignKey.table &&
+                              modifyingColumn.foreignKey.column
+                            ) {
+                              changes.foreignKey = {
+                                table: modifyingColumn.foreignKey.table,
+                                column: modifyingColumn.foreignKey.column,
+                              }
                             } else if (!modifyingColumn.foreignKey.enabled) {
                               changes.foreignKey = null
                             }
@@ -1640,15 +1862,25 @@ export function DatabasePage() {
                     <div class="bg-white rounded-lg p-6 max-w-lg w-full mx-4">
                       <div class="flex items-center mb-4">
                         <div class="flex-shrink-0">
-                          <svg class="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                          <svg
+                            class="h-6 w-6 text-yellow-600"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                            />
                           </svg>
                         </div>
                         <div class="ml-3">
                           <h3 class="text-lg font-medium text-gray-900">Validation Warning</h3>
                         </div>
                       </div>
-                      
+
                       <div class="mb-4">
                         <p class="text-sm text-gray-700 mb-3">
                           The following issues were found with your changes:
@@ -1656,7 +1888,9 @@ export function DatabasePage() {
                         <div class="bg-yellow-50 border border-yellow-200 rounded-md p-3">
                           <ul class="list-disc list-inside space-y-1">
                             {validationWarning.errors.map((error, idx) => (
-                              <li key={idx} class="text-sm text-yellow-800">{error}</li>
+                              <li key={idx} class="text-sm text-yellow-800">
+                                {error}
+                              </li>
                             ))}
                           </ul>
                           {validationWarning.conflictingRows > 0 && (
@@ -1666,10 +1900,11 @@ export function DatabasePage() {
                           )}
                         </div>
                         <p class="text-sm text-gray-600 mt-3">
-                          Proceeding may result in data loss or corruption. Are you sure you want to continue?
+                          Proceeding may result in data loss or corruption. Are you sure you want to
+                          continue?
                         </p>
                       </div>
-                      
+
                       <div class="flex space-x-3">
                         <button
                           onClick={validationWarning.onConfirm}
@@ -1695,30 +1930,52 @@ export function DatabasePage() {
                       <div class="flex items-center mb-4">
                         <div class="flex-shrink-0">
                           {confirmationModal.variant === 'danger' ? (
-                            <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                            <svg
+                              class="h-6 w-6 text-red-600"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                              />
                             </svg>
                           ) : (
-                            <svg class="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            <svg
+                              class="h-6 w-6 text-yellow-600"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
                             </svg>
                           )}
                         </div>
                         <div class="ml-3">
-                          <h3 class="text-lg font-medium text-gray-900">{confirmationModal.title}</h3>
+                          <h3 class="text-lg font-medium text-gray-900">
+                            {confirmationModal.title}
+                          </h3>
                         </div>
                       </div>
-                      
+
                       <div class="mb-6">
                         <p class="text-sm text-gray-700">{confirmationModal.message}</p>
                       </div>
-                      
+
                       <div class="flex space-x-3">
                         <button
                           onClick={confirmationModal.onConfirm}
                           class={`inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                            confirmationModal.variant === 'danger' 
-                              ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500' 
+                            confirmationModal.variant === 'danger'
+                              ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
                               : 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500'
                           }`}
                         >
@@ -1745,36 +2002,51 @@ export function DatabasePage() {
                           onClick={() => setEditingRecord(null)}
                           class="text-gray-400 hover:text-gray-600"
                         >
-                          <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                          <svg
+                            class="h-6 w-6"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M6 18L18 6M6 6l12 12"
+                            />
                           </svg>
                         </button>
                       </div>
-                      
+
                       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        {tableColumns.map(col => {
+                        {tableColumns.map((col) => {
                           if (['id', 'created_at', 'updated_at'].includes(col.name)) {
                             return (
                               <div key={col.name} class="sm:col-span-2">
-                                <label class="block text-sm font-medium text-gray-500">{col.name} (read-only)</label>
+                                <label class="block text-sm font-medium text-gray-500">
+                                  {col.name} (read-only)
+                                </label>
                                 <div class="mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-sm text-gray-500">
-                                  {col.name.includes('_at') && editingRecord.data[col.name] 
+                                  {col.name.includes('_at') && editingRecord.data[col.name]
                                     ? formatDateTime(editingRecord.data[col.name])
-                                    : editingRecord.data[col.name] || '-'
-                                  }
+                                    : editingRecord.data[col.name] || '-'}
                                 </div>
                               </div>
                             )
                           }
 
                           const fkInfo = getForeignKeyForColumn(col.name)
-                          
+
                           return (
                             <div key={col.name}>
                               <label class="block text-sm font-medium text-gray-700">
                                 {col.name}
                                 {col.notnull ? <span class="text-red-500 ml-1">*</span> : null}
-                                {fkInfo && <span class="text-green-600 ml-1 text-xs">FK → {fkInfo.table}.{fkInfo.to}</span>}
+                                {fkInfo && (
+                                  <span class="text-green-600 ml-1 text-xs">
+                                    FK → {fkInfo.table}.{fkInfo.to}
+                                  </span>
+                                )}
                               </label>
                               {fkInfo ? (
                                 <div class="relative">
@@ -1785,17 +2057,22 @@ export function DatabasePage() {
                                       const newValue = (e.target as HTMLInputElement).value
                                       setEditingRecord({
                                         ...editingRecord,
-                                        data: { ...editingRecord.data, [col.name]: newValue }
+                                        data: { ...editingRecord.data, [col.name]: newValue },
                                       })
-                                      
+
                                       // FK validation
                                       if (newValue.trim()) {
                                         validateForeignKey(newValue, fkInfo)
                                       }
                                     }}
                                     class={`mt-1 block w-full border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${
-                                      editingRecord.data[col.name] && fkValidation[`${fkInfo.table}-${editingRecord.data[col.name]}`]
-                                        ? fkValidation[`${fkInfo.table}-${editingRecord.data[col.name]}`].isValid
+                                      editingRecord.data[col.name] &&
+                                      fkValidation[
+                                        `${fkInfo.table}-${editingRecord.data[col.name]}`
+                                      ]
+                                        ? fkValidation[
+                                            `${fkInfo.table}-${editingRecord.data[col.name]}`
+                                          ].isValid
                                           ? 'border-green-300 bg-green-50'
                                           : 'border-red-300 bg-red-50'
                                         : 'border-gray-300'
@@ -1803,27 +2080,46 @@ export function DatabasePage() {
                                     placeholder={`Enter ${fkInfo.table} ID`}
                                     required={col.notnull === 1}
                                   />
-                                  {editingRecord.data[col.name] && fkValidation[`${fkInfo.table}-${editingRecord.data[col.name]}`] && (
-                                    <div class={`absolute left-0 top-full mt-1 text-xs px-2 py-1 rounded ${
-                                      fkValidation[`${fkInfo.table}-${editingRecord.data[col.name]}`].isValid
-                                        ? 'text-green-700 bg-green-100'
-                                        : 'text-red-700 bg-red-100'
-                                    }`}>
-                                      {fkValidation[`${fkInfo.table}-${editingRecord.data[col.name]}`].isChecking
-                                        ? 'Checking...'
-                                        : fkValidation[`${fkInfo.table}-${editingRecord.data[col.name]}`].displayName
-                                      }
-                                    </div>
-                                  )}
+                                  {editingRecord.data[col.name] &&
+                                    fkValidation[
+                                      `${fkInfo.table}-${editingRecord.data[col.name]}`
+                                    ] && (
+                                      <div
+                                        class={`absolute left-0 top-full mt-1 text-xs px-2 py-1 rounded ${
+                                          fkValidation[
+                                            `${fkInfo.table}-${editingRecord.data[col.name]}`
+                                          ].isValid
+                                            ? 'text-green-700 bg-green-100'
+                                            : 'text-red-700 bg-red-100'
+                                        }`}
+                                      >
+                                        {fkValidation[
+                                          `${fkInfo.table}-${editingRecord.data[col.name]}`
+                                        ].isChecking
+                                          ? 'Checking...'
+                                          : fkValidation[
+                                              `${fkInfo.table}-${editingRecord.data[col.name]}`
+                                            ].displayName}
+                                      </div>
+                                    )}
                                 </div>
                               ) : (
                                 <input
-                                  type={col.type === 'INTEGER' || col.type === 'REAL' ? 'number' : 'text'}
+                                  type={
+                                    col.type === 'INTEGER' || col.type === 'REAL'
+                                      ? 'number'
+                                      : 'text'
+                                  }
                                   value={editingRecord.data[col.name] || ''}
-                                  onInput={(e) => setEditingRecord({
-                                    ...editingRecord,
-                                    data: { ...editingRecord.data, [col.name]: (e.target as HTMLInputElement).value }
-                                  })}
+                                  onInput={(e) =>
+                                    setEditingRecord({
+                                      ...editingRecord,
+                                      data: {
+                                        ...editingRecord.data,
+                                        [col.name]: (e.target as HTMLInputElement).value,
+                                      },
+                                    })
+                                  }
                                   class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                   required={col.notnull === 1}
                                 />
@@ -1832,7 +2128,7 @@ export function DatabasePage() {
                           )
                         })}
                       </div>
-                      
+
                       <div class="mt-6 flex space-x-3">
                         <button
                           onClick={handleRecordSave}
@@ -1862,20 +2158,33 @@ export function DatabasePage() {
                             <input
                               type="text"
                               value={value}
-                              onInput={(e) => setNewRecord({ ...newRecord, [key]: (e.target as HTMLInputElement).value })}
+                              onInput={(e) =>
+                                setNewRecord({
+                                  ...newRecord,
+                                  [key]: (e.target as HTMLInputElement).value,
+                                })
+                              }
                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                             />
                           </div>
                         ))}
                       </div>
-                      
+
                       {/* Error display within the form */}
                       {error && showCreateForm && (
                         <div class="mt-3 bg-red-50 border border-red-200 rounded-md p-3">
                           <div class="flex">
                             <div class="flex-shrink-0">
-                              <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                              <svg
+                                class="h-5 w-5 text-red-400"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                              >
+                                <path
+                                  fill-rule="evenodd"
+                                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                  clip-rule="evenodd"
+                                />
                               </svg>
                             </div>
                             <div class="ml-3">
@@ -1884,7 +2193,7 @@ export function DatabasePage() {
                           </div>
                         </div>
                       )}
-                      
+
                       <div class="mt-3 flex space-x-2">
                         <button
                           type="submit"
@@ -1918,7 +2227,7 @@ export function DatabasePage() {
                     <table class="min-w-full divide-y divide-gray-200">
                       <thead class="bg-gray-50">
                         <tr>
-                          {tableColumns.map(col => (
+                          {tableColumns.map((col) => (
                             <th
                               key={col.name}
                               class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -1932,28 +2241,32 @@ export function DatabasePage() {
                       <tbody class="bg-white divide-y divide-gray-200">
                         {tableData.map((row, idx) => (
                           <tr key={row.id || idx} data-record-id={row.id}>
-                            {tableColumns.map(col => (
-                              <td 
-                                key={col.name} 
+                            {tableColumns.map((col) => (
+                              <td
+                                key={col.name}
                                 class={`px-3 py-2 whitespace-nowrap text-sm text-gray-900 select-text ${
-                                  !['id', 'created_at', 'updated_at'].includes(col.name) && tables.find(t => t.name === selectedTable)?.type === 'user'
-                                    ? 'cursor-pointer hover:bg-gray-50' 
+                                  !['id', 'created_at', 'updated_at'].includes(col.name) &&
+                                  tables.find((t) => t.name === selectedTable)?.type === 'user'
+                                    ? 'cursor-pointer hover:bg-gray-50'
                                     : ''
                                 }`}
                                 onClick={(e) => {
                                   const cellKey = `${row.id}-${col.name}`
-                                  
+
                                   // Skip if not editable
-                                  if (['id', 'created_at', 'updated_at'].includes(col.name) || tables.find(t => t.name === selectedTable)?.type !== 'user') {
+                                  if (
+                                    ['id', 'created_at', 'updated_at'].includes(col.name) ||
+                                    tables.find((t) => t.name === selectedTable)?.type !== 'user'
+                                  ) {
                                     return
                                   }
-                                  
+
                                   const current = clickCount[cellKey]
-                                  
+
                                   if (current) {
                                     // This is a second click within the timeout period
                                     clearTimeout(current.timeout)
-                                    setClickCount(prev => {
+                                    setClickCount((prev) => {
                                       const newState = { ...prev }
                                       delete newState[cellKey]
                                       return newState
@@ -1964,31 +2277,41 @@ export function DatabasePage() {
                                   } else {
                                     // This is the first click
                                     const timeout = setTimeout(() => {
-                                      setClickCount(prev => {
+                                      setClickCount((prev) => {
                                         const newState = { ...prev }
                                         delete newState[cellKey]
                                         return newState
                                       })
                                     }, 400) // 400ms window for double-click
-                                    
-                                    setClickCount(prev => ({
+
+                                    setClickCount((prev) => ({
                                       ...prev,
-                                      [cellKey]: { count: 1, timeout }
+                                      [cellKey]: { count: 1, timeout },
                                     }))
                                   }
                                 }}
-                                title={!['id', 'created_at', 'updated_at'].includes(col.name) && tables.find(t => t.name === selectedTable)?.type === 'user' ? 'Double-click to edit' : ''}
+                                title={
+                                  !['id', 'created_at', 'updated_at'].includes(col.name) &&
+                                  tables.find((t) => t.name === selectedTable)?.type === 'user'
+                                    ? 'Double-click to edit'
+                                    : ''
+                                }
                               >
-                                {editingCell?.rowId === row.id && editingCell?.columnName === col.name ? (
+                                {editingCell?.rowId === row.id &&
+                                editingCell?.columnName === col.name ? (
                                   <div class="relative">
                                     <input
-                                      type={col.type === 'INTEGER' || col.type === 'REAL' ? 'number' : 'text'}
+                                      type={
+                                        col.type === 'INTEGER' || col.type === 'REAL'
+                                          ? 'number'
+                                          : 'text'
+                                      }
                                       value={editingCell?.value || ''}
                                       onInput={(e) => {
                                         if (editingCell) {
                                           const newValue = (e.target as HTMLInputElement).value
                                           setEditingCell({ ...editingCell, value: newValue })
-                                          
+
                                           // FK validation for foreign key columns
                                           const fkInfo = getForeignKeyForColumn(col.name)
                                           if (fkInfo && newValue.trim()) {
@@ -1998,7 +2321,8 @@ export function DatabasePage() {
                                       }}
                                       onKeyDown={(e) => {
                                         if (editingCell) {
-                                          if (e.key === 'Enter' && !e.isComposing) handleCellSave(row.id, col.name, editingCell.value)
+                                          if (e.key === 'Enter' && !e.isComposing)
+                                            handleCellSave(row.id, col.name, editingCell.value)
                                           if (e.key === 'Escape') handleCellCancel()
                                         }
                                       }}
@@ -2008,8 +2332,14 @@ export function DatabasePage() {
                                         }
                                       }}
                                       class={`w-full px-2 py-1 border rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
-                                        getForeignKeyForColumn(col.name) && editingCell?.value && fkValidation[`${getForeignKeyForColumn(col.name)?.table}-${editingCell.value}`]
-                                          ? fkValidation[`${getForeignKeyForColumn(col.name)?.table}-${editingCell.value}`].isValid
+                                        getForeignKeyForColumn(col.name) &&
+                                        editingCell?.value &&
+                                        fkValidation[
+                                          `${getForeignKeyForColumn(col.name)?.table}-${editingCell.value}`
+                                        ]
+                                          ? fkValidation[
+                                              `${getForeignKeyForColumn(col.name)?.table}-${editingCell.value}`
+                                            ].isValid
                                             ? 'border-green-300 bg-green-50'
                                             : 'border-red-300 bg-red-50'
                                           : 'border-indigo-300'
@@ -2027,18 +2357,29 @@ export function DatabasePage() {
                                         }
                                       }}
                                     />
-                                    {getForeignKeyForColumn(col.name) && editingCell?.value && fkValidation[`${getForeignKeyForColumn(col.name)?.table}-${editingCell.value}`] && (
-                                      <div class={`absolute left-0 -bottom-6 text-xs px-2 py-1 rounded ${
-                                        fkValidation[`${getForeignKeyForColumn(col.name)?.table}-${editingCell.value}`].isValid
-                                          ? 'text-green-700 bg-green-100'
-                                          : 'text-red-700 bg-red-100'
-                                      }`}>
-                                        {fkValidation[`${getForeignKeyForColumn(col.name)?.table}-${editingCell.value}`].isChecking
-                                          ? 'Checking...'
-                                          : fkValidation[`${getForeignKeyForColumn(col.name)?.table}-${editingCell.value}`].displayName
-                                        }
-                                      </div>
-                                    )}
+                                    {getForeignKeyForColumn(col.name) &&
+                                      editingCell?.value &&
+                                      fkValidation[
+                                        `${getForeignKeyForColumn(col.name)?.table}-${editingCell.value}`
+                                      ] && (
+                                        <div
+                                          class={`absolute left-0 -bottom-6 text-xs px-2 py-1 rounded ${
+                                            fkValidation[
+                                              `${getForeignKeyForColumn(col.name)?.table}-${editingCell.value}`
+                                            ].isValid
+                                              ? 'text-green-700 bg-green-100'
+                                              : 'text-red-700 bg-red-100'
+                                          }`}
+                                        >
+                                          {fkValidation[
+                                            `${getForeignKeyForColumn(col.name)?.table}-${editingCell.value}`
+                                          ].isChecking
+                                            ? 'Checking...'
+                                            : fkValidation[
+                                                `${getForeignKeyForColumn(col.name)?.table}-${editingCell.value}`
+                                              ].displayName}
+                                        </div>
+                                      )}
                                   </div>
                                 ) : col.name.includes('_at') && row[col.name] ? (
                                   formatDateTime(row[col.name])
@@ -2072,11 +2413,11 @@ export function DatabasePage() {
                               </td>
                             ))}
                             <td class="px-3 py-2 whitespace-nowrap text-right text-sm font-medium">
-                              {tables.find(t => t.name === selectedTable)?.type === 'user' && (
+                              {tables.find((t) => t.name === selectedTable)?.type === 'user' && (
                                 <div class="flex space-x-2">
                                   <button
                                     onClick={() => {
-                                      const record = tableData.find(r => r.id === row.id)
+                                      const record = tableData.find((r) => r.id === row.id)
                                       if (record) {
                                         setEditingRecord({ id: row.id, data: { ...record } })
                                       }
@@ -2127,10 +2468,10 @@ export function DatabasePage() {
           )}
         </div>
       </div>
-      
+
       {/* Schema History Modal */}
       {showSchemaHistory && (
-        <SchemaHistory 
+        <SchemaHistory
           onClose={() => setShowSchemaHistory(false)}
           onRestore={() => {
             loadTables()

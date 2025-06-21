@@ -1,10 +1,10 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { APIKeyManager, API_SCOPES } from '../../lib/api-key-manager'
 import { nanoid } from 'nanoid'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { API_SCOPES, APIKeyManager } from '../../lib/api-key-manager'
 
 // Mock nanoid
 vi.mock('nanoid', () => ({
-  nanoid: vi.fn()
+  nanoid: vi.fn(),
 }))
 
 const mockNanoid = vi.mocked(nanoid)
@@ -15,35 +15,35 @@ describe('APIKeyManager', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    
+
     // Create more flexible mock that returns itself for chaining
     const createChainableMock = () => {
       const mockRun = vi.fn().mockResolvedValue({ success: true, meta: { changes: 1 } })
       const mockFirst = vi.fn().mockResolvedValue(null)
       const mockAll = vi.fn().mockResolvedValue({ results: [] })
-      
+
       const chainable = {
         bind: vi.fn().mockReturnThis(),
         run: mockRun,
         first: mockFirst,
-        all: mockAll
+        all: mockAll,
       }
-      
+
       // Make bind return a new chainable object each time
       chainable.bind = vi.fn().mockImplementation(() => ({
         ...chainable,
         run: mockRun,
         first: mockFirst,
-        all: mockAll
+        all: mockAll,
       }))
-      
+
       return chainable
     }
-    
+
     mockDB = {
-      prepare: vi.fn().mockImplementation(() => createChainableMock())
+      prepare: vi.fn().mockImplementation(() => createChainableMock()),
     }
-    
+
     apiKeyManager = new APIKeyManager(mockDB)
     mockNanoid.mockReturnValue('test-nanoid-123')
   })
@@ -52,7 +52,7 @@ describe('APIKeyManager', () => {
     it('should create API keys table and indexes', async () => {
       const runMock = vi.fn().mockResolvedValue({ success: true })
       mockDB.prepare.mockReturnValue({
-        run: runMock
+        run: runMock,
       })
 
       await apiKeyManager.initializeTable()
@@ -66,7 +66,7 @@ describe('APIKeyManager', () => {
     it('should handle table creation errors', async () => {
       const error = new Error('Table creation failed')
       mockDB.prepare.mockReturnValue({
-        run: vi.fn().mockRejectedValue(error)
+        run: vi.fn().mockRejectedValue(error),
       })
 
       await expect(apiKeyManager.initializeTable()).rejects.toThrow('Table creation failed')
@@ -89,14 +89,14 @@ describe('APIKeyManager', () => {
       const runMock = vi.fn().mockResolvedValue({ success: true })
       mockDB.prepare.mockReturnValue({
         bind: vi.fn().mockReturnValue({
-          run: runMock
-        })
+          run: runMock,
+        }),
       })
 
       const request = {
         name: 'Test Key',
         scopes: ['data:read', 'data:write'],
-        expires_in_days: 30
+        expires_in_days: 30,
       }
 
       const result = await apiKeyManager.createAPIKey(request, 'admin-123')
@@ -113,13 +113,13 @@ describe('APIKeyManager', () => {
       const runMock = vi.fn().mockResolvedValue({ success: true })
       mockDB.prepare.mockReturnValue({
         bind: vi.fn().mockReturnValue({
-          run: runMock
-        })
+          run: runMock,
+        }),
       })
 
       const request = {
         name: 'Test Key',
-        scopes: ['data:read']
+        scopes: ['data:read'],
       }
 
       const result = await apiKeyManager.createAPIKey(request, 'admin-123')
@@ -140,21 +140,23 @@ describe('APIKeyManager', () => {
         created_at: '2023-01-01T00:00:00Z',
         last_used_at: null,
         expires_at: null,
-        is_active: 1
+        is_active: 1,
       }
 
       const firstMock = vi.fn().mockResolvedValue(mockKey)
       const runMock = vi.fn().mockResolvedValue({ success: true })
-      
-      mockDB.prepare.mockReturnValueOnce({
-        bind: vi.fn().mockReturnValue({
-          first: firstMock
+
+      mockDB.prepare
+        .mockReturnValueOnce({
+          bind: vi.fn().mockReturnValue({
+            first: firstMock,
+          }),
         })
-      }).mockReturnValueOnce({
-        bind: vi.fn().mockReturnValue({
-          run: runMock
+        .mockReturnValueOnce({
+          bind: vi.fn().mockReturnValue({
+            run: runMock,
+          }),
         })
-      })
 
       const result = await apiKeyManager.verifyAPIKey('vb_live_test-nanoid-123')
 
@@ -169,8 +171,8 @@ describe('APIKeyManager', () => {
       const firstMock = vi.fn().mockResolvedValue(null)
       mockDB.prepare.mockReturnValue({
         bind: vi.fn().mockReturnValue({
-          first: firstMock
-        })
+          first: firstMock,
+        }),
       })
 
       const result = await apiKeyManager.verifyAPIKey('invalid-key')
@@ -183,14 +185,14 @@ describe('APIKeyManager', () => {
         id: 'key-123',
         expires_at: '2020-01-01T00:00:00Z', // expired
         is_active: 1,
-        scopes: '["data:read"]'
+        scopes: '["data:read"]',
       }
 
       const firstMock = vi.fn().mockResolvedValue(expiredKey)
       mockDB.prepare.mockReturnValue({
         bind: vi.fn().mockReturnValue({
-          first: firstMock
-        })
+          first: firstMock,
+        }),
       })
 
       const result = await apiKeyManager.verifyAPIKey('expired-key')
@@ -202,12 +204,12 @@ describe('APIKeyManager', () => {
       // Since the query filters by is_active = 1, inactive keys should return null from DB
       const firstMock = vi.fn().mockResolvedValue(null)
       const runMock = vi.fn().mockResolvedValue({ success: true })
-      
+
       mockDB.prepare.mockReturnValue({
         bind: vi.fn().mockReturnValue({
           first: firstMock,
-          run: runMock
-        })
+          run: runMock,
+        }),
       })
 
       const result = await apiKeyManager.verifyAPIKey('inactive-key')
@@ -228,7 +230,7 @@ describe('APIKeyManager', () => {
           created_at: '2023-01-01T00:00:00Z',
           last_used_at: null,
           expires_at: null,
-          is_active: 1
+          is_active: 1,
         },
         {
           id: 'key-2',
@@ -239,15 +241,15 @@ describe('APIKeyManager', () => {
           created_at: '2023-01-02T00:00:00Z',
           last_used_at: null,
           expires_at: null,
-          is_active: 0
-        }
+          is_active: 0,
+        },
       ]
 
       const allMock = vi.fn().mockResolvedValue({ results: mockKeys })
       mockDB.prepare.mockReturnValue({
         bind: vi.fn().mockReturnValue({
-          all: allMock
-        })
+          all: allMock,
+        }),
       })
 
       const result = await apiKeyManager.listAPIKeys('admin-123')
@@ -263,8 +265,8 @@ describe('APIKeyManager', () => {
       const allMock = vi.fn().mockResolvedValue({ results: [] })
       mockDB.prepare.mockReturnValue({
         bind: vi.fn().mockReturnValue({
-          all: allMock
-        })
+          all: allMock,
+        }),
       })
 
       const result = await apiKeyManager.listAPIKeys('admin-123')
@@ -278,8 +280,8 @@ describe('APIKeyManager', () => {
       const runMock = vi.fn().mockResolvedValue({ success: true, meta: { changes: 1 } })
       mockDB.prepare.mockReturnValue({
         bind: vi.fn().mockReturnValue({
-          run: runMock
-        })
+          run: runMock,
+        }),
       })
 
       const result = await apiKeyManager.revokeAPIKey('key-123', 'admin-123')
@@ -292,8 +294,8 @@ describe('APIKeyManager', () => {
       const runMock = vi.fn().mockResolvedValue({ success: true, meta: { changes: 0 } })
       mockDB.prepare.mockReturnValue({
         bind: vi.fn().mockReturnValue({
-          run: runMock
-        })
+          run: runMock,
+        }),
       })
 
       const result = await apiKeyManager.revokeAPIKey('nonexistent-key', 'admin-123')
@@ -306,11 +308,13 @@ describe('APIKeyManager', () => {
       const runMock = vi.fn().mockRejectedValue(error)
       mockDB.prepare.mockReturnValue({
         bind: vi.fn().mockReturnValue({
-          run: runMock
-        })
+          run: runMock,
+        }),
       })
 
-      await expect(apiKeyManager.revokeAPIKey('key-123', 'admin-123')).rejects.toThrow('Database error')
+      await expect(apiKeyManager.revokeAPIKey('key-123', 'admin-123')).rejects.toThrow(
+        'Database error'
+      )
     })
   })
 
@@ -319,8 +323,8 @@ describe('APIKeyManager', () => {
       const runMock = vi.fn().mockResolvedValue({ success: true, meta: { changes: 1 } })
       mockDB.prepare.mockReturnValue({
         bind: vi.fn().mockReturnValue({
-          run: runMock
-        })
+          run: runMock,
+        }),
       })
 
       const result = await apiKeyManager.deleteAPIKey('key-123', 'admin-123')
@@ -333,8 +337,8 @@ describe('APIKeyManager', () => {
       const runMock = vi.fn().mockResolvedValue({ success: true, meta: { changes: 0 } })
       mockDB.prepare.mockReturnValue({
         bind: vi.fn().mockReturnValue({
-          run: runMock
-        })
+          run: runMock,
+        }),
       })
 
       const result = await apiKeyManager.deleteAPIKey('nonexistent-key', 'admin-123')
@@ -359,7 +363,7 @@ describe('APIKeyManager', () => {
     })
 
     it('should have meaningful descriptions', () => {
-      Object.values(API_SCOPES).forEach(description => {
+      Object.values(API_SCOPES).forEach((description) => {
         expect(typeof description).toBe('string')
         expect(description.length).toBeGreaterThan(0)
       })

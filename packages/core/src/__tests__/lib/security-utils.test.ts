@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { 
-  generateSecureJWTSecret, 
-  validateJWTSecret, 
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  generateSecureJWTSecret,
   getOrGenerateJWTSecret,
+  isSecureEnvironment,
   logSecurityWarnings,
-  isSecureEnvironment
+  validateJWTSecret,
 } from '../../lib/security-utils'
 
 describe('Security Utils', () => {
@@ -80,7 +80,7 @@ describe('Security Utils', () => {
     it('should return provided secret if valid', () => {
       const validSecret = generateSecureJWTSecret()
       const result = getOrGenerateJWTSecret(validSecret, 'development')
-      
+
       expect(result.secret).toBe(validSecret)
       expect(result.isGenerated).toBe(false)
       expect(result.warnings).toHaveLength(0)
@@ -89,7 +89,7 @@ describe('Security Utils', () => {
     it('should return provided secret with warnings if invalid', () => {
       const invalidSecret = 'weak'
       const result = getOrGenerateJWTSecret(invalidSecret, 'development')
-      
+
       expect(result.secret).toBe(invalidSecret)
       expect(result.isGenerated).toBe(false)
       expect(result.warnings.length).toBeGreaterThan(0)
@@ -104,7 +104,7 @@ describe('Security Utils', () => {
 
     it('should generate secret in development when none provided', () => {
       const result = getOrGenerateJWTSecret(undefined, 'development')
-      
+
       expect(result.secret).toBeDefined()
       expect(result.secret.length).toBeGreaterThanOrEqual(32)
       expect(result.isGenerated).toBe(true)
@@ -115,7 +115,7 @@ describe('Security Utils', () => {
     it('should generate different secrets on multiple calls', () => {
       const result1 = getOrGenerateJWTSecret(undefined, 'development')
       const result2 = getOrGenerateJWTSecret(undefined, 'development')
-      
+
       expect(result1.secret).not.toBe(result2.secret)
     })
   })
@@ -134,7 +134,7 @@ describe('Security Utils', () => {
     it('should log warnings with default context', () => {
       const warnings = ['Warning 1', 'Warning 2']
       logSecurityWarnings(warnings)
-      
+
       expect(consoleSpy).toHaveBeenCalledWith('\n🔐 Security Warnings:')
       expect(consoleSpy).toHaveBeenCalledWith('  1. Warning 1')
       expect(consoleSpy).toHaveBeenCalledWith('  2. Warning 2')
@@ -143,7 +143,7 @@ describe('Security Utils', () => {
     it('should log warnings with custom context', () => {
       const warnings = ['Test warning']
       logSecurityWarnings(warnings, 'JWT')
-      
+
       expect(consoleSpy).toHaveBeenCalledWith('\n🔐 JWT Warnings:')
       expect(consoleSpy).toHaveBeenCalledWith('  1. Test warning')
     })
