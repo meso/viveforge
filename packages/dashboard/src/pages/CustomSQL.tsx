@@ -30,6 +30,7 @@ export function CustomSQL() {
   const [isEditing, setIsEditing] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
 
   // Form state
   const [formData, setFormData] = useState({
@@ -101,6 +102,53 @@ export function CustomSQL() {
     }
   }
 
+  // Validate form data
+  const validateForm = () => {
+    const errors: Record<string, string> = {}
+
+    // Required field validation
+    if (!formData.name.trim()) {
+      errors.name = 'クエリ名は必須です'
+    }
+
+    if (!formData.slug.trim()) {
+      errors.slug = 'スラッグは必須です'
+    } else if (!/^[a-z0-9_-]+$/.test(formData.slug)) {
+      errors.slug = 'スラッグは小文字の英数字、ハイフン、アンダースコアのみ使用できます'
+    }
+
+    if (!formData.sql_query.trim()) {
+      errors.sql_query = 'SQLクエリは必須です'
+    } else {
+      // Check if SQL contains parameters that are not defined
+      const paramRegex = /:(\w+)/g
+      const sqlParams = new Set<string>()
+      let match
+      while ((match = paramRegex.exec(formData.sql_query)) !== null) {
+        sqlParams.add(match[1])
+      }
+      
+      const definedParams = new Set(formData.parameters.map(p => p.name))
+      const undefinedParams = Array.from(sqlParams).filter(p => !definedParams.has(p))
+      
+      if (undefinedParams.length > 0) {
+        errors.sql_query = `SQLに未定義のパラメーターが含まれています: ${undefinedParams.join(', ')}`
+      }
+    }
+
+    // Parameter validation
+    formData.parameters.forEach((param, index) => {
+      if (!param.name.trim()) {
+        errors[`parameter_${index}_name`] = 'パラメーター名は必須です'
+      } else if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(param.name)) {
+        errors[`parameter_${index}_name`] = 'パラメーター名は英文字またはアンダースコアで始まり、英数字とアンダースコアのみ使用できます'
+      }
+    })
+
+    setValidationErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
   // Test execution state
   const [testParams, setTestParams] = useState<Record<string, unknown>>({})
   const [testResult, setTestResult] = useState<{
@@ -129,6 +177,15 @@ export function CustomSQL() {
   }
 
   const handleCreate = async () => {
+    // Clear previous errors
+    setError(null)
+    setValidationErrors({})
+
+    // Validate form
+    if (!validateForm()) {
+      return
+    }
+
     try {
       const res = await fetch('/api/custom-queries', {
         method: 'POST',
@@ -151,6 +208,15 @@ export function CustomSQL() {
 
   const handleUpdate = async () => {
     if (!selectedQuery) return
+    
+    // Clear previous errors
+    setError(null)
+    setValidationErrors({})
+
+    // Validate form
+    if (!validateForm()) {
+      return
+    }
     
     try {
       const res = await fetch(`/api/custom-queries/${selectedQuery.id}`, {
@@ -230,6 +296,8 @@ export function CustomSQL() {
       cache_ttl: 0,
       enabled: true
     })
+    setValidationErrors({})
+    setError(null)
   }
 
   const addParameter = () => {
@@ -256,6 +324,17 @@ export function CustomSQL() {
         i === index ? { ...p, ...param } : p
       )
     })
+    // Clear validation error for this parameter name field
+    if (param.name !== undefined) {
+      const errorKey = `parameter_${index}_name`
+      if (validationErrors[errorKey]) {
+        setValidationErrors(prev => {
+          const newErrors = { ...prev }
+          delete newErrors[errorKey]
+          return newErrors
+        })
+      }
+    }
   }
 
   if (loading) {
@@ -479,9 +558,21 @@ export function CustomSQL() {
                         // Auto-generate slug when creating new query, but preserve manual changes when editing
                         slug: isCreating ? generateSlugFromName(newName) : formData.slug
                       })
+                      // Clear validation error for this field
+                      if (validationErrors.name) {
+                        setValidationErrors(prev => {
+                          const { name, ...rest } = prev
+                          return rest
+                        })
+                      }
                     }}
-                    class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
+                    class={`mt-1 w-full px-3 py-2 border rounded-md ${
+                      validationErrors.name ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                    }`}
                   />
+                  {validationErrors.name && (
+                    <p class="mt-1 text-sm text-red-600">{validationErrors.name}</p>
+                  )}
                 </div>
 
                 <div>
@@ -501,10 +592,24 @@ export function CustomSQL() {
                   <input
                     type="text"
                     value={formData.slug}
-                    onChange={(e) => setFormData({ ...formData, slug: e.currentTarget.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, slug: e.currentTarget.value })
+                      // Clear validation error for this field
+                      if (validationErrors.slug) {
+                        setValidationErrors(prev => {
+                          const { slug, ...rest } = prev
+                          return rest
+                        })
+                      }
+                    }}
                     placeholder="lowercase-with-hyphens"
-                    class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
+                    class={`mt-1 w-full px-3 py-2 border rounded-md ${
+                      validationErrors.slug ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                    }`}
                   />
+                  {validationErrors.slug && (
+                    <p class="mt-1 text-sm text-red-600">{validationErrors.slug}</p>
+                  )}
                   <p class="mt-1 text-sm text-gray-500">
                     This will be the API endpoint: /api/custom/{formData.slug || 'a1b2c3d4'}
                   </p>
@@ -540,11 +645,23 @@ export function CustomSQL() {
                         sql_query: newSql,
                         parameters: newParams
                       })
+                      // Clear validation error for this field
+                      if (validationErrors.sql_query) {
+                        setValidationErrors(prev => {
+                          const { sql_query, ...rest } = prev
+                          return rest
+                        })
+                      }
                     }}
                     rows={6}
                     placeholder="SELECT * FROM users WHERE created_at > :start_date"
-                    class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm"
+                    class={`mt-1 w-full px-3 py-2 border rounded-md font-mono text-sm ${
+                      validationErrors.sql_query ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                    }`}
                   />
+                  {validationErrors.sql_query && (
+                    <p class="mt-1 text-sm text-red-600">{validationErrors.sql_query}</p>
+                  )}
                   <div class="mt-2 flex justify-between items-center">
                     <p class="text-sm text-gray-500">
                       Use :parameter_name for parameters (will be auto-detected)
@@ -591,40 +708,47 @@ export function CustomSQL() {
                     </div>
                   ) : (
                     formData.parameters.map((param, index) => (
-                    <div key={index} class="flex gap-2 mb-2">
-                      <input
-                        type="text"
-                        value={param.name}
-                        onChange={(e) => updateParameter(index, { name: e.currentTarget.value })}
-                        placeholder="param_name"
-                        class="flex-1 px-3 py-1 border border-gray-300 rounded-md text-sm"
-                      />
-                      <select
-                        value={param.type}
-                        onChange={(e) => updateParameter(index, { type: e.currentTarget.value as Parameter['type'] })}
-                        class="px-3 py-1 border border-gray-300 rounded-md text-sm"
-                      >
-                        <option value="string">String</option>
-                        <option value="number">Number</option>
-                        <option value="boolean">Boolean</option>
-                        <option value="date">Date</option>
-                      </select>
-                      <label class="flex items-center">
+                    <div key={index} class="mb-3">
+                      <div class="flex gap-2 mb-1">
                         <input
-                          type="checkbox"
-                          checked={param.required}
-                          onChange={(e) => updateParameter(index, { required: e.currentTarget.checked })}
-                          class="mr-1"
+                          type="text"
+                          value={param.name}
+                          onChange={(e) => updateParameter(index, { name: e.currentTarget.value })}
+                          placeholder="param_name"
+                          class={`flex-1 px-3 py-1 border rounded-md text-sm ${
+                            validationErrors[`parameter_${index}_name`] ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                          }`}
                         />
-                        <span class="text-sm">Required</span>
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => removeParameter(index)}
-                        class="text-red-600 hover:text-red-800 text-sm"
-                      >
-                        Remove
-                      </button>
+                        <select
+                          value={param.type}
+                          onChange={(e) => updateParameter(index, { type: e.currentTarget.value as Parameter['type'] })}
+                          class="px-3 py-1 border border-gray-300 rounded-md text-sm"
+                        >
+                          <option value="string">String</option>
+                          <option value="number">Number</option>
+                          <option value="boolean">Boolean</option>
+                          <option value="date">Date</option>
+                        </select>
+                        <label class="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={param.required}
+                            onChange={(e) => updateParameter(index, { required: e.currentTarget.checked })}
+                            class="mr-1"
+                          />
+                          <span class="text-sm">Required</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => removeParameter(index)}
+                          class="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      {validationErrors[`parameter_${index}_name`] && (
+                        <p class="text-xs text-red-600 ml-1">{validationErrors[`parameter_${index}_name`]}</p>
+                      )}
                     </div>
                   )))}
                 </div>
