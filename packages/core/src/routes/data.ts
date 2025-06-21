@@ -1,6 +1,4 @@
-import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
-import { z } from 'zod'
 import { TableManager } from '../lib/table-manager'
 import { getAuthContext, getCurrentEndUser } from '../middleware/auth'
 import type { Env, Variables } from '../types'
@@ -16,7 +14,7 @@ data.use('*', async (c, next) => {
   c.set(
     'tableManager',
     new TableManager(c.env.DB, c.env.SYSTEM_STORAGE as any, c.executionCtx, {
-      REALTIME: c.env.REALTIME,
+      REALTIME: c.env.REALTIME as any,
     })
   )
   await next()
@@ -338,8 +336,8 @@ data.delete('/:tableName/:id', async (c) => {
 
 // Helper function to validate record data against table schema
 async function validateRecordData(
-  data: Record<string, any>,
-  columns: any[],
+  data: Record<string, unknown>,
+  columns: Array<{ name: string; type: string; notnull: number }>,
   operation: 'create' | 'update'
 ): Promise<string[]> {
   const errors: string[] = []
@@ -375,7 +373,7 @@ async function validateRecordData(
   return errors
 }
 
-function validateFieldType(fieldName: string, value: any, sqlType: string): string | null {
+function validateFieldType(fieldName: string, value: unknown, sqlType: string): string | null {
   const type = sqlType.toUpperCase()
 
   switch (type) {
@@ -385,7 +383,7 @@ function validateFieldType(fieldName: string, value: any, sqlType: string): stri
       }
       break
     case 'REAL':
-      if (isNaN(Number(value))) {
+      if (Number.isNaN(Number(value))) {
         return `Field '${fieldName}' must be a number`
       }
       break

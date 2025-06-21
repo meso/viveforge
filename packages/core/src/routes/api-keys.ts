@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { API_SCOPES, APIKeyManager, type CreateAPIKeyRequest } from '../lib/api-key-manager'
-import { getAuthContext, getCurrentUser, requireAuth, requireScope } from '../middleware/auth'
+import { getCurrentUser, requireAuth } from '../middleware/auth'
 import type { Env, Variables } from '../types'
 
 export const apiKeys = new Hono<{ Bindings: Env; Variables: Variables }>()
@@ -50,8 +50,7 @@ apiKeys.get('/', async (c) => {
     }
 
     // Get admin ID from database using GitHub username
-    const adminResult = await c.env
-      .DB!.prepare(`
+    const adminResult = await c.env.DB?.prepare(`
       SELECT id FROM admins WHERE github_username = ?
     `)
       .bind((user as any).username || user.email)
@@ -85,8 +84,7 @@ apiKeys.post('/', async (c) => {
     }
 
     // Get admin ID from database using GitHub username
-    const adminResult = await c.env
-      .DB!.prepare(`
+    const adminResult = await c.env.DB?.prepare(`
       SELECT id FROM admins WHERE github_username = ?
     `)
       .bind((user as any).username || user.email)
@@ -159,8 +157,7 @@ apiKeys.patch('/:id/revoke', async (c) => {
     }
 
     // Get admin ID from database using GitHub username
-    const adminResult = await c.env
-      .DB!.prepare(`
+    const adminResult = await c.env.DB?.prepare(`
       SELECT id FROM admins WHERE github_username = ?
     `)
       .bind((user as any).username || user.email)
@@ -191,7 +188,7 @@ apiKeys.patch('/:id/revoke', async (c) => {
     if (!success) {
       // Double-check if the update actually failed
       const updatedKeys = await apiKeyManager.listAPIKeys(adminId)
-      const updatedKey = updatedKeys.find((k) => k.id === keyId)
+      const _updatedKey = updatedKeys.find((k) => k.id === keyId)
       return c.json(
         {
           error: 'Failed to revoke API key',
@@ -224,8 +221,7 @@ apiKeys.delete('/:id', async (c) => {
     }
 
     // Get admin ID from database using GitHub username
-    const adminResult = await c.env
-      .DB!.prepare(`
+    const adminResult = await c.env.DB?.prepare(`
       SELECT id FROM admins WHERE github_username = ?
     `)
       .bind((user as any).username || user.email)

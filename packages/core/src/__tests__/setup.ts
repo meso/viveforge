@@ -1,12 +1,3 @@
-// Test setup for Vibebase Core
-import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest'
-import type {
-  D1Database,
-  D1PreparedStatement,
-  ExecutionContext,
-  R2Bucket,
-} from '../types/cloudflare'
-
 // Mock interfaces that extend the real Cloudflare types
 export interface MockD1Database {
   prepare: (sql: string) => MockD1PreparedStatement
@@ -167,7 +158,7 @@ export function createMockD1Database(): MockD1Database {
 
   // Helper to normalize table names by removing quotes
   function normalizeTableName(tableName: string): string {
-    return tableName.replace(/["\'`]/g, '')
+    return tableName.replace(/["'`]/g, '')
   }
 
   // Helper to find table with normalized name lookup
@@ -221,7 +212,7 @@ export function createMockD1Database(): MockD1Database {
 
                 // Parse column definition
                 const parts = trimmedCol.split(/\s+/)
-                let colName = parts[0]?.replace(/["\'`]/g, '')
+                const colName = parts[0]?.replace(/["'`]/g, '')
 
                 if (colName && !['id', 'created_at', 'updated_at'].includes(colName)) {
                   userColumnDefs.push({
@@ -290,7 +281,7 @@ export function createMockD1Database(): MockD1Database {
             const unique = sql.toUpperCase().includes('UNIQUE')
             const columns = columnsMatch[1]
               .split(',')
-              .map((col) => col.trim().replace(/["\'`]/g, ''))
+              .map((col) => col.trim().replace(/["'`]/g, ''))
 
             // Find the actual table name
             const actualTableName = findTable(tableName)
@@ -298,7 +289,10 @@ export function createMockD1Database(): MockD1Database {
               if (!tableIndexes.has(actualTableName)) {
                 tableIndexes.set(actualTableName, [])
               }
-              const existingIndexes = tableIndexes.get(actualTableName)!
+              const existingIndexes = tableIndexes.get(actualTableName)
+              if (!existingIndexes) {
+                throw new Error(`Table "${actualTableName}" not found`)
+              }
 
               // Check for duplicate index name
               if (existingIndexes.some((idx) => idx.name === indexName)) {
@@ -318,7 +312,7 @@ export function createMockD1Database(): MockD1Database {
           if (indexMatch) {
             const indexName = indexMatch[1]
             // Find and remove index from all tables
-            for (const [tableName, indexes] of tableIndexes.entries()) {
+            for (const [_tableName, indexes] of tableIndexes.entries()) {
               const indexIndex = indexes.findIndex((idx: any) => idx.name === indexName)
               if (indexIndex !== -1) {
                 indexes.splice(indexIndex, 1)
@@ -350,7 +344,10 @@ export function createMockD1Database(): MockD1Database {
               const addColumnMatch = sql.match(/ADD\s+COLUMN\s+["']?(\w+)["']?\s+(\w+)/i)
               if (addColumnMatch) {
                 const [, columnName, columnType] = addColumnMatch
-                const columns = tableColumns.get(actualTableName)!
+                const columns = tableColumns.get(actualTableName)
+                if (!columns) {
+                  throw new Error(`Table "${actualTableName}" columns not found`)
+                }
                 const newColumn = {
                   cid: columns.length,
                   name: columnName.replace(/["'`]/g, ''),
@@ -382,7 +379,10 @@ export function createMockD1Database(): MockD1Database {
               d1_bookmark_id: bindings[9] || null,
             }
             snapshots.set(snapshotId, snapshot)
-            tables.get('schema_snapshots')!.push(snapshot)
+            const snapshotsTable = tables.get('schema_snapshots')
+            if (snapshotsTable) {
+              snapshotsTable.push(snapshot)
+            }
           } else {
             // Regular table insert
             const tableName = getTableNameFromSql(sql)
@@ -413,7 +413,10 @@ export function createMockD1Database(): MockD1Database {
                   record.created_at = record.created_at || new Date().toISOString()
                   record.updated_at = record.updated_at || new Date().toISOString()
 
-                  tables.get(actualTableName)!.push(record)
+                  const tableData = tables.get(actualTableName)
+                  if (tableData) {
+                    tableData.push(record)
+                  }
                 }
               }
             }
@@ -484,7 +487,21 @@ export function createMockD1Database(): MockD1Database {
             const normalizedName = normalizeTableName(tableName)
             const actualTableName = findTable(normalizedName)
             if (actualTableName && tableColumns.has(actualTableName)) {
-              const columns = tableColumns.get(actualTableName) || []
+              const columns = tableColumns.get(actualTableName)
+              if (!columns) {
+                return {
+                  results: [],
+                  success: true,
+                  meta: {
+                    changes: 0,
+                    last_row_id: 0,
+                    duration: 1,
+                    size_after: 100,
+                    rows_read: 0,
+                    rows_written: 0,
+                  },
+                }
+              }
               return {
                 results: columns,
                 success: true,
@@ -530,7 +547,21 @@ export function createMockD1Database(): MockD1Database {
             const normalizedName = normalizeTableName(tableName)
             const actualTableName = findTable(normalizedName)
             if (actualTableName && tableIndexes.has(actualTableName)) {
-              const indexes = tableIndexes.get(actualTableName) || []
+              const indexes = tableIndexes.get(actualTableName)
+              if (!indexes) {
+                return {
+                  results: [],
+                  success: true,
+                  meta: {
+                    changes: 0,
+                    last_row_id: 0,
+                    duration: 1,
+                    size_after: 100,
+                    rows_read: 0,
+                    rows_written: 0,
+                  },
+                }
+              }
               return {
                 results: indexes,
                 success: true,
@@ -807,7 +838,7 @@ export function createMockD1Database(): MockD1Database {
       }
       return { results: [] }
     },
-    exec: async (sql: string) => {
+    exec: async (_sql: string) => {
       return { results: [] }
     },
   }
@@ -855,10 +886,10 @@ export function createMockR2Bucket(): MockR2Bucket {
     delete: async (key: string) => {
       storage.delete(key)
     },
-    list: async (options?: any) => {
+    list: async (_options?: any) => {
       return { objects: [], truncated: false, delimitedPrefixes: [] }
     },
-    head: async (key: string) => {
+    head: async (_key: string) => {
       return null
     },
   }
@@ -883,13 +914,13 @@ export function createMockExecutionContext(): MockExecutionContext {
 }
 
 // Helper functions
-function extractTableName(sql: string): string | null {
+function _extractTableName(sql: string): string | null {
   const createTableMatch = sql.match(/CREATE\s+TABLE\s+(\w+)/i)
   const dropTableMatch = sql.match(/DROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?(\w+)/i)
   return createTableMatch?.[1] || dropTableMatch?.[1] || null
 }
 
-function extractTableNameFromInsert(sql: string): string | null {
+function _extractTableNameFromInsert(sql: string): string | null {
   const match = sql.match(/INSERT\s+INTO\s+(\w+)/i)
   return match?.[1] || null
 }

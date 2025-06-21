@@ -13,7 +13,7 @@ snapshots.use('*', async (c, next) => {
   }
 
   const tableManager = new TableManager(env.DB, env.SYSTEM_STORAGE as any, c.executionCtx, {
-    REALTIME: env.REALTIME,
+    REALTIME: env.REALTIME as any,
   })
   const db = new Database(env.DB)
 
@@ -145,8 +145,8 @@ snapshots.get('/compare/:id1/:id2', async (c) => {
     }
 
     // Parse schemas for comparison
-    const schemas1 = JSON.parse(snapshot1.tablesJson)
-    const schemas2 = JSON.parse(snapshot2.tablesJson)
+    const schemas1 = JSON.parse((snapshot1 as any).tablesJson as string)
+    const schemas2 = JSON.parse((snapshot2 as any).tablesJson as string)
 
     // Simple comparison - can be enhanced
     const added = schemas2.filter((s2: any) => !schemas1.find((s1: any) => s1.name === s2.name))

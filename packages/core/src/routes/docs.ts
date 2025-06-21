@@ -13,7 +13,7 @@ docs.use('*', async (c, next) => {
   c.set(
     'tableManager',
     new TableManager(c.env.DB, c.env.SYSTEM_STORAGE as any, c.executionCtx, {
-      REALTIME: c.env.REALTIME,
+      REALTIME: c.env.REALTIME as any,
     })
   )
   await next()
@@ -166,9 +166,9 @@ async function generateOpenAPISpec(tables: any[], tm: TableManager, baseUrl: str
 }
 
 // Generate schema for a table
-function generateTableSchema(tableName: string, columns: any[]) {
+function generateTableSchema(_tableName: string, columns: any[]) {
   const properties: any = {}
-  const required: string[] = []
+  const _required: string[] = []
   const inputProperties: any = {}
   const inputRequired: string[] = []
 

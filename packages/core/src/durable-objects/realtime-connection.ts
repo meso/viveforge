@@ -7,7 +7,7 @@ export interface RealtimeMessage {
     table: string
     recordId: string
     eventType: 'insert' | 'update' | 'delete'
-    data: any
+    data: Record<string, unknown>
     timestamp: string
   }
   subscriptions?: {
@@ -30,10 +30,6 @@ interface Connection {
 export class RealtimeConnectionManager extends DurableObject {
   private connections: Map<string, Connection> = new Map()
   private pingInterval?: number
-
-  constructor(state: DurableObjectState, env: any) {
-    super(state, env)
-  }
 
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url)
@@ -68,7 +64,7 @@ export class RealtimeConnectionManager extends DurableObject {
     // Create SSE response with proper headers
     const { readable, writable } = new TransformStream()
     const writer = writable.getWriter()
-    const encoder = new TextEncoder()
+    const _encoder = new TextEncoder()
 
     // Store connection
     const connection: Connection = {
@@ -130,7 +126,7 @@ export class RealtimeConnectionManager extends DurableObject {
       let broadcastCount = 0
 
       // Broadcast to all relevant connections
-      for (const [clientId, connection] of this.connections) {
+      for (const [_clientId, connection] of this.connections) {
         // Check if connection is subscribed to this event
         if (
           connection.subscriptions.tables.has(event.table) ||
@@ -182,7 +178,7 @@ export class RealtimeConnectionManager extends DurableObject {
     }
   }
 
-  private async sendToClient(connection: Connection, data: any): Promise<void> {
+  private async sendToClient(connection: Connection, data: Record<string, unknown>): Promise<void> {
     try {
       const encoder = new TextEncoder()
       const message = `data: ${JSON.stringify(data)}\n\n`
@@ -221,7 +217,7 @@ export class RealtimeConnectionManager extends DurableObject {
         clearInterval(this.pingInterval)
         this.pingInterval = undefined
       }
-    }, 25000) as any // Ping every 25 seconds
+    }, 25000) as unknown as number // Ping every 25 seconds
   }
 
   // Handle subscription updates from clients

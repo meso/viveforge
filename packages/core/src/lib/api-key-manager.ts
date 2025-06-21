@@ -35,10 +35,8 @@ export class APIKeyManager {
    * Initialize API keys table
    */
   async initializeTable(): Promise<void> {
-    // First try to create the table
-    try {
-      await this.db
-        .prepare(`
+    await this.db
+      .prepare(`
         CREATE TABLE IF NOT EXISTS api_keys (
           id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
           name TEXT NOT NULL,
@@ -53,10 +51,7 @@ export class APIKeyManager {
           FOREIGN KEY (created_by) REFERENCES admins(id)
         )
       `)
-        .run()
-    } catch (error) {
-      throw error
-    }
+      .run()
 
     // Then create indexes separately
     try {
@@ -69,7 +64,7 @@ export class APIKeyManager {
       await this.db
         .prepare(`CREATE INDEX IF NOT EXISTS idx_api_keys_created_by ON api_keys(created_by)`)
         .run()
-    } catch (error) {
+    } catch (_error) {
       // Don't throw here as indexes are not critical
     }
   }
@@ -165,8 +160,8 @@ export class APIKeyManager {
       .bind(new Date().toISOString(), result.id)
       .run()
 
-    // Parse scopes
-    result.scopes = JSON.parse(result.scopes as any)
+    // Parse scopes (stored as JSON string in database)
+    result.scopes = JSON.parse(result.scopes as unknown as string)
 
     // Convert is_active to boolean
     result.is_active = Boolean(result.is_active)
@@ -190,7 +185,7 @@ export class APIKeyManager {
 
     return results.results.map((key) => ({
       ...key,
-      scopes: JSON.parse(key.scopes as any),
+      scopes: JSON.parse(key.scopes as unknown as string),
       is_active: Boolean(key.is_active),
     }))
   }
@@ -199,31 +194,27 @@ export class APIKeyManager {
    * Revoke an API key
    */
   async revokeAPIKey(id: string, userId: string): Promise<boolean> {
-    try {
-      const result = await this.db
-        .prepare(`
+    const result = await this.db
+      .prepare(`
         UPDATE api_keys 
         SET is_active = 0 
         WHERE id = ? AND created_by = ?
       `)
-        .bind(id, userId)
-        .run()
+      .bind(id, userId)
+      .run()
 
-      // D1 might return success property instead of changes
-      if (result.success !== undefined) {
-        return result.success
-      }
-
-      // Try to check if the row was actually updated
-      if (result.meta && typeof result.meta.changes === 'number') {
-        return result.meta.changes > 0
-      }
-
-      // Fallback: check if the operation succeeded
-      return true
-    } catch (error) {
-      throw error
+    // D1 might return success property instead of changes
+    if (result.success !== undefined) {
+      return result.success
     }
+
+    // Try to check if the row was actually updated
+    if (result.meta && typeof result.meta.changes === 'number') {
+      return result.meta.changes > 0
+    }
+
+    // Fallback: check if the operation succeeded
+    return true
   }
 
   /**
@@ -244,8 +235,8 @@ export class APIKeyManager {
     }
 
     // Fallback to direct changes property
-    if ((result as any).changes !== undefined) {
-      return (result as any).changes > 0
+    if ('changes' in result && typeof result.changes === 'number') {
+      return result.changes > 0
     }
 
     // If we can't determine, return false

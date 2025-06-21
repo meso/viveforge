@@ -1,13 +1,4 @@
-import {
-  createDuplicateError,
-  createInvalidNameError,
-  createNotFoundError,
-  createSystemTableError,
-  createValidationError,
-  ErrorCode,
-  ErrorDetails,
-  VibebaseError,
-} from '../types/errors'
+import { ErrorCode, type ErrorDetails, VibebaseError } from '../types/errors'
 import { SYSTEM_TABLES } from './table-manager'
 
 /**
@@ -60,11 +51,18 @@ export class ErrorHandler {
         throw error
       }
 
-      const vibebaseError = VibebaseError.fromError(error, ErrorCode.DATABASE_OPERATION_FAILED)
-      ;(vibebaseError as any).context = {
-        ...vibebaseError.context,
-        ...context,
-      }
+      const originalError = VibebaseError.fromError(error, ErrorCode.DATABASE_OPERATION_FAILED)
+      // Create new error with merged context
+      const vibebaseError = new VibebaseError({
+        code: originalError.code,
+        message: originalError.message,
+        userMessage: originalError.userMessage,
+        suggestions: originalError.suggestions,
+        context: {
+          ...originalError.context,
+          ...context,
+        },
+      })
 
       this.logError(vibebaseError)
       throw vibebaseError
@@ -155,7 +153,7 @@ export class ErrorHandler {
   /**
    * Handle SQL safety violations
    */
-  public handleUnsafeSQL(sql: string): void {
+  public handleUnsafeSQL(_sql: string): void {
     this.throwError({
       code: ErrorCode.INVALID_SQL_QUERY,
       message: 'Only SELECT queries are allowed in the SQL editor',
@@ -172,8 +170,19 @@ export class ErrorHandler {
    * Handle storage operation failures with graceful degradation
    */
   public handleStorageWarning(operation: string, error: unknown): void {
-    const warning = VibebaseError.fromError(error, ErrorCode.STORAGE_OPERATION_FAILED)
-    ;(warning as any).context = { operation, originalError: error }
+    const originalWarning = VibebaseError.fromError(error, ErrorCode.STORAGE_OPERATION_FAILED)
+    // Create new warning with merged context
+    const warning = new VibebaseError({
+      code: originalWarning.code,
+      message: originalWarning.message,
+      userMessage: originalWarning.userMessage,
+      suggestions: originalWarning.suggestions,
+      context: {
+        ...originalWarning.context,
+        operation,
+        originalError: error,
+      },
+    })
 
     // Log warning but don't throw - allow graceful degradation
     this.logWarning(warning)

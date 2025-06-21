@@ -156,7 +156,7 @@ describe('Storage API Integration Tests', () => {
     })
 
     it('should handle very large file names', async () => {
-      const longFileName = 'a'.repeat(1000) + '.txt'
+      const longFileName = `${'a'.repeat(1000)}.txt`
       const formData = new FormData()
       const file = new File(['test'], longFileName)
       formData.append('file', file)

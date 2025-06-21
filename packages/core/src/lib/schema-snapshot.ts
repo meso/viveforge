@@ -15,11 +15,20 @@ import type {
 } from '../types/database'
 import type { IndexInfo } from './index-manager'
 
+interface ColumnInfo {
+  cid: number
+  name: string
+  type: string
+  notnull: number
+  dflt_value: unknown
+  pk: number
+}
+
 export interface TableSchema {
   name: string
   sql: string
-  columns: any[]
-  foreignKeys: any[]
+  columns: ColumnInfo[]
+  foreignKeys: { from: string; table: string; to: string }[]
   indexes: IndexInfo[]
 }
 
@@ -92,8 +101,8 @@ export class SchemaSnapshotManager {
       schemas.push({
         name: tableInfo.name,
         sql: tableInfo.sql,
-        columns: columnsResult.results,
-        foreignKeys: foreignKeysResult.results,
+        columns: columnsResult.results as ColumnInfo[],
+        foreignKeys: foreignKeysResult.results as { from: string; table: string; to: string }[],
         indexes: indexes,
       })
     }
@@ -102,9 +111,9 @@ export class SchemaSnapshotManager {
   }
 
   // Get all table data (excluding system tables)
-  async getAllTableData(): Promise<{ [tableName: string]: any[] }> {
+  async getAllTableData(): Promise<{ [tableName: string]: Record<string, unknown>[] }> {
     const schemas = await this.getAllTableSchemas()
-    const allData: { [tableName: string]: any[] } = {}
+    const allData: { [tableName: string]: Record<string, unknown>[] } = {}
 
     for (const schema of schemas) {
       // Skip system tables
@@ -116,7 +125,7 @@ export class SchemaSnapshotManager {
 
       try {
         const result = await this.db.prepare(`SELECT * FROM "${schema.name}"`).all()
-        allData[schema.name] = result.results
+        allData[schema.name] = result.results as Record<string, unknown>[]
       } catch (error) {
         console.warn(`Failed to get data for table ${schema.name}:`, error)
         allData[schema.name] = []
@@ -420,7 +429,7 @@ export class SchemaSnapshotManager {
             const insertSQL = `INSERT INTO "${schema.name}" (${columns.join(', ')}) VALUES (${placeholders})`
 
             // Insert records individually with FK disabled
-            let insertedCount = 0
+            let _insertedCount = 0
             for (const record of tableData) {
               const values = columns.map((col) => (record[col] === undefined ? null : record[col]))
               try {
@@ -430,8 +439,8 @@ export class SchemaSnapshotManager {
                   .prepare(insertSQL)
                   .bind(...values)
                   .run()
-                insertedCount++
-              } catch (insertError) {
+                _insertedCount++
+              } catch (_insertError) {
                 // Continue with other records on error
               }
             }

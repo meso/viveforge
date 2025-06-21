@@ -1,4 +1,5 @@
-import type { Admin, Env } from '../types'
+import type { Admin } from '../types'
+import type { D1Database } from '../types/cloudflare'
 
 export class Database {
   constructor(private db: D1Database) {}
@@ -28,34 +29,34 @@ export class Database {
   }
 
   async getAdminById(id: string): Promise<Admin | null> {
-    const result = await this.db.prepare('SELECT * FROM admins WHERE id = ?').bind(id).first()
+    const result = await this.db.prepare('SELECT * FROM admins WHERE id = ?').bind(id).first<AdminRecord>()
 
     if (!result) return null
 
     return {
-      id: result.id as string,
-      email: result.email as string,
-      name: result.name as string,
-      provider: result.provider as string,
-      providerId: result.provider_id as string,
-      createdAt: result.created_at as string,
-      updatedAt: result.updated_at as string,
+      id: result.id,
+      email: result.email,
+      name: result.name,
+      provider: result.provider,
+      providerId: result.provider_id,
+      createdAt: result.created_at,
+      updatedAt: result.updated_at,
     }
   }
 
   async getAdminByEmail(email: string): Promise<Admin | null> {
-    const result = await this.db.prepare('SELECT * FROM admins WHERE email = ?').bind(email).first()
+    const result = await this.db.prepare('SELECT * FROM admins WHERE email = ?').bind(email).first<AdminRecord>()
 
     if (!result) return null
 
     return {
-      id: result.id as string,
-      email: result.email as string,
-      name: result.name as string,
-      provider: result.provider as string,
-      providerId: result.provider_id as string,
-      createdAt: result.created_at as string,
-      updatedAt: result.updated_at as string,
+      id: result.id,
+      email: result.email,
+      name: result.name,
+      provider: result.provider,
+      providerId: result.provider_id,
+      createdAt: result.created_at,
+      updatedAt: result.updated_at,
     }
   }
 
@@ -87,7 +88,7 @@ export class Database {
 
   async getItems(userId?: string, limit = 20, offset = 0) {
     let query = 'SELECT * FROM items'
-    let params: any[] = []
+    const params: (string | number)[] = []
 
     if (userId) {
       query += ' WHERE user_id = ?'
@@ -100,10 +101,10 @@ export class Database {
     const result = await this.db
       .prepare(query)
       .bind(...params)
-      .all()
+      .all<ItemRecord>()
 
     return {
-      items: result.results.map((item: any) => ({
+      items: result.results.map((item: ItemRecord) => ({
         id: item.id,
         name: item.name,
         description: item.description,
@@ -116,25 +117,25 @@ export class Database {
   }
 
   async getItemById(id: string) {
-    const result = await this.db.prepare('SELECT * FROM items WHERE id = ?').bind(id).first()
+    const result = await this.db.prepare('SELECT * FROM items WHERE id = ?').bind(id).first<ItemRecord>()
 
     if (!result) return null
 
     return {
-      id: result.id as string,
-      name: result.name as string,
-      description: result.description as string,
-      userId: result.user_id as string,
-      createdAt: result.created_at as string,
-      updatedAt: result.updated_at as string,
+      id: result.id,
+      name: result.name,
+      description: result.description,
+      userId: result.user_id,
+      createdAt: result.created_at,
+      updatedAt: result.updated_at,
     }
   }
 
   async updateItem(id: string, data: { name?: string; description?: string }) {
     const now = new Date().toISOString()
 
-    const setParts = []
-    const params = []
+    const setParts: string[] = []
+    const params: (string | null)[] = []
 
     if (data.name !== undefined) {
       setParts.push('name = ?')
@@ -170,4 +171,24 @@ export class Database {
 
     return { success: true, id }
   }
+}
+
+// Database record interfaces
+interface ItemRecord {
+  id: string
+  name: string
+  description: string | null
+  user_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+interface AdminRecord {
+  id: string
+  email: string
+  name: string
+  provider: string
+  provider_id: string
+  created_at: string
+  updated_at: string
 }

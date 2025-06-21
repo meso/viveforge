@@ -1,4 +1,3 @@
-import { jwt } from 'hono/jwt'
 import type { Env } from '../types'
 
 export interface User {
@@ -23,6 +22,57 @@ export interface TokenPair {
   refresh_token: string
   token_type: string
   expires_in: number
+}
+
+export interface JWKKey {
+  kty: string
+  use?: string
+  key_ops?: string[]
+  alg?: string
+  kid?: string
+  x5c?: string[]
+  n?: string // RSA public key modulus
+  e?: string // RSA public key exponent
+  x?: string // EC public key x coordinate
+  y?: string // EC public key y coordinate
+  crv?: string // EC curve
+}
+
+export interface JWKSet {
+  keys: JWKKey[]
+}
+
+export interface JWTPayload {
+  iss?: string // issuer
+  aud?: string // audience
+  exp?: number // expiration time
+  nbf?: number // not before
+  iat?: number // issued at
+  jti?: string // JWT ID
+  token_type?: string
+  github_id?: number
+  github_login?: string
+  email?: string
+  name?: string
+  scope?: string[]
+  [key: string]: unknown // Allow additional properties
+}
+
+// Hono context type (simplified interface for what we need)
+export interface HonoContext {
+  req: {
+    header: (name: string) => string | undefined
+    raw: {
+      headers: {
+        get: (name: string) => string | null
+      }
+    }
+  }
+  res: {
+    headers: {
+      append: (name: string, value: string) => void
+    }
+  }
 }
 
 export interface DeploymentInfo {
@@ -202,11 +252,11 @@ export class VibebaseAuthClient {
       this.validateTokenPayload(payload)
 
       return {
-        id: String(payload.github_id),
-        email: payload.email,
+        id: String(payload.github_id || ''),
+        email: payload.email || '',
         name: payload.name,
         provider: 'github',
-        provider_id: String(payload.github_id),
+        provider_id: String(payload.github_id || ''),
         role: 'user',
         is_active: true,
         created_at: new Date().toISOString(),
@@ -235,7 +285,7 @@ export class VibebaseAuthClient {
   /**
    * リクエストから認証情報を取得・検証
    */
-  async verifyRequest(c: any): Promise<User | null> {
+  async verifyRequest(c: HonoContext): Promise<User | null> {
     try {
       // Authorization ヘッダーからトークン取得
       const authHeader = c.req.header('Authorization')
@@ -253,7 +303,7 @@ export class VibebaseAuthClient {
       if (cookieToken) {
         try {
           return await this.verifyToken(cookieToken)
-        } catch (error) {
+        } catch (_error) {
           // アクセストークンが無効な場合、リフレッシュトークンで更新を試行
         }
       }
@@ -277,7 +327,7 @@ export class VibebaseAuthClient {
           )
 
           return await this.verifyToken(tokens.access_token)
-        } catch (error) {
+        } catch (_error) {
           // リフレッシュ失敗時はクッキーをクリア
           c.res.headers.append('Set-Cookie', `access_token=; HttpOnly; Secure; Max-Age=0; Path=/`)
           c.res.headers.append('Set-Cookie', `refresh_token=; HttpOnly; Secure; Max-Age=0; Path=/`)
@@ -341,12 +391,15 @@ export class VibebaseAuthClient {
     const cacheKey = 'current'
 
     if (this.publicKeyCache.has(cacheKey)) {
-      return this.publicKeyCache.get(cacheKey)!
+      const cachedKey = this.publicKeyCache.get(cacheKey)
+      if (cachedKey) {
+        return cachedKey
+      }
     }
 
     try {
       const response = await fetch(`${this.authBaseUrl}/.well-known/jwks.json`)
-      const jwks = (await response.json()) as { keys: any[] }
+      const jwks = (await response.json()) as JWKSet
 
       // 最新の公開鍵を取得
       const key = jwks.keys[0]
@@ -374,9 +427,9 @@ export class VibebaseAuthClient {
   /**
    * JWK to PEM conversion
    */
-  private async jwkToPublicKey(jwk: any): Promise<string> {
+  private async jwkToPublicKey(jwk: JWKKey): Promise<string> {
     // x5c (X.509 Certificate Chain) が利用可能な場合
-    if (jwk.x5c && jwk.x5c[0]) {
+    if (jwk.x5c?.[0]) {
       const cert = jwk.x5c[0]
       // Base64エンコードされた証明書をPEM形式に変換
       const pemCert = `-----BEGIN CERTIFICATE-----\n${cert.match(/.{1,64}/g)?.join('\n')}\n-----END CERTIFICATE-----`
@@ -394,13 +447,13 @@ export class VibebaseAuthClient {
   /**
    * JWT署名検証 (hono/jwt使用)
    */
-  private async verifyJWTWithHono(token: string, publicKeyData: string): Promise<any> {
+  private async verifyJWTWithHono(token: string, publicKeyData: string): Promise<JWTPayload> {
     try {
       // hono/jwtのverify関数を直接使用
       const { verify } = await import('hono/jwt')
 
       // 公開鍵のフォーマットを判定
-      let publicKey: any = publicKeyData
+      let publicKey: string | JWKKey = publicKeyData
 
       // JSON文字列の場合はパース（JWK形式）
       try {
@@ -425,26 +478,26 @@ export class VibebaseAuthClient {
   /**
    * トークンペイロード検証
    */
-  private validateTokenPayload(payload: any): void {
+  private validateTokenPayload(payload: JWTPayload): void {
     const now = Math.floor(Date.now() / 1000)
 
     // 重要: audフィールドが自分のドメインと一致するかチェック
-    if (payload.aud !== this.deploymentDomain) {
+    if (!payload.aud || payload.aud !== this.deploymentDomain) {
       throw new Error(`Invalid audience: expected ${this.deploymentDomain}, got ${payload.aud}`)
     }
 
     // 発行者チェック - 信頼できるvibebase-authからのトークンか
-    if (payload.iss !== this.authBaseUrl) {
+    if (!payload.iss || payload.iss !== this.authBaseUrl) {
       throw new Error('Invalid issuer')
     }
 
     // 有効期限チェック
-    if (payload.exp < now) {
+    if (!payload.exp || payload.exp < now) {
       throw new Error('Token expired')
     }
 
     // トークンタイプチェック
-    if (payload.token_type !== 'access') {
+    if (!payload.token_type || payload.token_type !== 'access') {
       throw new Error('Invalid token type')
     }
 

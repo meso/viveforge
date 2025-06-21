@@ -502,22 +502,22 @@ function prepareQueryParameters(
       switch (paramDef.type) {
         case 'number':
           value = Number(value)
-          if (isNaN(value as number)) {
+          if (Number.isNaN(value as number)) {
             throw new Error(`Parameter '${paramDef.name}' must be a number`)
           }
           break
         case 'boolean':
           value = Boolean(value)
           break
-        case 'date':
+        case 'date': {
           // Convert to ISO string if it's a valid date
           const date = new Date(value as string)
-          if (isNaN(date.getTime())) {
+          if (Number.isNaN(date.getTime())) {
             throw new Error(`Parameter '${paramDef.name}' must be a valid date`)
           }
           value = date.toISOString()
           break
-        case 'string':
+        }
         default:
           value = String(value)
       }

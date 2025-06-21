@@ -6,7 +6,6 @@ import {
   validateAndEscapeTableName,
   validateAndNormalizeSQLDataType,
   validateNotSystemTable,
-  validateSQLDataType,
 } from './sql-utils'
 import { SYSTEM_TABLES } from './table-manager'
 
@@ -73,11 +72,11 @@ export class SchemaManager {
 
     // Build foreign key constraints
     const foreignKeys = columns
-      .filter((col) => col.foreignKey)
+      .filter((col) => col.foreignKey && col.foreignKey.table && col.foreignKey.column)
       .map((col) => {
         const safeColumnName = validateAndEscapeColumnName(col.name)
-        const safeRefTable = validateAndEscapeTableName(col.foreignKey!.table)
-        const safeRefColumn = validateAndEscapeColumnName(col.foreignKey!.column)
+        const safeRefTable = validateAndEscapeTableName(col.foreignKey!.table!)
+        const safeRefColumn = validateAndEscapeColumnName(col.foreignKey!.column!)
         return `FOREIGN KEY (${safeColumnName}) REFERENCES ${safeRefTable}(${safeRefColumn})`
       })
       .join(', ')
@@ -121,11 +120,20 @@ export class SchemaManager {
     const safeTableName = validateAndEscapeTableName(tableName)
     const result = await this.db.prepare(`PRAGMA foreign_key_list(${safeTableName})`).all()
 
-    return result.results.map((fk: any) => ({
-      from: fk.from,
-      table: fk.table,
-      to: fk.to,
-    }))
+    interface ForeignKeyInfo {
+      from: string
+      table: string
+      to: string
+    }
+
+    return result.results.map((fk) => {
+      const foreignKey = fk as ForeignKeyInfo
+      return {
+        from: foreignKey.from,
+        table: foreignKey.table,
+        to: foreignKey.to,
+      }
+    })
   }
 
   // Add column to existing table
@@ -260,8 +268,16 @@ export class SchemaManager {
     if (changes.type) {
       const currentColumn = await this.db.prepare(`PRAGMA table_info(${safeTableName})`).all()
 
-      const column = currentColumn.results.find((col: any) => col.name === columnName)
-      if (column && (column as any).type !== changes.type) {
+      interface TableInfoColumn {
+        name: string
+        type: string
+      }
+
+      const column = currentColumn.results.find((col) => {
+        const columnInfo = col as TableInfoColumn
+        return columnInfo.name === columnName
+      })
+      if (column && (column as TableInfoColumn).type !== changes.type) {
         // Check if data can be safely converted
         if (changes.type === 'INTEGER') {
           const invalidIntegerResult = await this.db
@@ -541,7 +557,7 @@ export class SchemaManager {
       /FOREIGN KEY\s*\(\s*"?([^)"]+)"?\s*\)\s*REFERENCES\s+"?([^"(]+)"?\s*\(\s*"?([^)"]+)"?\s*\)/gi
     let match
     while ((match = originalFkRegex.exec(sql)) !== null) {
-      const [fullMatch, fkColumn, refTable, refColumn] = match
+      const [_fullMatch, fkColumn, refTable, refColumn] = match
       // Only keep if it's not the column we're modifying
       if (fkColumn !== columnName) {
         const safeFkColumn = validateAndEscapeColumnName(fkColumn)

@@ -1,13 +1,13 @@
 import { nanoid } from 'nanoid'
-import type { D1Database } from '../types/cloudflare'
+import type { D1Database, DurableObjectNamespace, ExecutionContext } from '../types/cloudflare'
 
 interface RealtimeEnvironment {
-  REALTIME?: any
+  REALTIME?: DurableObjectNamespace
 }
 
 interface BroadcastOptions {
   env?: RealtimeEnvironment
-  executionCtx?: any
+  executionCtx?: ExecutionContext
 }
 
 export type HookEventType = 'insert' | 'update' | 'delete'
@@ -96,7 +96,7 @@ export class HookManager {
     return result.results || []
   }
 
-  async queueEvent(hook: Hook, recordId: string, eventData: any): Promise<void> {
+  async queueEvent(hook: Hook, recordId: string, eventData: Record<string, unknown>): Promise<void> {
     const id = nanoid()
     const now = new Date().toISOString()
     const data = JSON.stringify(eventData)
@@ -144,7 +144,7 @@ export class HookManager {
     tableName: string,
     eventType: HookEventType,
     recordId: string,
-    eventData: any
+    eventData: Record<string, unknown>
   ): Promise<void> {
     try {
       const hooks = await this.getActiveHooks(tableName, eventType)
@@ -167,7 +167,7 @@ export class HookManager {
     tableName: string,
     recordId: string,
     eventType: HookEventType,
-    eventData: any,
+    eventData: Record<string, unknown>,
     options?: BroadcastOptions
   ): Promise<void> {
     // 即時ブロードキャスト（waitUntilでバックグラウンド実行）
@@ -190,8 +190,8 @@ export class HookManager {
     tableName: string,
     eventType: HookEventType,
     recordId: string,
-    eventData: any,
-    realtimeNamespace: any
+    eventData: Record<string, unknown>,
+    realtimeNamespace: DurableObjectNamespace
   ): Promise<void> {
     try {
       const id = realtimeNamespace.idFromName('global')

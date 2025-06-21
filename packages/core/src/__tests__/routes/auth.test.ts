@@ -1,6 +1,5 @@
 import { Hono } from 'hono'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { VibebaseAuthClient } from '../../lib/auth-client'
 import { auth } from '../../routes/auth'
 import type { Env, Variables } from '../../types'
 

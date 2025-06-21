@@ -1,5 +1,4 @@
-import type { D1Database, TableDataResult } from '../types/cloudflare'
-import type { CountResult } from '../types/database'
+import type { D1Database, DurableObjectNamespace, ExecutionContext, TableDataResult } from '../types/cloudflare'
 import { HookManager } from './hook-manager'
 import {
   createColumnList,
@@ -10,7 +9,7 @@ import {
 import { SYSTEM_TABLES } from './table-manager'
 
 interface DataManagerEnvironment {
-  REALTIME?: any
+  REALTIME?: DurableObjectNamespace<undefined>
 }
 
 export class DataManager {
@@ -19,7 +18,7 @@ export class DataManager {
   constructor(
     private db: D1Database,
     private env?: DataManagerEnvironment,
-    private executionCtx?: any
+    private executionCtx?: ExecutionContext
   ) {
     this.hookManager = new HookManager(db)
   }

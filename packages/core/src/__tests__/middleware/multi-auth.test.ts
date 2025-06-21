@@ -1,7 +1,6 @@
 import { Hono } from 'hono'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { APIKeyManager } from '../../lib/api-key-manager'
-import { VibebaseAuthClient } from '../../lib/auth-client'
 import { multiAuth } from '../../middleware/auth'
 import type { Env, Variables } from '../../types'
 

@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import {
   DEFAULT_SECURITY_CONFIG,
   DEVELOPMENT_CSP_OVERRIDES,
@@ -346,28 +346,28 @@ describe('Security Headers Configuration Constants', () => {
     it('should have required CSP directives', () => {
       const csp = DEFAULT_SECURITY_CONFIG.contentSecurityPolicy
       expect(csp).toBeDefined()
-      expect(csp!.directives['default-src']).toEqual(["'self'"])
-      expect(csp!.directives['object-src']).toEqual(["'none'"])
-      expect(csp!.directives['frame-ancestors']).toEqual(["'none'"])
+      expect(csp?.directives['default-src']).toEqual(["'self'"])
+      expect(csp?.directives['object-src']).toEqual(["'none'"])
+      expect(csp?.directives['frame-ancestors']).toEqual(["'none'"])
     })
 
     it('should have secure HSTS configuration', () => {
       const hsts = DEFAULT_SECURITY_CONFIG.strictTransportSecurity
       expect(hsts).toBeDefined()
-      expect(hsts!.maxAge).toBe(31536000) // 1 year
-      expect(hsts!.includeSubDomains).toBe(true)
-      expect(hsts!.preload).toBe(true)
+      expect(hsts?.maxAge).toBe(31536000) // 1 year
+      expect(hsts?.includeSubDomains).toBe(true)
+      expect(hsts?.preload).toBe(true)
     })
 
     it('should disable dangerous permissions', () => {
       const permissions = DEFAULT_SECURITY_CONFIG.permissionsPolicy
       expect(permissions).toBeDefined()
-      expect(permissions!.camera).toEqual([])
-      expect(permissions!.microphone).toEqual([])
-      expect(permissions!.geolocation).toEqual([])
-      expect(permissions!['clipboard-read']).toEqual([])
-      expect(permissions!['clipboard-write']).toEqual(['self'])
-      expect(permissions!.fullscreen).toEqual(['self'])
+      expect(permissions?.camera).toEqual([])
+      expect(permissions?.microphone).toEqual([])
+      expect(permissions?.geolocation).toEqual([])
+      expect(permissions?.['clipboard-read']).toEqual([])
+      expect(permissions?.['clipboard-write']).toEqual(['self'])
+      expect(permissions?.fullscreen).toEqual(['self'])
     })
   })
 
@@ -375,23 +375,23 @@ describe('Security Headers Configuration Constants', () => {
     it('should allow localhost connections', () => {
       const directives = DEVELOPMENT_CSP_OVERRIDES.directives
       expect(directives).toBeDefined()
-      expect(directives!['connect-src']).toContain('localhost:*')
-      expect(directives!['script-src']).toContain('localhost:*')
+      expect(directives?.['connect-src']).toContain('localhost:*')
+      expect(directives?.['script-src']).toContain('localhost:*')
     })
 
     it('should allow HTTP protocol in development', () => {
       const directives = DEVELOPMENT_CSP_OVERRIDES.directives
-      expect(directives!['img-src']).toContain('http:')
-      expect(directives!['font-src']).toContain('http:')
-      expect(directives!['connect-src']).toContain('http:')
+      expect(directives?.['img-src']).toContain('http:')
+      expect(directives?.['font-src']).toContain('http:')
+      expect(directives?.['connect-src']).toContain('http:')
     })
 
     it('should allow WebSocket connections', () => {
       const directives = DEVELOPMENT_CSP_OVERRIDES.directives
-      expect(directives!['script-src']).toContain('ws:')
-      expect(directives!['script-src']).toContain('wss:')
-      expect(directives!['connect-src']).toContain('ws:')
-      expect(directives!['connect-src']).toContain('wss:')
+      expect(directives?.['script-src']).toContain('ws:')
+      expect(directives?.['script-src']).toContain('wss:')
+      expect(directives?.['connect-src']).toContain('ws:')
+      expect(directives?.['connect-src']).toContain('wss:')
     })
   })
 

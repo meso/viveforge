@@ -15,7 +15,7 @@ tables.use('*', async (c, next) => {
   c.set(
     'tableManager',
     new TableManager(c.env.DB, c.env.SYSTEM_STORAGE as any, c.executionCtx, {
-      REALTIME: c.env.REALTIME,
+      REALTIME: c.env.REALTIME as any,
     })
   )
   await next()
@@ -637,7 +637,7 @@ tables.get('/:tableName/search', zValidator('query', searchQuerySchema), async (
     // Validate value type for INTEGER columns
     if (columnInfo.type === 'INTEGER' && value && !['is_null', 'is_not_null'].includes(operator)) {
       const numValue = Number(value)
-      if (isNaN(numValue) || !Number.isInteger(numValue)) {
+      if (Number.isNaN(numValue) || !Number.isInteger(numValue)) {
         return c.json(
           {
             error: {

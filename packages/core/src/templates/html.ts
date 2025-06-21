@@ -1,4 +1,11 @@
-export const getDashboardHTML = (user: any, jsFile: string, cssFile: string) => {
+interface DashboardUser {
+  id: string
+  username: string
+  email: string
+  name?: string
+}
+
+export const getDashboardHTML = (user: DashboardUser, jsFile: string, cssFile: string) => {
   return `<!DOCTYPE html>
 <html lang="en">
   <head>

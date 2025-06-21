@@ -16,7 +16,7 @@ hooks.use('*', async (c, next) => {
   c.set(
     'tableManager',
     new TableManager(c.env.DB, c.env.SYSTEM_STORAGE as any, c.executionCtx, {
-      REALTIME: c.env.REALTIME,
+      REALTIME: c.env.REALTIME as any,
     })
   )
   await next()

@@ -161,9 +161,9 @@ describe('APIKeyManager', () => {
       const result = await apiKeyManager.verifyAPIKey('vb_live_test-nanoid-123')
 
       expect(result).toBeTruthy()
-      expect(result!.id).toBe('key-123')
-      expect(result!.scopes).toEqual(['data:read', 'data:write'])
-      expect(result!.is_active).toBe(true)
+      expect(result?.id).toBe('key-123')
+      expect(result?.scopes).toEqual(['data:read', 'data:write'])
+      expect(result?.is_active).toBe(true)
       expect(runMock).toHaveBeenCalled() // last_used_at should be updated
     })
 

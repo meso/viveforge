@@ -258,7 +258,7 @@ export class OAuthManager {
           )?.url as string,
         }
 
-      case 'linkedin':
+      case 'linkedin': {
         const firstName =
           (((userData.firstName as Record<string, unknown>)?.localized as Record<string, unknown>)
             ?.en_US as string) || ''
@@ -271,6 +271,7 @@ export class OAuthManager {
           name: `${firstName} ${lastName}`.trim() || undefined,
           avatar_url: (userData.profilePicture as Record<string, unknown>)?.displayImage as string,
         }
+      }
 
       case 'twitter':
         return {
@@ -288,7 +289,7 @@ export class OAuthManager {
           avatar_url: undefined, // Microsoft Graph doesn't provide avatar URL in basic profile
         }
 
-      case 'slack':
+      case 'slack': {
         const slackUser = (userData.user as Record<string, unknown>) || {}
         return {
           id: slackUser.id as string,
@@ -296,6 +297,7 @@ export class OAuthManager {
           name: slackUser.name as string,
           avatar_url: (slackUser.image_192 as string) || (slackUser.image_72 as string),
         }
+      }
 
       case 'discord':
         return {

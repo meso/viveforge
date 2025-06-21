@@ -15,14 +15,10 @@ import { IndexManager } from './index-manager'
 import type { ColumnDefinition, ColumnInfo } from './schema-manager'
 import { SchemaManager } from './schema-manager'
 import { SchemaSnapshotManager } from './schema-snapshot'
-import {
-  validateAndEscapeColumnName,
-  validateAndEscapeTableName,
-  validateNotSystemTable,
-} from './sql-utils'
+import { validateAndEscapeColumnName, validateAndEscapeTableName } from './sql-utils'
 
 interface TableManagerEnvironment {
-  REALTIME?: any
+  REALTIME?: DurableObjectNamespace<undefined>
 }
 
 // System tables that cannot be modified by users
@@ -63,7 +59,7 @@ export class TableManager {
   constructor(
     private db: D1Database,
     private systemStorage?: R2Bucket,
-    private executionCtx?: any,
+    private executionCtx?: ExecutionContext,
     private env?: TableManagerEnvironment
   ) {
     this.errorHandler = ErrorHandler.getInstance()
@@ -74,7 +70,7 @@ export class TableManager {
       this.snapshotManager,
       this.createAsyncSnapshot.bind(this)
     )
-    this.dataManager = new DataManager(db, env, executionCtx)
+    this.dataManager = new DataManager(db, env as any, executionCtx)
     this.indexManager = new IndexManager(db, this.createAsyncSnapshot.bind(this))
   }
 
@@ -134,15 +130,18 @@ export class TableManager {
       }
 
       // Get access policy for user tables
-      let access_policy: 'public' | 'private' | undefined = undefined
+      let access_policy: 'public' | 'private' | undefined
       if (!isSystem) {
         try {
           const policyResult = await this.db
             .prepare(`SELECT access_policy FROM table_policies WHERE table_name = ?`)
             .bind(name)
             .first()
-          access_policy = (policyResult as any)?.access_policy || 'public'
-        } catch (e) {
+          interface PolicyResult {
+            access_policy: 'public' | 'private'
+          }
+          access_policy = (policyResult as PolicyResult)?.access_policy || 'public'
+        } catch (_e) {
           // If table_policies doesn't exist yet, default to public
           access_policy = 'public'
         }
@@ -181,15 +180,15 @@ export class TableManager {
     createdBy?: string
     snapshotType?: 'manual' | 'auto' | 'pre_change'
   }): void {
-    if (this.executionCtx && this.executionCtx.waitUntil) {
+    if (this.executionCtx?.waitUntil) {
       this.executionCtx.waitUntil(
-        this.snapshotManager.createSnapshot(options).catch((error: any) => {
+        this.snapshotManager.createSnapshot(options).catch((error: unknown) => {
           this.errorHandler.handleStorageWarning('createAsyncSnapshot', error)
         })
       )
     } else {
       // Fallback for when executionCtx is not available
-      this.snapshotManager.createSnapshot(options).catch((error: any) => {
+      this.snapshotManager.createSnapshot(options).catch((error: unknown) => {
         this.errorHandler.handleStorageWarning('createFallbackSnapshot', error)
       })
     }
@@ -206,7 +205,7 @@ export class TableManager {
   }
 
   // Create a record in a table
-  async createRecord(tableName: string, data: Record<string, any>): Promise<void> {
+  async createRecord(tableName: string, data: Record<string, unknown>): Promise<void> {
     return this.dataManager.createRecord(tableName, data)
   }
 
@@ -255,7 +254,7 @@ export class TableManager {
   }
 
   // Get single record by ID
-  async getRecordById(tableName: string, id: string): Promise<Record<string, any> | null> {
+  async getRecordById(tableName: string, id: string): Promise<Record<string, unknown> | null> {
     return this.dataManager.getRecordById(tableName, id)
   }
 
@@ -264,7 +263,7 @@ export class TableManager {
     tableName: string,
     id: string,
     userId?: string
-  ): Promise<Record<string, any> | null> {
+  ): Promise<Record<string, unknown> | null> {
     // Get access policy for the table
     const accessPolicy = await this.getTableAccessPolicy(tableName)
 
@@ -272,14 +271,14 @@ export class TableManager {
   }
 
   // Create record and return the generated ID
-  async createRecordWithId(tableName: string, data: Record<string, any>): Promise<string> {
+  async createRecordWithId(tableName: string, data: Record<string, unknown>): Promise<string> {
     return this.dataManager.createRecordWithId(tableName, data)
   }
 
   // Create record with access control (auto-set owner_id for private tables)
   async createRecordWithAccessControl(
     tableName: string,
-    data: Record<string, any>,
+    data: Record<string, unknown>,
     userId?: string
   ): Promise<string> {
     // Get access policy for the table
@@ -289,7 +288,7 @@ export class TableManager {
   }
 
   // Update record
-  async updateRecord(tableName: string, id: string, data: Record<string, any>): Promise<void> {
+  async updateRecord(tableName: string, id: string, data: Record<string, unknown>): Promise<void> {
     return this.dataManager.updateRecord(tableName, id, data)
   }
 
@@ -505,8 +504,15 @@ export class TableManager {
         .prepare(`PRAGMA table_info(${validateAndEscapeTableName(tableName)})`)
         .all()
 
-      const column = currentColumn.results.find((col: any) => col.name === columnName)
-      if (column && (column as any).type !== changes.type) {
+      interface TableInfoColumn {
+        name: string
+        type: string
+      }
+      const column = currentColumn.results.find((col) => {
+        const columnInfo = col as TableInfoColumn
+        return columnInfo.name === columnName
+      })
+      if (column && (column as TableInfoColumn).type !== changes.type) {
         // Check if data can be safely converted
         if (changes.type === 'INTEGER') {
           const invalidIntegerResult = await this.db
@@ -717,7 +723,7 @@ export class TableManager {
       /FOREIGN KEY\s*\(\s*"?([^)"]+)"?\s*\)\s*REFERENCES\s+"?([^"(]+)"?\s*\(\s*"?([^)"]+)"?\s*\)/gi
     let match
     while ((match = originalFkRegex.exec(sql)) !== null) {
-      const [fullMatch, fkColumn, refTable, refColumn] = match
+      const [_fullMatch, fkColumn, refTable, refColumn] = match
       // Only keep if it's not the column we're modifying
       if (fkColumn !== columnName) {
         foreignKeys.push(
@@ -739,7 +745,7 @@ export class TableManager {
   }
 
   // Execute custom SQL (with safety checks)
-  async executeSQL(sql: string, params: any[] = []): Promise<{ results: Record<string, any>[] }> {
+  async executeSQL(sql: string, params: unknown[] = []): Promise<{ results: Record<string, unknown>[] }> {
     // Basic SQL injection prevention
     const normalizedSQL = sql.trim().toUpperCase()
 
@@ -766,7 +772,7 @@ export class TableManager {
 
     const result = await this.db
       .prepare(sql)
-      .bind(...params)
+      .bind(...(params as (string | number | boolean | null | undefined)[]))
       .all()
 
     return {
@@ -793,8 +799,9 @@ export class TableManager {
     return this.snapshotManager.getSnapshots(limit, offset)
   }
 
-  async getSnapshot(id: string): Promise<Record<string, any> | null> {
-    return this.snapshotManager.getSnapshot(id)
+  async getSnapshot(id: string): Promise<Record<string, unknown> | null> {
+    const snapshot = await this.snapshotManager.getSnapshot(id)
+    return snapshot as Record<string, unknown> | null
   }
 
   // Access policy management
@@ -804,8 +811,11 @@ export class TableManager {
         .prepare(`SELECT access_policy FROM table_policies WHERE table_name = ?`)
         .bind(tableName)
         .first()
-      return (result as any)?.access_policy || 'public'
-    } catch (e) {
+      interface AccessPolicyResult {
+        access_policy: 'public' | 'private'
+      }
+      return (result as AccessPolicyResult)?.access_policy || 'public'
+    } catch (_e) {
       // If table doesn't exist in policies, default to public
       return 'public'
     }
@@ -954,7 +964,7 @@ export class TableManager {
       offset: number
     }
   ): Promise<{
-    data: Record<string, any>[]
+    data: Record<string, unknown>[]
     total: number
     hasMore: boolean
   }> {
@@ -964,7 +974,7 @@ export class TableManager {
 
         // Build WHERE clause
         let whereClause = ''
-        let params: any[] = []
+        let params: unknown[] = []
 
         switch (operator) {
           case 'eq':
@@ -1008,14 +1018,14 @@ export class TableManager {
           .prepare(
             `SELECT COUNT(*) as total FROM ${validateAndEscapeTableName(tableName)} WHERE ${whereClause}`
           )
-          .bind(...params)
+          .bind(...(params as (string | number | boolean | null | undefined)[]))
           .first()
 
         const total = (countResult as CountResult)?.total || 0
 
         // Build data query
         let dataQuery = `SELECT * FROM ${validateAndEscapeTableName(tableName)} WHERE ${whereClause}`
-        let dataParams = [...params]
+        const dataParams = [...params]
 
         if (limit !== undefined) {
           dataQuery += ` LIMIT ? OFFSET ?`
@@ -1028,7 +1038,7 @@ export class TableManager {
         // Get data
         const dataResult = await this.db
           .prepare(dataQuery)
-          .bind(...dataParams)
+          .bind(...(dataParams as (string | number | boolean | null | undefined)[]))
           .all()
 
         const data = dataResult.results || []

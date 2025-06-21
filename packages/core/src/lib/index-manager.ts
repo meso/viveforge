@@ -14,6 +14,18 @@ export interface IndexInfo {
   sql: string
 }
 
+// Type for sqlite_master index records
+interface SqliteMasterIndexRecord {
+  name: string
+  tbl_name: string
+  sql: string
+}
+
+// Type for SQL result containing sql column
+interface SqlResult {
+  sql: string
+}
+
 export class IndexManager {
   constructor(
     private db: D1Database,
@@ -56,9 +68,9 @@ export class IndexManager {
         const safeIndexName = validateAndEscapeIndexName(indexName)
         const indexInfoResult = await this.db.prepare(`PRAGMA index_info(${safeIndexName})`).all()
 
-        const columns = indexInfoResult.results
-          .sort((a: any, b: any) => a.seqno - b.seqno)
-          .map((col: any) => col.name)
+        const columns = (indexInfoResult.results as IndexColumnInfo[])
+          .sort((a, b) => a.seqno - b.seqno)
+          .map((col) => col.name)
 
         // Get the original SQL from sqlite_master
         const sqlResult = await this.db
@@ -71,7 +83,7 @@ export class IndexManager {
           tableName: tableName,
           columns: columns,
           unique: dbIndex.unique === 1,
-          sql: (sqlResult as DBIndexInfo)?.sql || '',
+          sql: (sqlResult as SqlResult | null)?.sql || '',
         })
       }
 
@@ -188,29 +200,31 @@ export class IndexManager {
       const indexes: IndexInfo[] = []
 
       for (const row of result.results) {
-        const dbIndex = row as DBIndexInfo
+        const dbIndex = row as SqliteMasterIndexRecord
         const indexName = dbIndex.name
-        const tableName = (dbIndex as any).tbl_name
+        const tableName = dbIndex.tbl_name
 
         // Get detailed info about this index
         const safeIndexName = validateAndEscapeIndexName(indexName)
         const indexInfoResult = await this.db.prepare(`PRAGMA index_info(${safeIndexName})`).all()
 
-        const columns = indexInfoResult.results
-          .sort((a: any, b: any) => a.seqno - b.seqno)
-          .map((col: any) => col.name)
+        const columns = (indexInfoResult.results as IndexColumnInfo[])
+          .sort((a, b) => a.seqno - b.seqno)
+          .map((col) => col.name)
 
         // Check if index is unique by parsing SQL or using PRAGMA
         const safeTableName = validateAndEscapeTableName(tableName)
         const indexListResult = await this.db.prepare(`PRAGMA index_list(${safeTableName})`).all()
 
-        const indexDetails = indexListResult.results.find((idx: any) => idx.name === indexName)
+        const indexDetails = (indexListResult.results as DBIndexInfo[]).find(
+          (idx) => idx.name === indexName
+        )
 
         indexes.push({
           name: indexName,
           tableName: tableName,
           columns: columns,
-          unique: (indexDetails as DBIndexInfo)?.unique === 1,
+          unique: indexDetails?.unique === 1,
           sql: dbIndex.sql || '',
         })
       }

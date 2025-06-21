@@ -40,8 +40,8 @@ export class UserAuthManager {
       iat: now,
     }
 
-    const accessToken = await sign(accessTokenPayload as any, this.jwtSecret)
-    const refreshToken = await sign(refreshTokenPayload as any, this.jwtSecret)
+    const accessToken = await sign(accessTokenPayload, this.jwtSecret)
+    const refreshToken = await sign(refreshTokenPayload, this.jwtSecret)
 
     // Store session in database
     await this.createSession(sessionId, user.id, accessToken, refreshToken, accessTokenPayload.exp)
@@ -89,7 +89,7 @@ export class UserAuthManager {
     email: string
     name?: string
     avatar_url?: string
-    metadata?: any
+    metadata?: Record<string, unknown>
   }): Promise<User> {
     const existingUser = await this.getUserByProvider(
       providerUser.provider,
@@ -159,7 +159,7 @@ export class UserAuthManager {
         iat: now,
       }
 
-      const accessToken = await sign(accessTokenPayload as any, this.jwtSecret)
+      const accessToken = await sign(accessTokenPayload, this.jwtSecret)
 
       // Update session with new access token
       await this.updateSession(payload.session_id, accessToken, accessTokenPayload.exp)

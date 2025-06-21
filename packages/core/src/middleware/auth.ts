@@ -1,10 +1,9 @@
 import type { Context, Next } from 'hono'
-import { bearerAuth } from 'hono/bearer-auth'
-import { type APIKey, APIKeyManager } from '../lib/api-key-manager'
-import { type User as AdminUser, VibebaseAuthClient } from '../lib/auth-client'
+import { APIKeyManager } from '../lib/api-key-manager'
+import type { User as AdminUser, VibebaseAuthClient } from '../lib/auth-client'
 import { UserAuthManager } from '../lib/user-auth-manager'
 import type { Env, Variables } from '../types'
-import type { AuthContext, User, UserSession } from '../types/auth'
+import type { AuthContext, User } from '../types/auth'
 
 export interface AuthError extends Error {
   code: string
@@ -78,7 +77,7 @@ async function handleUserJWTAuth(
 
     await next()
     return c.res // Return the response to indicate successful handling
-  } catch (error) {
+  } catch (_error) {
     // If verification fails, it might not be a user token
     // Return null to let other auth methods try
     return null

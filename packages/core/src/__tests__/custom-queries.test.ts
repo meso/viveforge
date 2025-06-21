@@ -131,10 +131,11 @@ describe('Parameter Extraction', () => {
       'SELECT * FROM users WHERE id = :user_id AND created_at > :start_date AND status = :status'
     const paramRegex = /:(\w+)/g
     const matches = new Set<string>()
-    let match
+    let match = paramRegex.exec(sql)
 
-    while ((match = paramRegex.exec(sql)) !== null) {
+    while (match !== null) {
       matches.add(match[1])
+      match = paramRegex.exec(sql)
     }
 
     expect(matches.size).toBe(3)
@@ -147,10 +148,11 @@ describe('Parameter Extraction', () => {
     const sql = 'SELECT * FROM users WHERE id = :user_id OR parent_id = :user_id'
     const paramRegex = /:(\w+)/g
     const matches = new Set<string>()
-    let match
+    let match = paramRegex.exec(sql)
 
-    while ((match = paramRegex.exec(sql)) !== null) {
+    while (match !== null) {
       matches.add(match[1])
+      match = paramRegex.exec(sql)
     }
 
     expect(matches.size).toBe(1)
@@ -161,10 +163,11 @@ describe('Parameter Extraction', () => {
     const sql = 'SELECT COUNT(*) FROM users'
     const paramRegex = /:(\w+)/g
     const matches = new Set<string>()
-    let match
+    let match = paramRegex.exec(sql)
 
-    while ((match = paramRegex.exec(sql)) !== null) {
+    while (match !== null) {
       matches.add(match[1])
+      match = paramRegex.exec(sql)
     }
 
     expect(matches.size).toBe(0)

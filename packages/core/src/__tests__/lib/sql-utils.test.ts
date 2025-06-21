@@ -4,7 +4,6 @@ import {
   isValidSQLIdentifier,
   validateAndEscapeColumnName,
   validateAndEscapeTableName,
-  validateAndNormalizeSQLDataType,
   validateNotSystemTable,
   validateSQLDataType,
 } from '../../lib/sql-utils'

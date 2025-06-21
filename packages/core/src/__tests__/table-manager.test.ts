@@ -730,7 +730,7 @@ describe('TableManager', () => {
       // Try an operation that should fail
       try {
         await tableManager.createTable('123invalid', [{ name: 'test', type: 'TEXT' }])
-      } catch (error) {
+      } catch (_error) {
         // Expected to fail
       }
 

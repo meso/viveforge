@@ -1,10 +1,10 @@
-import type { ExecutionContext } from '@cloudflare/workers-types'
+import type { ExecutionContext, ScheduledEvent } from '@cloudflare/workers-types'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { VibebaseAuthClient } from './lib/auth-client'
 import { getOrGenerateJWTSecret, logSecurityWarnings } from './lib/security-utils'
-import { multiAuth, optionalAuth, requireAuth } from './middleware/auth'
+import { multiAuth } from './middleware/auth'
 import { securityHeaders } from './middleware/security-headers'
 import { admin } from './routes/admin'
 import adminOAuth from './routes/admin-oauth'
@@ -23,7 +23,7 @@ import { storage } from './routes/storage'
 import { tables } from './routes/tables'
 import userAuth from './routes/user-auth'
 import { CURRENT_ASSETS } from './templates/assets'
-import { getDashboardHTML, getLoginHTML } from './templates/html'
+import { getDashboardHTML } from './templates/html'
 import type { Env, Variables } from './types'
 
 // Export Durable Object class
@@ -114,7 +114,15 @@ app.use('*', async (c, next) => {
 // Root route - Dashboard
 app.get('/', async (c) => {
   const user = c.get('user')
-  return c.html(getDashboardHTML(user, CURRENT_ASSETS.js, CURRENT_ASSETS.css))
+  if (!user) {
+    return c.redirect('/auth/login')
+  }
+  return c.html(getDashboardHTML({
+    id: user.id,
+    username: user.username || user.name || 'Unknown',
+    email: user.email,
+    name: user.name
+  }, CURRENT_ASSETS.js, CURRENT_ASSETS.css))
 })
 
 // Static assets handled by Workers Assets below
@@ -169,14 +177,22 @@ app.get('*', async (c) => {
 
   // For SPA routes, user is already authenticated via middleware
   const user = c.get('user')
+  if (!user) {
+    return c.redirect('/auth/login')
+  }
 
   // Return the SPA HTML with auth state
-  return c.html(getDashboardHTML(user, CURRENT_ASSETS.js, CURRENT_ASSETS.css))
+  return c.html(getDashboardHTML({
+    id: user.id,
+    username: user.username || user.name || 'Unknown',
+    email: user.email,
+    name: user.name
+  }, CURRENT_ASSETS.js, CURRENT_ASSETS.css))
 })
 
 // Export default handler with both fetch and scheduled handlers
 export default {
-  async scheduled(event: any, env: Env, ctx: ExecutionContext): Promise<void> {
+  async scheduled(event: ScheduledEvent, env: Env, _ctx: ExecutionContext): Promise<void> {
     console.log('Cron trigger executed:', event.cron)
 
     try {

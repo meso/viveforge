@@ -5,7 +5,6 @@ import { OAuthManager } from '../lib/oauth-manager'
 import { UserAuthManager } from '../lib/user-auth-manager'
 import { getAuthContext, getCurrentEndUser, multiAuth, requireUserAuth } from '../middleware/auth'
 import type { Env, Variables } from '../types'
-import type { User } from '../types/auth'
 
 const userAuth = new Hono<{ Bindings: Env; Variables: Variables }>()
 

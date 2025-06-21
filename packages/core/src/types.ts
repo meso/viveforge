@@ -1,7 +1,6 @@
 import type { User, VibebaseAuthClient } from './lib/auth-client'
-import { Database } from './lib/database'
-import type { LocalTableInfo } from './lib/table-manager'
-import { TableManager } from './lib/table-manager'
+import type { Database } from './lib/database'
+import type { LocalTableInfo, TableManager } from './lib/table-manager'
 import type { AuthContext } from './types/auth'
 import type { DurableObjectNamespace } from './types/cloudflare'
 
@@ -33,7 +32,7 @@ export interface Env {
   GITHUB_CLIENT_SECRET?: string
 
   // Durable Objects
-  REALTIME?: DurableObjectNamespace
+  REALTIME?: DurableObjectNamespace<undefined>
 }
 
 // Hono Context Variables

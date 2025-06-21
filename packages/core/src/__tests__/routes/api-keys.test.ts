@@ -26,7 +26,7 @@ vi.mock('../../middleware/auth', () => ({
   }),
   getAuthContext: vi.fn(),
   requireScope: vi.fn(),
-  multiAuth: vi.fn().mockImplementation(async (c, next) => {
+  multiAuth: vi.fn().mockImplementation(async (_c, next) => {
     await next()
   }),
 }))

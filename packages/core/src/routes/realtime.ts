@@ -84,7 +84,9 @@ realtime.post('/subscribe', zValidator('json', subscribeSchema), async (c) => {
     const stub = c.env.REALTIME.get(id)
 
     // Update subscriptions
-    await stub.updateSubscriptions(clientId, { tables, hookIds })
+    if (stub.updateSubscriptions) {
+      await stub.updateSubscriptions(clientId, { tables, hookIds })
+    }
 
     return c.json({
       success: true,
@@ -182,7 +184,7 @@ realtime.post('/process-events', async (c) => {
 })
 
 // OPTIONS /api/realtime/* - Handle CORS preflight
-realtime.options('*', async (c) => {
+realtime.options('*', async (_c) => {
   return new Response(null, {
     status: 204,
     headers: {

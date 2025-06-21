@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { type User, VibebaseAuthClient } from '../lib/auth-client'
+import type { VibebaseAuthClient } from '../lib/auth-client'
 import { getCurrentUser } from '../middleware/auth'
 import { getAccessDeniedHTML, getAuthErrorHTML, getLogoutHTML } from '../templates/html'
 import type { Env, Variables } from '../types'

@@ -262,7 +262,7 @@ describe('Storage API', () => {
       // Verify file was stored
       const storedFile = await mockR2Bucket.get('test.txt')
       expect(storedFile).toBeTruthy()
-      expect(await storedFile!.text()).toBe('test content')
+      expect(await storedFile?.text()).toBe('test content')
     })
 
     it('should upload file with custom path', async () => {

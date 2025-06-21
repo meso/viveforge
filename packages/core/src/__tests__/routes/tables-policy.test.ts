@@ -46,7 +46,10 @@ describe('Table Access Policy Routes', () => {
       try {
         const tableName = c.req.param('tableName')
         const { access_policy } = c.req.valid('json')
-        const tableManager = c.get('tableManager')!
+        const tableManager = c.get('tableManager')
+        if (!tableManager) {
+          return c.json({ error: 'TableManager not available' }, 500)
+        }
 
         // Check if table is a system table
         if (SYSTEM_TABLES.includes(tableName as (typeof SYSTEM_TABLES)[number])) {

@@ -136,11 +136,12 @@ export interface ExecutionContext {
 }
 
 // Durable Objects types
-export interface DurableObjectNamespace {
+export interface DurableObjectNamespace<Env = undefined> {
   idFromName(name: string): DurableObjectId
   idFromString(id: string): DurableObjectId
   newUniqueId(options?: { jurisdiction?: string }): DurableObjectId
   get(id: DurableObjectId): DurableObjectStub
+  jurisdiction?: string
 }
 
 export interface DurableObjectId {
@@ -150,7 +151,10 @@ export interface DurableObjectId {
 
 export interface DurableObjectStub {
   fetch(request: RequestInfo, init?: RequestInit): Promise<Response>
-  [key: string]: any // Allow arbitrary method calls
+  // Common Durable Object methods
+  updateSubscriptions?(clientId: string, data: unknown): Promise<unknown>
+  // Allow arbitrary method calls with proper typing
+  [key: string]: unknown
 }
 
 // Common result types for our application
