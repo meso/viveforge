@@ -15,6 +15,8 @@ import adminOAuth from './routes/admin-oauth'
 import appSettings from './routes/app-settings'
 import { hooks } from './routes/hooks'
 import { realtime } from './routes/realtime'
+import { customQueries } from './routes/custom-queries'
+import { custom } from './routes/custom'
 import { VibebaseAuthClient } from './lib/auth-client'
 import { getDashboardHTML, getLoginHTML } from './templates/html'
 import { requireAuth, optionalAuth, multiAuth } from './middleware/auth'
@@ -128,6 +130,8 @@ app.route('/api/api-keys', apiKeys)
 app.route('/api/app-settings', appSettings)
 app.route('/api/hooks', hooks)
 app.route('/api/realtime', realtime)
+app.route('/api/custom-queries', customQueries)
+app.route('/api/custom', custom)
 
 // Handle static assets
 app.get('/assets/*', async (c) => {

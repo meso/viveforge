@@ -19,6 +19,7 @@ export function Layout({ children }: LayoutProps) {
               <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
                 <NavLink href="/">Dashboard</NavLink>
                 <NavLink href="/database">Database</NavLink>
+                <NavLink href="/custom-sql">Custom SQL</NavLink>
                 <NavLink href="/storage">Storage</NavLink>
                 <NavLink href="/auth">Auth</NavLink>
                 <NavLink href="/settings">Settings</NavLink>

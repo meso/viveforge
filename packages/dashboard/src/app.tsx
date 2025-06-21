@@ -5,6 +5,7 @@ import { DatabasePage } from './pages/Database'
 import { StoragePage } from './pages/Storage'
 import { AuthPage } from './pages/Auth'
 import { SettingsPage } from './pages/Settings'
+import { CustomSQL } from './pages/CustomSQL'
 
 export function App() {
   return (
@@ -12,6 +13,7 @@ export function App() {
       <Router>
         <Route path="/" component={HomePage} />
         <Route path="/database" component={DatabasePage} />
+        <Route path="/custom-sql" component={CustomSQL} />
         <Route path="/storage" component={StoragePage} />
         <Route path="/auth" component={AuthPage} />
         <Route path="/settings" component={SettingsPage} />

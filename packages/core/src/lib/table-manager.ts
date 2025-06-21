@@ -22,7 +22,7 @@ interface TableManagerEnvironment {
 }
 
 // System tables that cannot be modified by users
-export const SYSTEM_TABLES = ['admins', 'sessions', 'schema_snapshots', 'schema_snapshot_counter', 'd1_migrations', 'api_keys', 'user_sessions', 'oauth_providers', 'app_settings', 'table_policies', 'hooks', 'event_queue', 'realtime_subscriptions'] as const
+export const SYSTEM_TABLES = ['admins', 'sessions', 'schema_snapshots', 'schema_snapshot_counter', 'd1_migrations', 'api_keys', 'user_sessions', 'oauth_providers', 'app_settings', 'table_policies', 'hooks', 'event_queue', 'realtime_subscriptions', 'custom_queries', 'custom_query_logs'] as const
 type SystemTable = typeof SYSTEM_TABLES[number]
 
 export interface LocalTableInfo {
