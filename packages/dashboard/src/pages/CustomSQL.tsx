@@ -92,8 +92,12 @@ export function CustomSQL() {
   }
 
   // Test execution state
-  const [testParams, setTestParams] = useState<Record<string, any>>({})
-  const [testResult, setTestResult] = useState<any>(null)
+  const [testParams, setTestParams] = useState<Record<string, unknown>>({})
+  const [testResult, setTestResult] = useState<{
+    data: unknown[]
+    row_count: number
+    execution_time: number
+  } | null>(null)
   const [testError, setTestError] = useState<string | null>(null)
   const [testing, setTesting] = useState(false)
 
@@ -396,7 +400,7 @@ export function CustomSQL() {
                           </label>
                           <input
                             type={param.type === 'number' ? 'number' : 'text'}
-                            value={testParams[param.name] || ''}
+                            value={(testParams[param.name] as string) || ''}
                             onChange={(e) => setTestParams({
                               ...testParams,
                               [param.name]: e.currentTarget.value
@@ -573,7 +577,7 @@ export function CustomSQL() {
                       />
                       <select
                         value={param.type}
-                        onChange={(e) => updateParameter(index, { type: e.currentTarget.value as any })}
+                        onChange={(e) => updateParameter(index, { type: e.currentTarget.value as Parameter['type'] })}
                         class="px-3 py-1 border border-gray-300 rounded-md text-sm"
                       >
                         <option value="string">String</option>
@@ -606,7 +610,7 @@ export function CustomSQL() {
                     <label class="block text-sm font-medium text-gray-700">Method</label>
                     <select
                       value={formData.method}
-                      onChange={(e) => setFormData({ ...formData, method: e.currentTarget.value as any })}
+                      onChange={(e) => setFormData({ ...formData, method: e.currentTarget.value as 'GET' | 'POST' })}
                       class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
                     >
                       <option value="GET">GET</option>

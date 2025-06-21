@@ -7,13 +7,21 @@ import type { Env, Variables } from '../types'
 export const customQueries = new Hono<{ Bindings: Env; Variables: Variables }>()
 
 // Type definitions
+interface Parameter {
+  name: string
+  type: 'string' | 'number' | 'boolean' | 'date'
+  required: boolean
+  description?: string
+  default?: string | number | boolean
+}
+
 interface CustomQuery {
   id: string
   slug: string
   name: string
   description?: string
   sql_query: string
-  parameters: any[]
+  parameters: Parameter[]
   method: string
   is_readonly: boolean
   cache_ttl: number
@@ -258,7 +266,7 @@ customQueries.put('/:id', zValidator('json', customQuerySchema.partial(), (resul
 
     // Build update query dynamically
     const updates: string[] = []
-    const values: any[] = []
+    const values: (string | number | boolean | null)[] = []
 
     if (data.slug !== undefined) {
       updates.push('slug = ?')
@@ -368,7 +376,7 @@ customQueries.post('/:id/test', zValidator('json', testQuerySchema), async (c) =
     const queryDef = {
       ...query,
       parameters: JSON.parse(query.parameters as string || '[]')
-    } as CustomQuery & Record<string, any>
+    } as CustomQuery
 
     // Validate and prepare parameters
     const preparedParams = prepareQueryParameters(queryDef.parameters, parameters)
@@ -427,10 +435,10 @@ customQueries.post('/:id/test', zValidator('json', testQuerySchema), async (c) =
 
 // Helper function to prepare query parameters
 function prepareQueryParameters(
-  paramDefs: z.infer<typeof parameterSchema>[],
+  paramDefs: Parameter[],
   providedParams: Record<string, unknown>
-): Record<string, any> {
-  const prepared: Record<string, any> = {}
+): Record<string, unknown> {
+  const prepared: Record<string, unknown> = {}
 
   for (const paramDef of paramDefs) {
     let value = providedParams[paramDef.name]

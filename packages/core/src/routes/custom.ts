@@ -2,6 +2,15 @@ import { Hono } from 'hono'
 import { generateId } from '../lib/utils'
 import type { Env, Variables } from '../types'
 
+// Type definitions
+interface Parameter {
+  name: string
+  type: 'string' | 'number' | 'boolean' | 'date'
+  required: boolean
+  description?: string
+  default?: string | number | boolean
+}
+
 export const custom = new Hono<{ Bindings: Env; Variables: Variables }>()
 
 // Dynamic custom query execution
@@ -121,10 +130,10 @@ custom.all('/:slug', async (c) => {
 
 // Helper function to prepare query parameters
 function prepareQueryParameters(
-  paramDefs: any[],
+  paramDefs: Parameter[],
   providedParams: Record<string, unknown>
-): Record<string, any> {
-  const prepared: Record<string, any> = {}
+): Record<string, unknown> {
+  const prepared: Record<string, unknown> = {}
 
   for (const paramDef of paramDefs) {
     let value = providedParams[paramDef.name]
