@@ -38,8 +38,6 @@ export function CustomSQL() {
     description: '',
     sql_query: '',
     parameters: [] as Parameter[],
-    method: 'GET' as 'GET' | 'POST',
-    is_readonly: true,
     cache_ttl: 0,
     enabled: true
   })
@@ -89,6 +87,18 @@ export function CustomSQL() {
       required: true,
       description: ''
     }))
+  }
+
+  // Determine HTTP method and readonly status based on SQL
+  const determineMethodAndReadonly = (sql: string) => {
+    const trimmedSql = sql.trim().toLowerCase()
+    const isSelect = trimmedSql.startsWith('select')
+    const isPragma = trimmedSql.includes('pragma')
+    
+    return {
+      method: isSelect ? 'GET' : 'POST',
+      readonly: isSelect || isPragma
+    }
   }
 
   // Test execution state
@@ -217,8 +227,6 @@ export function CustomSQL() {
       description: '',
       sql_query: '',
       parameters: [],
-      method: 'GET',
-      is_readonly: true,
       cache_ttl: 0,
       enabled: true
     })
@@ -337,8 +345,6 @@ export function CustomSQL() {
                               description: query.description || '',
                               sql_query: query.sql_query,
                               parameters: query.parameters || [],
-                              method: query.method,
-                              is_readonly: Boolean(query.is_readonly),
                               cache_ttl: query.cache_ttl,
                               enabled: Boolean(query.enabled)
                             })
@@ -539,9 +545,27 @@ export function CustomSQL() {
                     placeholder="SELECT * FROM users WHERE created_at > :start_date"
                     class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm"
                   />
-                  <p class="mt-1 text-sm text-gray-500">
-                    Use :parameter_name for parameters (will be auto-detected)
-                  </p>
+                  <div class="mt-2 flex justify-between items-center">
+                    <p class="text-sm text-gray-500">
+                      Use :parameter_name for parameters (will be auto-detected)
+                    </p>
+                    {formData.sql_query && (
+                      <div class="flex gap-2">
+                        <span class={`px-2 py-1 rounded text-xs ${ 
+                          determineMethodAndReadonly(formData.sql_query).method === 'GET' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {determineMethodAndReadonly(formData.sql_query).method}
+                        </span>
+                        {determineMethodAndReadonly(formData.sql_query).readonly && (
+                          <span class="px-2 py-1 rounded text-xs bg-gray-100 text-gray-800">
+                            Read-only
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div>
@@ -605,41 +629,17 @@ export function CustomSQL() {
                   )))}
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700">Method</label>
-                    <select
-                      value={formData.method}
-                      onChange={(e) => setFormData({ ...formData, method: e.currentTarget.value as 'GET' | 'POST' })}
-                      class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
-                    >
-                      <option value="GET">GET</option>
-                      <option value="POST">POST</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700">Cache TTL (seconds)</label>
-                    <input
-                      type="number"
-                      value={formData.cache_ttl}
-                      onChange={(e) => setFormData({ ...formData, cache_ttl: parseInt(e.currentTarget.value) || 0 })}
-                      class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
-                    />
-                  </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700">Cache TTL (seconds)</label>
+                  <input
+                    type="number"
+                    value={formData.cache_ttl}
+                    onChange={(e) => setFormData({ ...formData, cache_ttl: parseInt(e.currentTarget.value) || 0 })}
+                    class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"
+                  />
                 </div>
 
-                <div class="space-y-2">
-                  <label class="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={formData.is_readonly}
-                      onChange={(e) => setFormData({ ...formData, is_readonly: e.currentTarget.checked })}
-                      class="mr-2"
-                    />
-                    <span class="text-sm font-medium text-gray-700">Read-only query</span>
-                  </label>
-
+                <div>
                   <label class="flex items-center">
                     <input
                       type="checkbox"

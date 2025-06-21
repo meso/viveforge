@@ -39,6 +39,18 @@ const parameterSchema = z.object({
   default: z.union([z.string(), z.number(), z.boolean()]).optional()
 })
 
+// Helper function to determine HTTP method based on SQL
+function determineHttpMethod(sql: string): 'GET' | 'POST' {
+  const trimmedSql = sql.trim().toLowerCase()
+  return trimmedSql.startsWith('select') ? 'GET' : 'POST'
+}
+
+// Helper function to determine if query is readonly
+function isReadonlyQuery(sql: string): boolean {
+  const trimmedSql = sql.trim().toLowerCase()
+  return trimmedSql.startsWith('select') || trimmedSql.includes('pragma')
+}
+
 // Create/Update custom query schema
 const customQuerySchema = z.object({
   slug: z.string().regex(/^[a-z0-9_-]+$/, 'Slug must be lowercase alphanumeric with hyphens and underscores'),
@@ -46,8 +58,6 @@ const customQuerySchema = z.object({
   description: z.string().optional().transform(val => val || undefined),
   sql_query: z.string().min(1),
   parameters: z.array(parameterSchema).default([]),
-  method: z.enum(['GET', 'POST']).default('GET'),
-  is_readonly: z.boolean().default(true),
   cache_ttl: z.number().min(0).default(0),
   enabled: z.boolean().default(true)
 })
@@ -130,13 +140,9 @@ customQueries.post('/', zValidator('json', customQuerySchema, (result, c) => {
     const data = c.req.valid('json')
     const id = generateId()
 
-    // Validate SQL query (basic checks)
-    const sqlLower = data.sql_query.toLowerCase().trim()
-    if (!data.is_readonly && (sqlLower.startsWith('select') || sqlLower.includes('pragma'))) {
-      return c.json({ 
-        error: 'Read-only queries must have is_readonly set to true' 
-      }, 400)
-    }
+    // Automatically determine method and readonly status based on SQL
+    const method = determineHttpMethod(data.sql_query)
+    const is_readonly = isReadonlyQuery(data.sql_query)
 
     // Check if slug already exists
     const existing = await c.env.DB.prepare(
@@ -177,8 +183,8 @@ customQueries.post('/', zValidator('json', customQuerySchema, (result, c) => {
       data.description || null,
       data.sql_query,
       JSON.stringify(data.parameters),
-      data.method,
-      data.is_readonly ? 1 : 0,
+      method,
+      is_readonly ? 1 : 0,
       data.cache_ttl,
       data.enabled ? 1 : 0
     ).run()
@@ -253,15 +259,6 @@ customQueries.put('/:id', zValidator('json', customQuerySchema.partial(), (resul
           error: `SQL query contains undefined parameters: ${undefinedParams.join(', ')}` 
         }, 400)
       }
-
-      // Validate SQL query (basic checks)
-      const sqlLower = data.sql_query.toLowerCase().trim()
-      const isReadOnly = data.is_readonly ?? existing.is_readonly
-      if (!isReadOnly && (sqlLower.startsWith('select') || sqlLower.includes('pragma'))) {
-        return c.json({ 
-          error: 'Read-only queries must have is_readonly set to true' 
-        }, 400)
-      }
     }
 
     // Build update query dynamically
@@ -283,18 +280,17 @@ customQueries.put('/:id', zValidator('json', customQuerySchema.partial(), (resul
     if (data.sql_query !== undefined) {
       updates.push('sql_query = ?')
       values.push(data.sql_query)
+      
+      // Auto-determine method and readonly status when SQL changes
+      updates.push('method = ?')
+      values.push(determineHttpMethod(data.sql_query))
+      
+      updates.push('is_readonly = ?')
+      values.push(isReadonlyQuery(data.sql_query) ? 1 : 0)
     }
     if (data.parameters !== undefined) {
       updates.push('parameters = ?')
       values.push(JSON.stringify(data.parameters))
-    }
-    if (data.method !== undefined) {
-      updates.push('method = ?')
-      values.push(data.method)
-    }
-    if (data.is_readonly !== undefined) {
-      updates.push('is_readonly = ?')
-      values.push(data.is_readonly ? 1 : 0)
     }
     if (data.cache_ttl !== undefined) {
       updates.push('cache_ttl = ?')

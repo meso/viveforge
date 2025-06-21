@@ -9,7 +9,15 @@
       "Bash(find:*)",
       "Bash(grep:*)",
       "Bash(pnpm run:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(curl:*)",
+      "Bash(wrangler d1 execute:*)",
+      "Bash(cat:*)",
+      "Bash(pnpm lint:*)",
+      "Bash(pnpm -w run deploy)",
+      "Bash(pnpm build:*)"
     ],
     "deny": []
   }
