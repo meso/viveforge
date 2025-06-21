@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'preact/hooks'
-import { api } from '../lib/api'
 
 interface Admin {
   id: string
@@ -182,7 +181,7 @@ export function SettingsPage() {
       })
 
       if (!initResponse.ok) {
-        const initErrorData = await initResponse.json().catch(() => ({}))
+        const _initErrorData = await initResponse.json().catch(() => ({}))
         // Continue anyway, table might already exist
       }
 

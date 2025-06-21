@@ -114,7 +114,7 @@ export function StoragePage() {
     const k = 1024
     const sizes = ['B', 'KB', 'MB', 'GB']
     const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+    return `${parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`
   }
 
   const toggleFileSelection = (key: string) => {
@@ -142,6 +142,7 @@ export function StoragePage() {
         <div class="flex gap-2">
           {selectedFiles.size > 0 && (
             <button
+              type="button"
               onClick={handleBulkDelete}
               class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
             >
@@ -165,6 +166,7 @@ export function StoragePage() {
         <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
           <p class="text-red-600">{error}</p>
           <button
+            type="button"
             onClick={() => setError(null)}
             class="mt-2 text-sm text-red-500 hover:text-red-700"
           >
@@ -248,6 +250,7 @@ export function StoragePage() {
                       Download
                     </a>
                     <button
+                      type="button"
                       onClick={() => handleDelete(obj.key)}
                       class="text-red-600 hover:text-red-900"
                     >

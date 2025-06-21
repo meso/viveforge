@@ -18,7 +18,9 @@
       "Bash(pnpm lint:*)",
       "Bash(pnpm -w run deploy)",
       "Bash(pnpm build:*)",
-      "Bash(pnpm add:*)"
+      "Bash(pnpm add:*)",
+      "Bash(npx biome check:*)",
+      "Bash(npx tsc:*)"
     ],
     "deny": []
   }

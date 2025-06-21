@@ -12,30 +12,7 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": false,
-      "complexity": {
-        "noExcessiveCognitiveComplexity": "off"
-      },
-      "style": {
-        "noNonNullAssertion": "off",
-        "useConst": "off",
-        "useTemplate": "off",
-        "useExponentiationOperator": "off"
-      },
-      "suspicious": {
-        "noExplicitAny": "off",
-        "noArrayIndexKey": "off",
-        "noAssignInExpressions": "off",
-        "noImplicitAnyLet": "off"
-      },
-      "correctness": {
-        "noUnusedVariables": "off",
-        "noUnusedImports": "off",
-        "useExhaustiveDependencies": "off"
-      },
-      "nursery": {
-        "useSortedClasses": "off"
-      }
+      "recommended": true
     }
   },
   "overrides": [
@@ -45,10 +22,6 @@
         "rules": {
           "suspicious": {
             "noExplicitAny": "off"
-          },
-          "correctness": {
-            "noUnusedVariables": "off",
-            "noUnusedImports": "off"
           }
         }
       }

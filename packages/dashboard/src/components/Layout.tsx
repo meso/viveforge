@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { ComponentChildren } from 'preact'
+import type { ComponentChildren } from 'preact'
 import { Link } from 'preact-router/match'
 
 interface LayoutProps {

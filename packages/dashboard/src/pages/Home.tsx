@@ -78,6 +78,7 @@ export function HomePage() {
                 href="/api/health"
                 target="_blank"
                 class="text-indigo-600 hover:text-indigo-500 block"
+                rel="noopener"
               >
                 View API health →
               </a>

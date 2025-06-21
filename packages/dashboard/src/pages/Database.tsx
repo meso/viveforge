@@ -39,7 +39,7 @@ const copyToClipboard = async (text: string): Promise<boolean> => {
   try {
     await navigator.clipboard.writeText(text)
     return true
-  } catch (err) {
+  } catch (_err) {
     // Fallback for older browsers
     try {
       const textArea = document.createElement('textarea')
@@ -461,7 +461,7 @@ export function DatabasePage() {
   const findTableWithId = async (id: string, columnName: string): Promise<string | null> => {
     // If the column name ends with '_id', try to find the referenced table
     if (columnName.endsWith('_id')) {
-      const baseTableName = columnName.replace('_id', '') + 's' // user_id -> users
+      const baseTableName = `${columnName.replace('_id', '')}s` // user_id -> users
       const table = tables.find((t) => t.name === baseTableName)
       if (table) return table.name
     }
@@ -472,7 +472,7 @@ export function DatabasePage() {
         const result = await api.getTableData(table.name, 1, 0)
         const hasRecord = result.data.some((record) => record.id === id)
         if (hasRecord) return table.name
-      } catch (error) {
+      } catch (_error) {
         // Continue searching other tables
       }
     }
@@ -618,7 +618,7 @@ export function DatabasePage() {
       }))
 
       return exists
-    } catch (err) {
+    } catch (_err) {
       setFkValidation((prev) => ({
         ...prev,
         [validationKey]: {
@@ -1361,7 +1361,6 @@ export function DatabasePage() {
                                   }
                                 }}
                                 class="flex-1 text-sm border-gray-300 rounded px-2 py-1"
-                                autoFocus
                               />
                             ) : (
                               <div class="flex-1">
@@ -1375,8 +1374,8 @@ export function DatabasePage() {
                                 ) : null}
                                 {getForeignKeyForColumn(col.name) && (
                                   <span class="ml-1 text-xs text-green-600">
-                                    FK → {getForeignKeyForColumn(col.name)!.table}.
-                                    {getForeignKeyForColumn(col.name)!.to}
+                                    FK → {getForeignKeyForColumn(col.name)?.table}.
+                                    {getForeignKeyForColumn(col.name)?.to}
                                   </span>
                                 )}
                               </div>
