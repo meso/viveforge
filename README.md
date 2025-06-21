@@ -94,7 +94,6 @@ chmod +x deploy/setup.sh
 
 ### 🚧 開発予定
 
-- 👥 **エンドユーザー認証の拡張** - 複数OAuth providers（Google、Twitter/X、Discord等）
 - 📱 **Push通知** - Web Push/FCM
 - 🛠️ **CLIツール** - 開発効率化ツール
 - 🌍 **環境管理** - 本番/開発環境の分離
@@ -236,6 +235,7 @@ eventSource.onmessage = (event) => {
   - [x] アクセス制御（owner_idベースのフィルタリング）
 
 ### Phase 4: 開発体験向上 (v0.4.0)
+- [x] **カスタムSQL API** - 管理画面で任意のSQLクエリを登録してAPI化
 - [ ] **匿名ユーザー認証** - デバイスIDベースの認証でユーザー登録不要の即座利用
 - [ ] **Webhook Cron機能** - 開発者が指定したURLに定期的にHTTPリクエストを送信
 - [ ] Push通知実装（Web Push/FCM）
