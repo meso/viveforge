@@ -99,13 +99,12 @@ export const DEFAULT_SECURITY_CONFIG: SecurityHeadersConfig = {
     'geolocation': [],
     'payment': [],
     'usb': [],
-    'vr': [],
     'accelerometer': [],
     'gyroscope': [],
     'magnetometer': [],
     'clipboard-read': [],
-    'clipboard-write': ['"self"'],
-    'fullscreen': ['"self"']
+    'clipboard-write': ['self'],
+    'fullscreen': ['self']
   },
   
   // Cross-origin policies

@@ -232,8 +232,8 @@ describe('Security Headers Middleware', () => {
       const customConfig = {
         permissionsPolicy: {
           'camera': [],
-          'microphone': ['"self"'],
-          'geolocation': ['"self"', 'https://example.com']
+          'microphone': ['self'],
+          'geolocation': ['self', 'https://example.com']
         }
       }
 
@@ -244,8 +244,8 @@ describe('Security Headers Middleware', () => {
       const permissionsPolicy = res.headers.get('Permissions-Policy')
 
       expect(permissionsPolicy).toContain('camera=()')
-      expect(permissionsPolicy).toContain('microphone=("self")')
-      expect(permissionsPolicy).toContain('geolocation=("self" https://example.com)')
+      expect(permissionsPolicy).toContain('microphone=(self)')
+      expect(permissionsPolicy).toContain('geolocation=(self https://example.com)')
     })
   })
 
@@ -359,8 +359,8 @@ describe('Security Headers Configuration Constants', () => {
       expect(permissions!.microphone).toEqual([])
       expect(permissions!.geolocation).toEqual([])
       expect(permissions!['clipboard-read']).toEqual([])
-      expect(permissions!['clipboard-write']).toEqual(['"self"'])
-      expect(permissions!.fullscreen).toEqual(['"self"'])
+      expect(permissions!['clipboard-write']).toEqual(['self'])
+      expect(permissions!.fullscreen).toEqual(['self'])
     })
   })
 
