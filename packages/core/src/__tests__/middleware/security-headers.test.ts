@@ -231,9 +231,9 @@ describe('Security Headers Middleware', () => {
     it('should correctly format permissions policy', async () => {
       const customConfig = {
         permissionsPolicy: {
-          'camera': ['none'],
-          'microphone': ['self'],
-          'geolocation': ['self', 'https://example.com']
+          'camera': [],
+          'microphone': ['"self"'],
+          'geolocation': ['"self"', 'https://example.com']
         }
       }
 
@@ -243,9 +243,9 @@ describe('Security Headers Middleware', () => {
       const res = await app.request('/test', {}, mockEnv)
       const permissionsPolicy = res.headers.get('Permissions-Policy')
 
-      expect(permissionsPolicy).toContain('camera=(none)')
-      expect(permissionsPolicy).toContain('microphone=(self)')
-      expect(permissionsPolicy).toContain('geolocation=(self https://example.com)')
+      expect(permissionsPolicy).toContain('camera=()')
+      expect(permissionsPolicy).toContain('microphone=("self")')
+      expect(permissionsPolicy).toContain('geolocation=("self" https://example.com)')
     })
   })
 
@@ -355,9 +355,12 @@ describe('Security Headers Configuration Constants', () => {
     it('should disable dangerous permissions', () => {
       const permissions = DEFAULT_SECURITY_CONFIG.permissionsPolicy
       expect(permissions).toBeDefined()
-      expect(permissions!.camera).toEqual(['none'])
-      expect(permissions!.microphone).toEqual(['none'])
-      expect(permissions!.geolocation).toEqual(['none'])
+      expect(permissions!.camera).toEqual([])
+      expect(permissions!.microphone).toEqual([])
+      expect(permissions!.geolocation).toEqual([])
+      expect(permissions!['clipboard-read']).toEqual([])
+      expect(permissions!['clipboard-write']).toEqual(['"self"'])
+      expect(permissions!.fullscreen).toEqual(['"self"'])
     })
   })
 

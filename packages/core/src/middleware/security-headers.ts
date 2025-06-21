@@ -94,18 +94,18 @@ export const DEFAULT_SECURITY_CONFIG: SecurityHeadersConfig = {
   
   // Disable dangerous browser features
   permissionsPolicy: {
-    'camera': ['none'],
-    'microphone': ['none'],
-    'geolocation': ['none'],
-    'payment': ['none'],
-    'usb': ['none'],
-    'vr': ['none'],
-    'accelerometer': ['none'],
-    'gyroscope': ['none'],
-    'magnetometer': ['none'],
-    'clipboard-read': ['none'],
-    'clipboard-write': ['self'],
-    'fullscreen': ['self']
+    'camera': [],
+    'microphone': [],
+    'geolocation': [],
+    'payment': [],
+    'usb': [],
+    'vr': [],
+    'accelerometer': [],
+    'gyroscope': [],
+    'magnetometer': [],
+    'clipboard-read': [],
+    'clipboard-write': ['"self"'],
+    'fullscreen': ['"self"']
   },
   
   // Cross-origin policies
