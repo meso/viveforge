@@ -195,7 +195,15 @@ export function CustomSQL() {
       
       if (!res.ok) {
         const data = await res.json()
-        throw new Error(data.error || 'Failed to create query')
+        const errorMessage = data.error || 'Failed to create query'
+        
+        // Handle specific validation errors from server
+        if (errorMessage.includes('slug already exists')) {
+          setValidationErrors({ slug: 'このスラッグは既に使用されています' })
+          return
+        }
+        
+        throw new Error(errorMessage)
       }
       
       await fetchQueries()
@@ -227,7 +235,15 @@ export function CustomSQL() {
       
       if (!res.ok) {
         const data = await res.json()
-        throw new Error(data.error || 'Failed to update query')
+        const errorMessage = data.error || 'Failed to update query'
+        
+        // Handle specific validation errors from server
+        if (errorMessage.includes('slug already exists')) {
+          setValidationErrors({ slug: 'このスラッグは既に使用されています' })
+          return
+        }
+        
+        throw new Error(errorMessage)
       }
       
       await fetchQueries()
@@ -544,6 +560,12 @@ export function CustomSQL() {
                 {isCreating ? 'Create Custom Query' : 'Edit Custom Query'}
               </h3>
 
+              {error && (
+                <div class="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+                  {error}
+                </div>
+              )}
+
               <div class="space-y-4">
                 <div>
                   <label class="block text-sm font-medium text-gray-700">Name</label>
@@ -558,13 +580,15 @@ export function CustomSQL() {
                         // Auto-generate slug when creating new query, but preserve manual changes when editing
                         slug: isCreating ? generateSlugFromName(newName) : formData.slug
                       })
-                      // Clear validation error for this field
-                      if (validationErrors.name) {
-                        setValidationErrors(prev => {
-                          const { name, ...rest } = prev
-                          return rest
-                        })
-                      }
+                      // Clear validation errors for name and slug (if slug is auto-generated)
+                      setValidationErrors(prev => {
+                        const newErrors = { ...prev }
+                        delete newErrors.name
+                        if (isCreating) {
+                          delete newErrors.slug  // Clear slug error when auto-generating
+                        }
+                        return newErrors
+                      })
                     }}
                     class={`mt-1 w-full px-3 py-2 border rounded-md ${
                       validationErrors.name ? 'border-red-500 bg-red-50' : 'border-gray-300'
@@ -583,7 +607,14 @@ export function CustomSQL() {
                     </label>
                     <button
                       type="button"
-                      onClick={() => setFormData({ ...formData, slug: generateSlugFromName(formData.name) })}
+                      onClick={() => {
+                        setFormData({ ...formData, slug: generateSlugFromName(formData.name) })
+                        // Clear slug validation error when regenerating
+                        setValidationErrors(prev => {
+                          const { slug, ...rest } = prev
+                          return rest
+                        })
+                      }}
                       class="text-xs text-indigo-600 hover:text-indigo-800"
                     >
                       Re-generate from name
