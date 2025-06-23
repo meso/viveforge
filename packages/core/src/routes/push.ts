@@ -101,10 +101,10 @@ push.post('/subscribe', async (c) => {
 
     const userId = authContext.user.id
 
-    const manager = new NotificationManager(c.env.DB, {
-      publicKey: c.env.VAPID_PUBLIC_KEY,
-      privateKey: c.env.VAPID_PRIVATE_KEY,
-      subject: c.env.VAPID_SUBJECT,
+    const manager = new NotificationManager(c.env.DB!, {
+      publicKey: c.env.VAPID_PUBLIC_KEY!,
+      privateKey: c.env.VAPID_PRIVATE_KEY!,
+      subject: c.env.VAPID_SUBJECT!,
     })
 
     const subscriptionId = await manager.subscribe(
@@ -139,10 +139,10 @@ push.post('/unsubscribe', async (c) => {
 
     const userId = authContext.user.id
 
-    const manager = new NotificationManager(c.env.DB, {
-      publicKey: c.env.VAPID_PUBLIC_KEY,
-      privateKey: c.env.VAPID_PRIVATE_KEY,
-      subject: c.env.VAPID_SUBJECT,
+    const manager = new NotificationManager(c.env.DB!, {
+      publicKey: c.env.VAPID_PUBLIC_KEY!,
+      privateKey: c.env.VAPID_PRIVATE_KEY!,
+      subject: c.env.VAPID_SUBJECT!,
     })
 
     await manager.unsubscribe(userId, validated.endpoint, validated.fcmToken)
@@ -188,9 +188,9 @@ push.get('/rules', async (c) => {
     return c.json({ error: 'Admin access required' }, 403)
   }
 
-  const result = await c.env.DB.prepare(
-    'SELECT * FROM notification_rules ORDER BY created_at DESC'
-  ).all()
+  const result = await c.env
+    .DB!.prepare('SELECT * FROM notification_rules ORDER BY created_at DESC')
+    .all()
 
   const rules = result.results.map((row) => ({
     id: row.id,
@@ -229,10 +229,10 @@ push.post('/rules', async (c) => {
     const body = await c.req.json()
     const validated = notificationRuleSchema.parse(body)
 
-    const manager = new NotificationManager(c.env.DB, {
-      publicKey: c.env.VAPID_PUBLIC_KEY,
-      privateKey: c.env.VAPID_PRIVATE_KEY,
-      subject: c.env.VAPID_SUBJECT,
+    const manager = new NotificationManager(c.env.DB!, {
+      publicKey: c.env.VAPID_PUBLIC_KEY!,
+      privateKey: c.env.VAPID_PRIVATE_KEY!,
+      subject: c.env.VAPID_SUBJECT!,
     })
 
     const ruleId = await manager.createRule(validated)
@@ -262,7 +262,8 @@ push.put('/rules/:id', async (c) => {
     const body = await c.req.json()
     const validated = notificationRuleSchema.parse(body)
 
-    await c.env.DB.prepare(`
+    await c.env
+      .DB!.prepare(`
       UPDATE notification_rules SET
         name = ?, description = ?, trigger_type = ?, table_name = ?, event_type = ?,
         conditions = ?, recipient_type = ?, recipient_value = ?, title_template = ?,
@@ -313,7 +314,7 @@ push.delete('/rules/:id', async (c) => {
 
   const ruleId = c.req.param('id')
 
-  await c.env.DB.prepare('DELETE FROM notification_rules WHERE id = ?').bind(ruleId).run()
+  await c.env.DB!.prepare('DELETE FROM notification_rules WHERE id = ?').bind(ruleId).run()
 
   return c.json({
     success: true,
@@ -332,10 +333,10 @@ push.post('/send', async (c) => {
       return c.json({ error: 'Admin or API key access required' }, 403)
     }
 
-    const manager = new NotificationManager(c.env.DB, {
-      publicKey: c.env.VAPID_PUBLIC_KEY,
-      privateKey: c.env.VAPID_PRIVATE_KEY,
-      subject: c.env.VAPID_SUBJECT,
+    const manager = new NotificationManager(c.env.DB!, {
+      publicKey: c.env.VAPID_PUBLIC_KEY!,
+      privateKey: c.env.VAPID_PRIVATE_KEY!,
+      subject: c.env.VAPID_SUBJECT!,
     })
 
     // Determine recipients
@@ -346,9 +347,9 @@ push.post('/send', async (c) => {
       (!validated.userIds && !validated.recipientType)
     ) {
       // Get all users with active subscriptions
-      const result = await c.env.DB.prepare(
-        'SELECT DISTINCT user_id FROM push_subscriptions WHERE active = 1'
-      ).all()
+      const result = await c.env
+        .DB!.prepare('SELECT DISTINCT user_id FROM push_subscriptions WHERE active = 1')
+        .all()
       userIds = result.results.map((row) => row.user_id as string)
     } else if (validated.userIds) {
       userIds = validated.userIds
@@ -400,10 +401,10 @@ push.post('/admin/subscribe', async (c) => {
     // Use admin user ID for subscription
     const adminUserId = `admin_${authContext.user.id}`
 
-    const manager = new NotificationManager(c.env.DB, {
-      publicKey: c.env.VAPID_PUBLIC_KEY,
-      privateKey: c.env.VAPID_PRIVATE_KEY,
-      subject: c.env.VAPID_SUBJECT,
+    const manager = new NotificationManager(c.env.DB!, {
+      publicKey: c.env.VAPID_PUBLIC_KEY!,
+      privateKey: c.env.VAPID_PRIVATE_KEY!,
+      subject: c.env.VAPID_SUBJECT!,
     })
 
     const subscriptionId = await manager.subscribe(
@@ -438,10 +439,10 @@ push.post('/admin/unsubscribe', async (c) => {
 
     const adminUserId = `admin_${authContext.user.id}`
 
-    const manager = new NotificationManager(c.env.DB, {
-      publicKey: c.env.VAPID_PUBLIC_KEY,
-      privateKey: c.env.VAPID_PRIVATE_KEY,
-      subject: c.env.VAPID_SUBJECT,
+    const manager = new NotificationManager(c.env.DB!, {
+      publicKey: c.env.VAPID_PUBLIC_KEY!,
+      privateKey: c.env.VAPID_PRIVATE_KEY!,
+      subject: c.env.VAPID_SUBJECT!,
     })
 
     await manager.unsubscribe(adminUserId, validated.endpoint, validated.fcmToken)
@@ -469,10 +470,10 @@ push.post('/admin/test', async (c) => {
 
     const adminUserId = `admin_${authContext.user.id}`
 
-    const manager = new NotificationManager(c.env.DB, {
-      publicKey: c.env.VAPID_PUBLIC_KEY,
-      privateKey: c.env.VAPID_PRIVATE_KEY,
-      subject: c.env.VAPID_SUBJECT,
+    const manager = new NotificationManager(c.env.DB!, {
+      publicKey: c.env.VAPID_PUBLIC_KEY!,
+      privateKey: c.env.VAPID_PRIVATE_KEY!,
+      subject: c.env.VAPID_SUBJECT!,
     })
 
     const payload = {
@@ -556,7 +557,8 @@ push.get('/logs', async (c) => {
   query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?'
   params.push(limit, offset)
 
-  const result = await c.env.DB.prepare(query)
+  const result = await c.env
+    .DB!.prepare(query)
     .bind(...params)
     .all()
 

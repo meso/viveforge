@@ -3,6 +3,8 @@ export interface MockD1Database {
   prepare: (sql: string) => MockD1PreparedStatement
   batch: (statements: MockD1PreparedStatement[]) => Promise<any>
   exec: (sql: string) => Promise<any>
+  withSession: (callback: any) => Promise<any>
+  dump: () => Promise<ArrayBuffer>
 }
 
 export interface MockD1PreparedStatement {
@@ -845,6 +847,12 @@ export function createMockD1Database(): MockD1Database {
     },
     exec: async (_sql: string) => {
       return { results: [] }
+    },
+    withSession: async (callback: any) => {
+      return await callback(this)
+    },
+    dump: async () => {
+      return new ArrayBuffer(0)
     },
   }
 }

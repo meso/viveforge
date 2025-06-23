@@ -203,7 +203,9 @@ export class WebPushService extends PushService {
     } catch (error) {
       console.error('VAPID JWT generation failed:', error)
       console.error('Private key used:', this.vapidPrivateKey)
-      throw new Error(`VAPID JWT generation failed: ${error.message}`)
+      throw new Error(
+        `VAPID JWT generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      )
     }
   }
 

@@ -27,6 +27,8 @@ describe('Push Routes', () => {
       VAPID_PUBLIC_KEY: 'test-public-key',
       VAPID_PRIVATE_KEY: 'test-private-key',
       VAPID_SUBJECT: 'mailto:test@example.com',
+      ASSETS: { fetch: () => Promise.resolve(new Response()) },
+      ENVIRONMENT: 'development',
     } as Env
 
     // Add middleware to set environment and default auth context
@@ -34,8 +36,20 @@ describe('Push Routes', () => {
       c.env = env
       const authContext = c.get('authContext')
       if (!authContext) {
-        // Mock context will be set per test
-        c.set('authContext', { type: 'none' })
+        // Default to admin context for tests
+        c.set('authContext', {
+          type: 'admin' as const,
+          user: {
+            id: 'admin-123',
+            email: 'admin@test.com',
+            provider: 'github',
+            provider_id: 'admin-github-123',
+            role: 'admin',
+            is_active: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+        })
       }
       await next()
     })
@@ -49,7 +63,7 @@ describe('Push Routes', () => {
       const res = await app.request(req, env)
 
       expect(res.status).toBe(200)
-      const data = await res.json()
+      const data = (await res.json()) as { publicKey: string }
       expect(data.publicKey).toBe('test-public-key')
     })
 
@@ -68,7 +82,7 @@ describe('Push Routes', () => {
       const res = await testApp.request(req)
 
       expect(res.status).toBe(500)
-      const data = await res.json()
+      const data = (await res.json()) as { error: string }
       expect(data.error).toBe('VAPID public key not configured')
     })
   })
@@ -79,7 +93,27 @@ describe('Push Routes', () => {
       const testApp = new Hono<{ Bindings: Env }>()
       testApp.use('*', async (c, next) => {
         c.env = env
-        c.set('authContext', { type: 'user', user: { id: 'user123' } })
+        c.set('authContext', {
+          type: 'user' as const,
+          user: {
+            id: 'user123',
+            email: 'user@test.com',
+            provider: 'github',
+            provider_id: 'user-github-123',
+            role: 'user',
+            is_active: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+          session: {
+            id: 'session123',
+            user_id: 'user123',
+            token: 'token123',
+            expires_at: new Date(Date.now() + 86400000).toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+        })
         await next()
       })
       testApp.route('/api/push', push)
@@ -107,7 +141,19 @@ describe('Push Routes', () => {
       const testApp = new Hono<{ Bindings: Env }>()
       testApp.use('*', async (c, next) => {
         c.env = env
-        c.set('authContext', { type: 'admin', user: { id: 'admin123' } })
+        c.set('authContext', {
+          type: 'admin' as const,
+          user: {
+            id: 'admin123',
+            email: 'admin@test.com',
+            provider: 'github',
+            provider_id: 'admin-github-123',
+            role: 'admin',
+            is_active: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+        })
         await next()
       })
       testApp.route('/api/push', push)
@@ -126,7 +172,7 @@ describe('Push Routes', () => {
       const res = await testApp.request(req)
 
       expect(res.status).toBe(200)
-      const data = await res.json()
+      const data = (await res.json()) as { success: boolean }
       expect(data.success).toBe(true)
       expect(data.subscriptionId).toBe('sub-123')
     })
@@ -134,6 +180,35 @@ describe('Push Routes', () => {
 
   describe('POST /rules', () => {
     it('should require admin authentication', async () => {
+      // Create app with user auth context (should fail)
+      const testApp = new Hono<{ Bindings: Env }>()
+      testApp.use('*', async (c, next) => {
+        c.env = env
+        c.set('authContext', {
+          type: 'user' as const,
+          user: {
+            id: 'user123',
+            email: 'user@test.com',
+            provider: 'github',
+            provider_id: 'user-github-123',
+            role: 'user',
+            is_active: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+          session: {
+            id: 'session123',
+            user_id: 'user123',
+            token: 'token123',
+            expires_at: new Date(Date.now() + 86400000).toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+        })
+        await next()
+      })
+      testApp.route('/api/push', push)
+
       const req = new Request('http://localhost/api/push/rules', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -146,7 +221,7 @@ describe('Push Routes', () => {
         }),
       })
 
-      const res = await app.request(req, env)
+      const res = await testApp.request(req)
 
       expect(res.status).toBe(403)
     })
@@ -156,7 +231,19 @@ describe('Push Routes', () => {
       const testApp = new Hono<{ Bindings: Env }>()
       testApp.use('*', async (c, next) => {
         c.env = env
-        c.set('authContext', { type: 'admin', user: { id: 'admin123' } })
+        c.set('authContext', {
+          type: 'admin' as const,
+          user: {
+            id: 'admin123',
+            email: 'admin@test.com',
+            provider: 'github',
+            provider_id: 'admin-github-123',
+            role: 'admin',
+            is_active: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+        })
         await next()
       })
       testApp.route('/api/push', push)
@@ -178,7 +265,7 @@ describe('Push Routes', () => {
       const res = await testApp.request(req)
 
       expect(res.status).toBe(200)
-      const data = await res.json()
+      const data = (await res.json()) as { success: boolean }
       expect(data.success).toBe(true)
       expect(data.ruleId).toBe('rule-123')
     })
@@ -188,7 +275,19 @@ describe('Push Routes', () => {
       const testApp = new Hono<{ Bindings: Env }>()
       testApp.use('*', async (c, next) => {
         c.env = env
-        c.set('authContext', { type: 'admin', user: { id: 'admin123' } })
+        c.set('authContext', {
+          type: 'admin' as const,
+          user: {
+            id: 'admin123',
+            email: 'admin@test.com',
+            provider: 'github',
+            provider_id: 'admin-github-123',
+            role: 'admin',
+            is_active: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+        })
         await next()
       })
       testApp.route('/api/push', push)
@@ -220,7 +319,19 @@ describe('Push Routes', () => {
       const testApp = new Hono<{ Bindings: Env }>()
       testApp.use('*', async (c, next) => {
         c.env = env
-        c.set('authContext', { type: 'admin', user: { id: 'admin123' } })
+        c.set('authContext', {
+          type: 'admin' as const,
+          user: {
+            id: 'admin123',
+            email: 'admin@test.com',
+            provider: 'github',
+            provider_id: 'admin-github-123',
+            role: 'admin',
+            is_active: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+        })
         await next()
       })
       testApp.route('/api/push', push)
@@ -238,7 +349,7 @@ describe('Push Routes', () => {
       const res = await testApp.request(req)
 
       expect(res.status).toBe(200)
-      const data = await res.json()
+      const data = (await res.json()) as { success: boolean }
       expect(data.success).toBe(true)
       expect(data.result).toEqual({ sent: 1, failed: 0 })
     })
@@ -248,7 +359,27 @@ describe('Push Routes', () => {
       const testApp = new Hono<{ Bindings: Env }>()
       testApp.use('*', async (c, next) => {
         c.env = env
-        c.set('authContext', { type: 'user', user: { id: 'user123' } })
+        c.set('authContext', {
+          type: 'user' as const,
+          user: {
+            id: 'user123',
+            email: 'user@test.com',
+            provider: 'github',
+            provider_id: 'user-github-123',
+            role: 'user',
+            is_active: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+          session: {
+            id: 'session123',
+            user_id: 'user123',
+            token: 'token123',
+            expires_at: new Date(Date.now() + 86400000).toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+        })
         await next()
       })
       testApp.route('/api/push', push)

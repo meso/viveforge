@@ -129,6 +129,45 @@ export interface R2Range {
   suffix?: number
 }
 
+// KV Namespace type
+export interface KVNamespace {
+  get(key: string, options?: KVNamespaceGetOptions): Promise<string | null>
+  getWithMetadata(
+    key: string,
+    options?: KVNamespaceGetOptions
+  ): Promise<{ value: string | null; metadata: unknown }>
+  put(
+    key: string,
+    value: string | ArrayBuffer | ArrayBufferView | ReadableStream,
+    options?: KVNamespacePutOptions
+  ): Promise<void>
+  delete(key: string): Promise<void>
+  list(options?: KVNamespaceListOptions): Promise<KVNamespaceListResult>
+}
+
+export interface KVNamespaceGetOptions {
+  type?: 'text' | 'json' | 'arrayBuffer' | 'stream'
+  cacheTtl?: number
+}
+
+export interface KVNamespacePutOptions {
+  expiration?: number
+  expirationTtl?: number
+  metadata?: unknown
+}
+
+export interface KVNamespaceListOptions {
+  limit?: number
+  prefix?: string
+  cursor?: string
+}
+
+export interface KVNamespaceListResult {
+  keys: { name: string; expiration?: number; metadata?: unknown }[]
+  list_complete: boolean
+  cursor?: string
+}
+
 // ExecutionContext type
 export interface ExecutionContext {
   waitUntil(promise: Promise<unknown>): void

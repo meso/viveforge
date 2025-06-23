@@ -2,7 +2,7 @@ import type { User, VibebaseAuthClient } from './lib/auth-client'
 import type { Database } from './lib/database'
 import type { LocalTableInfo, TableManager } from './lib/table-manager'
 import type { AuthContext } from './types/auth'
-import type { DurableObjectNamespace } from './types/cloudflare'
+import type { D1Database, DurableObjectNamespace, KVNamespace, R2Bucket } from './types/cloudflare'
 
 export interface Env {
   DB?: D1Database
