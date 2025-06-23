@@ -1,8 +1,12 @@
 import { nanoid } from 'nanoid'
 import type { D1Database, DurableObjectNamespace, ExecutionContext } from '../types/cloudflare'
+import { NotificationManager } from './notification-manager'
 
 interface RealtimeEnvironment {
   REALTIME?: DurableObjectNamespace
+  VAPID_PUBLIC_KEY?: string
+  VAPID_PRIVATE_KEY?: string
+  VAPID_SUBJECT?: string
 }
 
 interface BroadcastOptions {
@@ -96,7 +100,11 @@ export class HookManager {
     return result.results || []
   }
 
-  async queueEvent(hook: Hook, recordId: string, eventData: Record<string, unknown>): Promise<void> {
+  async queueEvent(
+    hook: Hook,
+    recordId: string,
+    eventData: Record<string, unknown>
+  ): Promise<void> {
     const id = nanoid()
     const now = new Date().toISOString()
     const data = JSON.stringify(eventData)
@@ -177,12 +185,49 @@ export class HookManager {
       )
     }
 
+    // プッシュ通知処理（waitUntilでバックグラウンド実行）
+    if (
+      options?.env?.VAPID_PUBLIC_KEY &&
+      options?.env?.VAPID_PRIVATE_KEY &&
+      options?.env?.VAPID_SUBJECT &&
+      options?.executionCtx
+    ) {
+      options.executionCtx.waitUntil(
+        this.processNotifications(tableName, eventType, eventData, options.env)
+      )
+    }
+
     // フック記録（バックアップ用）
     if (options?.executionCtx) {
       options.executionCtx.waitUntil(this.triggerHooks(tableName, eventType, recordId, eventData))
     } else {
       // fallback: 同期実行
       await this.triggerHooks(tableName, eventType, recordId, eventData)
+    }
+  }
+
+  private async processNotifications(
+    tableName: string,
+    eventType: HookEventType,
+    eventData: Record<string, unknown>,
+    env: RealtimeEnvironment
+  ): Promise<void> {
+    try {
+      if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY || !env.VAPID_SUBJECT) {
+        return
+      }
+
+      const notificationManager = new NotificationManager(this.db, {
+        publicKey: env.VAPID_PUBLIC_KEY,
+        privateKey: env.VAPID_PRIVATE_KEY,
+        subject: env.VAPID_SUBJECT,
+      })
+
+      await notificationManager.processDbChange(tableName, eventType, eventData)
+      console.log(`Push notifications processed for ${tableName}:${eventType}`)
+    } catch (error) {
+      console.error('Push notification processing failed:', error)
+      // エラーでもメイン処理には影響しない
     }
   }
 

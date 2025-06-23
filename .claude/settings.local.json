@@ -20,7 +20,10 @@
       "Bash(pnpm build:*)",
       "Bash(pnpm add:*)",
       "Bash(npx biome check:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(ls:*)",
+      "Bash(wrangler secret put:*)",
+      "Bash(pnpm biome check:*)"
     ],
     "deny": []
   }

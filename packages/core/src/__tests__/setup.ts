@@ -140,6 +140,11 @@ export function createMockD1Database(): MockD1Database {
   tables.set('schema_snapshots', [])
   tables.set('schema_snapshot_counter', [{ id: 1, current_version: 0 }])
 
+  // Push notification tables
+  tables.set('push_subscriptions', [])
+  tables.set('notification_rules', [])
+  tables.set('notification_logs', [])
+
   // Helper to extract table name from various SQL statements
   function getTableNameFromSql(sql: string): string | null {
     // Handle both quoted and unquoted table names

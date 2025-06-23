@@ -38,6 +38,10 @@ export const SYSTEM_TABLES = [
   'realtime_subscriptions',
   'custom_queries',
   'custom_query_logs',
+  'push_subscriptions',
+  'notification_rules',
+  'notification_templates',
+  'notification_logs',
 ] as const
 type SystemTable = (typeof SYSTEM_TABLES)[number]
 
@@ -745,7 +749,10 @@ export class TableManager {
   }
 
   // Execute custom SQL (with safety checks)
-  async executeSQL(sql: string, params: unknown[] = []): Promise<{ results: Record<string, unknown>[] }> {
+  async executeSQL(
+    sql: string,
+    params: unknown[] = []
+  ): Promise<{ results: Record<string, unknown>[] }> {
     // Basic SQL injection prevention
     const normalizedSQL = sql.trim().toUpperCase()
 

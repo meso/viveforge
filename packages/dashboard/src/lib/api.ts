@@ -1,5 +1,30 @@
 const API_BASE = window.location.origin
 
+// Helper function to handle authentication errors
+function handleAuthError() {
+  // Prevent redirect loop
+  if (window.location.pathname === '/auth/login') {
+    return
+  }
+
+  console.warn('Authentication required, redirecting to login...')
+  window.location.href = '/auth/login'
+}
+
+// Enhanced fetch with authentication error handling
+async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
+  const response = await fetch(url, options)
+
+  // Check for authentication errors
+  if (response.status === 401) {
+    handleAuthError()
+    // Throw error to prevent further processing
+    throw new Error('Authentication required')
+  }
+
+  return response
+}
+
 export interface Item {
   id: string
   name: string
@@ -83,13 +108,13 @@ export interface SchemaSnapshot {
 export const api = {
   // Health check
   async health() {
-    const response = await fetch(`${API_BASE}/api/health`)
+    const response = await fetchWithAuth(`${API_BASE}/api/health`)
     return response.json()
   },
 
   // Items
   async getItems(): Promise<{ items: Item[]; total: number; page: number; pageSize: number }> {
-    const response = await fetch(`${API_BASE}/api/items`)
+    const response = await fetchWithAuth(`${API_BASE}/api/items`)
     if (!response.ok) {
       throw new Error('Failed to fetch items')
     }
@@ -97,7 +122,7 @@ export const api = {
   },
 
   async createItem(data: { name: string; description?: string }): Promise<Item> {
-    const response = await fetch(`${API_BASE}/api/items`, {
+    const response = await fetchWithAuth(`${API_BASE}/api/items`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -111,7 +136,7 @@ export const api = {
   },
 
   async updateItem(id: string, data: { name?: string; description?: string }): Promise<Item> {
-    const response = await fetch(`${API_BASE}/api/items/${id}`, {
+    const response = await fetchWithAuth(`${API_BASE}/api/items/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -125,7 +150,7 @@ export const api = {
   },
 
   async deleteItem(id: string): Promise<{ success: boolean; id: string }> {
-    const response = await fetch(`${API_BASE}/api/items/${id}`, {
+    const response = await fetchWithAuth(`${API_BASE}/api/items/${id}`, {
       method: 'DELETE',
     })
     if (!response.ok) {
@@ -136,7 +161,7 @@ export const api = {
 
   // Tables management
   async getTables(): Promise<{ tables: TableInfo[] }> {
-    const response = await fetch(`${API_BASE}/api/tables`)
+    const response = await fetchWithAuth(`${API_BASE}/api/tables`)
     if (!response.ok) {
       throw new Error('Failed to fetch tables')
     }
@@ -146,7 +171,7 @@ export const api = {
   async getTableSchema(
     tableName: string
   ): Promise<{ tableName: string; columns: ColumnInfo[]; foreignKeys: ForeignKeyInfo[] }> {
-    const response = await fetch(`${API_BASE}/api/tables/${tableName}/schema`)
+    const response = await fetchWithAuth(`${API_BASE}/api/tables/${tableName}/schema`)
     if (!response.ok) {
       throw new Error('Failed to fetch table schema')
     }
@@ -158,7 +183,7 @@ export const api = {
     limit = 100,
     offset = 0
   ): Promise<{ data: any[]; total: number }> {
-    const response = await fetch(
+    const response = await fetchWithAuth(
       `${API_BASE}/api/tables/${tableName}/data?limit=${limit}&offset=${offset}`
     )
     if (!response.ok) {
@@ -176,7 +201,7 @@ export const api = {
       foreignKey?: { table: string; column: string }
     }[]
   ): Promise<{ success: boolean; table: string }> {
-    const response = await fetch(`${API_BASE}/api/tables`, {
+    const response = await fetchWithAuth(`${API_BASE}/api/tables`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -191,7 +216,7 @@ export const api = {
   },
 
   async dropTable(tableName: string): Promise<{ success: boolean; table: string }> {
-    const response = await fetch(`${API_BASE}/api/tables/${tableName}`, {
+    const response = await fetchWithAuth(`${API_BASE}/api/tables/${tableName}`, {
       method: 'DELETE',
     })
     if (!response.ok) {
@@ -202,7 +227,7 @@ export const api = {
   },
 
   async executeSQL(sql: string, params: any[] = []): Promise<{ result: any }> {
-    const response = await fetch(`${API_BASE}/api/tables/query`, {
+    const response = await fetchWithAuth(`${API_BASE}/api/tables/query`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -226,7 +251,7 @@ export const api = {
       foreignKey?: { table: string; column: string }
     }
   ): Promise<{ success: boolean; column: string }> {
-    const response = await fetch(`${API_BASE}/api/tables/${tableName}/columns`, {
+    const response = await fetchWithAuth(`${API_BASE}/api/tables/${tableName}/columns`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -245,7 +270,7 @@ export const api = {
     oldName: string,
     newName: string
   ): Promise<{ success: boolean; oldName: string; newName: string }> {
-    const response = await fetch(`${API_BASE}/api/tables/${tableName}/columns/${oldName}`, {
+    const response = await fetchWithAuth(`${API_BASE}/api/tables/${tableName}/columns/${oldName}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -263,9 +288,12 @@ export const api = {
     tableName: string,
     columnName: string
   ): Promise<{ success: boolean; column: string }> {
-    const response = await fetch(`${API_BASE}/api/tables/${tableName}/columns/${columnName}`, {
-      method: 'DELETE',
-    })
+    const response = await fetchWithAuth(
+      `${API_BASE}/api/tables/${tableName}/columns/${columnName}`,
+      {
+        method: 'DELETE',
+      }
+    )
     if (!response.ok) {
       const error = await response.json()
       throw new Error(error.error || 'Failed to drop column')
@@ -282,13 +310,16 @@ export const api = {
       foreignKey?: { table: string; column: string } | null
     }
   ): Promise<{ success: boolean; column: string; changes: any }> {
-    const response = await fetch(`${API_BASE}/api/tables/${tableName}/columns/${columnName}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(changes),
-    })
+    const response = await fetchWithAuth(
+      `${API_BASE}/api/tables/${tableName}/columns/${columnName}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(changes),
+      }
+    )
     if (!response.ok) {
       const error = await response.json()
       throw new Error(error.error || 'Failed to modify column')
@@ -305,7 +336,7 @@ export const api = {
       foreignKey?: { table: string; column: string } | null
     }
   ): Promise<{ valid: boolean; errors: string[]; conflictingRows: number }> {
-    const response = await fetch(
+    const response = await fetchWithAuth(
       `${API_BASE}/api/tables/${tableName}/columns/${columnName}/validate`,
       {
         method: 'POST',
@@ -328,7 +359,7 @@ export const api = {
     id: string,
     data: Record<string, any>
   ): Promise<{ success: boolean }> {
-    const response = await fetch(`${API_BASE}/api/tables/${tableName}/data/${id}`, {
+    const response = await fetchWithAuth(`${API_BASE}/api/tables/${tableName}/data/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -347,7 +378,9 @@ export const api = {
     limit = 20,
     offset = 0
   ): Promise<{ snapshots: SchemaSnapshot[]; total: number }> {
-    const response = await fetch(`${API_BASE}/api/snapshots?limit=${limit}&offset=${offset}`)
+    const response = await fetchWithAuth(
+      `${API_BASE}/api/snapshots?limit=${limit}&offset=${offset}`
+    )
     if (!response.ok) {
       throw new Error('Failed to fetch snapshots')
     }
@@ -355,7 +388,7 @@ export const api = {
   },
 
   async getSnapshot(id: string): Promise<SchemaSnapshot> {
-    const response = await fetch(`${API_BASE}/api/snapshots/${id}`)
+    const response = await fetchWithAuth(`${API_BASE}/api/snapshots/${id}`)
     if (!response.ok) {
       throw new Error('Failed to fetch snapshot')
     }
@@ -366,7 +399,7 @@ export const api = {
     name?: string
     description?: string
   }): Promise<{ success: boolean; id: string }> {
-    const response = await fetch(`${API_BASE}/api/snapshots`, {
+    const response = await fetchWithAuth(`${API_BASE}/api/snapshots`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -381,7 +414,7 @@ export const api = {
   },
 
   async restoreSnapshot(id: string): Promise<{ success: boolean; message: string }> {
-    const response = await fetch(`${API_BASE}/api/snapshots/${id}/restore`, {
+    const response = await fetchWithAuth(`${API_BASE}/api/snapshots/${id}/restore`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -397,7 +430,7 @@ export const api = {
   },
 
   async deleteSnapshot(id: string): Promise<{ success: boolean; message: string }> {
-    const response = await fetch(`${API_BASE}/api/snapshots/${id}`, {
+    const response = await fetchWithAuth(`${API_BASE}/api/snapshots/${id}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -413,7 +446,7 @@ export const api = {
   },
 
   async compareSnapshots(id1: string, id2: string): Promise<any> {
-    const response = await fetch(`${API_BASE}/api/snapshots/compare/${id1}/${id2}`)
+    const response = await fetchWithAuth(`${API_BASE}/api/snapshots/compare/${id1}/${id2}`)
     if (!response.ok) {
       throw new Error('Failed to compare snapshots')
     }
@@ -422,7 +455,7 @@ export const api = {
 
   // Index management
   async getTableIndexes(tableName: string): Promise<{ indexes: IndexInfo[] }> {
-    const response = await fetch(`${API_BASE}/api/tables/${tableName}/indexes`)
+    const response = await fetchWithAuth(`${API_BASE}/api/tables/${tableName}/indexes`)
     if (!response.ok) {
       const error = await response.json()
       throw new Error(error.error || 'Failed to fetch table indexes')
@@ -431,7 +464,7 @@ export const api = {
   },
 
   async getAllIndexes(): Promise<{ indexes: IndexInfo[] }> {
-    const response = await fetch(`${API_BASE}/api/tables/indexes`)
+    const response = await fetchWithAuth(`${API_BASE}/api/tables/indexes`)
     if (!response.ok) {
       const error = await response.json()
       throw new Error(error.error || 'Failed to fetch all indexes')
@@ -443,7 +476,7 @@ export const api = {
     tableName: string,
     data: { name: string; columns: string[]; unique?: boolean }
   ): Promise<{ success: boolean; index: IndexInfo }> {
-    const response = await fetch(`${API_BASE}/api/tables/${tableName}/indexes`, {
+    const response = await fetchWithAuth(`${API_BASE}/api/tables/${tableName}/indexes`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -461,9 +494,12 @@ export const api = {
     tableName: string,
     indexName: string
   ): Promise<{ success: boolean; message: string }> {
-    const response = await fetch(`${API_BASE}/api/tables/${tableName}/indexes/${indexName}`, {
-      method: 'DELETE',
-    })
+    const response = await fetchWithAuth(
+      `${API_BASE}/api/tables/${tableName}/indexes/${indexName}`,
+      {
+        method: 'DELETE',
+      }
+    )
     if (!response.ok) {
       const error = await response.json()
       throw new Error(error.error || 'Failed to drop index')
@@ -473,7 +509,7 @@ export const api = {
 
   // OAuth Provider management
   async getOAuthProviders(): Promise<{ providers: OAuthProvider[] }> {
-    const response = await fetch(`${API_BASE}/api/admin/oauth/providers`)
+    const response = await fetchWithAuth(`${API_BASE}/api/admin/oauth/providers`)
     if (!response.ok) {
       let errorMessage = 'Failed to fetch OAuth providers'
       try {
@@ -492,7 +528,7 @@ export const api = {
   },
 
   async getOAuthProvider(provider: string): Promise<{ provider: OAuthProvider }> {
-    const response = await fetch(`${API_BASE}/api/admin/oauth/providers/${provider}`)
+    const response = await fetchWithAuth(`${API_BASE}/api/admin/oauth/providers/${provider}`)
     if (!response.ok) {
       const error = await response.json()
       throw new Error(error.error || 'Failed to fetch OAuth provider')
@@ -510,7 +546,7 @@ export const api = {
       redirect_uri?: string
     }
   ): Promise<{ success: boolean; message: string; provider: any }> {
-    const response = await fetch(`${API_BASE}/api/admin/oauth/providers/${provider}`, {
+    const response = await fetchWithAuth(`${API_BASE}/api/admin/oauth/providers/${provider}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -528,13 +564,16 @@ export const api = {
     provider: string,
     enabled: boolean
   ): Promise<{ success: boolean; message: string }> {
-    const response = await fetch(`${API_BASE}/api/admin/oauth/providers/${provider}/toggle`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ is_enabled: enabled }),
-    })
+    const response = await fetchWithAuth(
+      `${API_BASE}/api/admin/oauth/providers/${provider}/toggle`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ is_enabled: enabled }),
+      }
+    )
     if (!response.ok) {
       const error = await response.json()
       throw new Error(error.error || 'Failed to toggle OAuth provider')
@@ -543,7 +582,7 @@ export const api = {
   },
 
   async deleteOAuthProvider(provider: string): Promise<{ success: boolean; message: string }> {
-    const response = await fetch(`${API_BASE}/api/admin/oauth/providers/${provider}`, {
+    const response = await fetchWithAuth(`${API_BASE}/api/admin/oauth/providers/${provider}`, {
       method: 'DELETE',
     })
     if (!response.ok) {
@@ -554,7 +593,7 @@ export const api = {
   },
 
   async getSupportedProviders(): Promise<{ supported_providers: SupportedProvider[] }> {
-    const response = await fetch(`${API_BASE}/api/admin/oauth/supported-providers`)
+    const response = await fetchWithAuth(`${API_BASE}/api/admin/oauth/supported-providers`)
     if (!response.ok) {
       let errorMessage = 'Failed to fetch supported providers'
       try {
@@ -576,7 +615,7 @@ export const api = {
   async getTablePolicy(
     tableName: string
   ): Promise<{ table_name: string; access_policy: 'public' | 'private' | 'system' }> {
-    const response = await fetch(`${API_BASE}/api/tables/${tableName}/policy`)
+    const response = await fetchWithAuth(`${API_BASE}/api/tables/${tableName}/policy`)
     if (!response.ok) {
       const error = await response.json()
       throw new Error(error.error || 'Failed to get table policy')
@@ -588,7 +627,7 @@ export const api = {
     tableName: string,
     policy: 'public' | 'private'
   ): Promise<{ success: boolean; message: string }> {
-    const response = await fetch(`${API_BASE}/api/tables/${tableName}/policy`, {
+    const response = await fetchWithAuth(`${API_BASE}/api/tables/${tableName}/policy`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

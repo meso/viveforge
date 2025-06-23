@@ -1,13 +1,18 @@
+import type { Context } from 'hono'
 import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
-import type { Context } from 'hono'
 import type { Env, Variables } from '../types'
 import { ErrorCode } from '../types/errors'
 
 const storage = new Hono<{ Bindings: Env; Variables: Variables }>()
 
 // Helper function for consistent error responses
-const errorResponse = (c: Context<{ Bindings: Env; Variables: Variables }>, status: number, code: string, message: string) => {
+const errorResponse = (
+  c: Context<{ Bindings: Env; Variables: Variables }>,
+  status: number,
+  code: string,
+  message: string
+) => {
   return c.json(
     {
       success: false,

@@ -17,6 +17,7 @@ import { customQueries } from './routes/custom-queries'
 import { data } from './routes/data'
 import { docs } from './routes/docs'
 import { hooks } from './routes/hooks'
+import { push } from './routes/push'
 import { realtime } from './routes/realtime'
 import { snapshots } from './routes/snapshots'
 import { storage } from './routes/storage'
@@ -117,12 +118,18 @@ app.get('/', async (c) => {
   if (!user) {
     return c.redirect('/auth/login')
   }
-  return c.html(getDashboardHTML({
-    id: user.id,
-    username: user.username || user.name || 'Unknown',
-    email: user.email,
-    name: user.name
-  }, CURRENT_ASSETS.js, CURRENT_ASSETS.css))
+  return c.html(
+    getDashboardHTML(
+      {
+        id: user.id,
+        username: user.username || user.name || 'Unknown',
+        email: user.email,
+        name: user.name,
+      },
+      CURRENT_ASSETS.js,
+      CURRENT_ASSETS.css
+    )
+  )
 })
 
 // Static assets handled by Workers Assets below
@@ -146,6 +153,7 @@ app.route('/api/hooks', hooks)
 app.route('/api/realtime', realtime)
 app.route('/api/custom-queries', customQueries)
 app.route('/api/custom', custom)
+app.route('/api/push', push)
 
 // Handle static assets
 app.get('/assets/*', async (c) => {
@@ -161,6 +169,19 @@ app.get('/favicon.svg', async (c) => {
 app.get('/favicon.ico', async (c) => {
   // Redirect to SVG favicon
   return c.redirect('/favicon.svg', 301)
+})
+
+// Service Worker
+app.get('/sw.js', async (c) => {
+  const response = await c.env.ASSETS.fetch(c.req.raw)
+  // Set proper content type for Service Worker
+  const newHeaders = new Headers(response.headers)
+  newHeaders.set('Content-Type', 'application/javascript')
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: newHeaders,
+  })
 })
 
 // Catch-all route for SPA fallback
@@ -182,12 +203,18 @@ app.get('*', async (c) => {
   }
 
   // Return the SPA HTML with auth state
-  return c.html(getDashboardHTML({
-    id: user.id,
-    username: user.username || user.name || 'Unknown',
-    email: user.email,
-    name: user.name
-  }, CURRENT_ASSETS.js, CURRENT_ASSETS.css))
+  return c.html(
+    getDashboardHTML(
+      {
+        id: user.id,
+        username: user.username || user.name || 'Unknown',
+        email: user.email,
+        name: user.name,
+      },
+      CURRENT_ASSETS.js,
+      CURRENT_ASSETS.css
+    )
+  )
 })
 
 // Export default handler with both fetch and scheduled handlers

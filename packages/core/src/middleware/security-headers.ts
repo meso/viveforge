@@ -294,19 +294,21 @@ export function getProductionSecurityConfig(): SecurityHeadersConfig {
 export function getDevelopmentSecurityConfig(): SecurityHeadersConfig {
   const defaultCSP = DEFAULT_SECURITY_CONFIG.contentSecurityPolicy
   const devCSP = DEVELOPMENT_CSP_OVERRIDES
-  
+
   return {
     ...DEFAULT_SECURITY_CONFIG,
     // Disable HSTS in development
     strictTransportSecurity: undefined,
     // Use development CSP overrides
-    contentSecurityPolicy: defaultCSP ? {
-      ...defaultCSP,
-      directives: {
-        ...defaultCSP.directives,
-        ...devCSP.directives,
-      },
-    } : devCSP,
+    contentSecurityPolicy: defaultCSP
+      ? {
+          ...defaultCSP,
+          directives: {
+            ...defaultCSP.directives,
+            ...devCSP.directives,
+          },
+        }
+      : devCSP,
   }
 }
 

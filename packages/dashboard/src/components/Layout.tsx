@@ -1,12 +1,16 @@
 import clsx from 'clsx'
 import type { ComponentChildren } from 'preact'
 import { Link } from 'preact-router/match'
+import { useAuthMonitor } from '../hooks/useAuthMonitor'
 
 interface LayoutProps {
   children: ComponentChildren
 }
 
 export function Layout({ children }: LayoutProps) {
+  // Monitor authentication status
+  useAuthMonitor()
+
   return (
     <div class="min-h-screen bg-gray-50">
       <nav class="bg-white shadow-sm border-b">
@@ -21,6 +25,7 @@ export function Layout({ children }: LayoutProps) {
                 <NavLink href="/database">Database</NavLink>
                 <NavLink href="/custom-sql">Custom SQL</NavLink>
                 <NavLink href="/storage">Storage</NavLink>
+                <NavLink href="/push">Push</NavLink>
                 <NavLink href="/auth">Auth</NavLink>
                 <NavLink href="/settings">Settings</NavLink>
               </div>

@@ -206,7 +206,7 @@ export function SettingsPage() {
         errorMessage = err.message
       }
       if (typeof err === 'object' && err !== null && 'status' in err) {
-        errorMessage += ` (Status: ${(err as any).status})`
+        errorMessage += ` (Status: ${(err as { status: unknown }).status})`
       }
       setApiKeysError(errorMessage)
     } finally {

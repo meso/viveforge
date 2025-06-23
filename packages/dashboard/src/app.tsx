@@ -4,6 +4,7 @@ import { AuthPage } from './pages/Auth'
 import { CustomSQL } from './pages/CustomSQL'
 import { DatabasePage } from './pages/Database'
 import { HomePage } from './pages/Home'
+import PushNotifications from './pages/PushNotifications'
 import { SettingsPage } from './pages/Settings'
 import { StoragePage } from './pages/Storage'
 
@@ -15,6 +16,7 @@ export function App() {
         <Route path="/database" component={DatabasePage} />
         <Route path="/custom-sql" component={CustomSQL} />
         <Route path="/storage" component={StoragePage} />
+        <Route path="/push" component={PushNotifications} />
         <Route path="/auth" component={AuthPage} />
         <Route path="/settings" component={SettingsPage} />
       </Router>

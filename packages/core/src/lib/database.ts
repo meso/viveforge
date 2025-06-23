@@ -29,7 +29,10 @@ export class Database {
   }
 
   async getAdminById(id: string): Promise<Admin | null> {
-    const result = await this.db.prepare('SELECT * FROM admins WHERE id = ?').bind(id).first<AdminRecord>()
+    const result = await this.db
+      .prepare('SELECT * FROM admins WHERE id = ?')
+      .bind(id)
+      .first<AdminRecord>()
 
     if (!result) return null
 
@@ -45,7 +48,10 @@ export class Database {
   }
 
   async getAdminByEmail(email: string): Promise<Admin | null> {
-    const result = await this.db.prepare('SELECT * FROM admins WHERE email = ?').bind(email).first<AdminRecord>()
+    const result = await this.db
+      .prepare('SELECT * FROM admins WHERE email = ?')
+      .bind(email)
+      .first<AdminRecord>()
 
     if (!result) return null
 
@@ -117,7 +123,10 @@ export class Database {
   }
 
   async getItemById(id: string) {
-    const result = await this.db.prepare('SELECT * FROM items WHERE id = ?').bind(id).first<ItemRecord>()
+    const result = await this.db
+      .prepare('SELECT * FROM items WHERE id = ?')
+      .bind(id)
+      .first<ItemRecord>()
 
     if (!result) return null
 
