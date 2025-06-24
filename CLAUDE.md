@@ -246,6 +246,15 @@ curl -X POST https://vibebase.mesongo.workers.dev/api/realtime/process-events \
 - パブリックAPIにはJSDocコメントを記述
 - 厳格なTypeScript設定を使用
 
+### 🎯 コード品質の絶対基準（MUST MAINTAIN）
+**以下の状態を常に100%維持すること：**
+- **✅ リンティングエラー**: 0個（`pnpm lint`で確認）
+- **✅ リンティング警告**: 0個（`pnpm lint`で確認）
+- **✅ TypeScript エラー**: 0個（`pnpm typecheck`で確認）
+- **✅ 全テスト**: 100%成功（`pnpm test run`で確認）
+
+**重要**: コード変更を行う際は、必ず上記4つのチェックを実行し、全てがクリーンな状態であることを確認してからコミットすること。1つでもエラーや警告がある場合は、必ず修正してから作業を完了すること。
+
 ### セキュリティ
 - シークレットやAPIキーをコミットしない
 - 機密データには環境変数を使用
