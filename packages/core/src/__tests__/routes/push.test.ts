@@ -133,7 +133,7 @@ describe('Push Routes', () => {
       const res = await testApp.request(req)
 
       expect(res.status).toBe(403)
-      const data = await res.json() as { error: string }
+      const data = (await res.json()) as { error: string }
       expect(data.error).toBe('Admin access required')
     })
 
@@ -309,7 +309,7 @@ describe('Push Routes', () => {
       const res = await testApp.request(req)
 
       expect(res.status).toBe(400)
-      const data = await res.json() as { error: string; details: unknown }
+      const data = (await res.json()) as { error: string; details: unknown }
       expect(data.error).toBe('Invalid request')
       expect(data.details).toBeDefined()
     })
@@ -351,7 +351,10 @@ describe('Push Routes', () => {
       const res = await testApp.request(req)
 
       expect(res.status).toBe(200)
-      const data = (await res.json()) as { success: boolean; result: { sent: number; failed: number } }
+      const data = (await res.json()) as {
+        success: boolean
+        result: { sent: number; failed: number }
+      }
       expect(data.success).toBe(true)
       expect(data.result).toEqual({ sent: 1, failed: 0 })
     })

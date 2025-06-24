@@ -4,7 +4,6 @@
  */
 import type {
   DurableObjectId as CfDurableObjectId,
-  DurableObjectNamespace as CfDurableObjectNamespace,
   DurableObjectStub as CfDurableObjectStub,
   D1Database as CloudflareD1Database,
   D1ExecResult as CloudflareD1ExecResult,
@@ -158,7 +157,7 @@ export interface ExecutionContext {
 }
 
 // Use Cloudflare's Durable Object types directly
-export type DurableObjectNamespace<T = any> = any
+export type DurableObjectNamespace<_T = unknown> = unknown
 export type DurableObjectId = CfDurableObjectId
 
 // Extended Durable Object Stub with custom methods

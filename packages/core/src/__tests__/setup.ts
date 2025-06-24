@@ -1,5 +1,5 @@
 // Mock interfaces that extend the real Cloudflare types
-import type { D1Database, D1PreparedStatement } from '../types/cloudflare'
+import type { D1Database } from '../types/cloudflare'
 
 export interface MockD1Database {
   prepare: (sql: string) => MockD1PreparedStatement
@@ -882,7 +882,10 @@ export function createMockD1Database(): MockD1Database {
     exec: async (_sql: string) => {
       return { results: [] }
     },
-    withSession: async function <T>(this: MockD1Database, callback: (session: D1Database) => Promise<T>): Promise<T> {
+    withSession: async function <T>(
+      this: MockD1Database,
+      callback: (session: D1Database) => Promise<T>
+    ): Promise<T> {
       return await callback(this as any)
     },
     dump: async () => {

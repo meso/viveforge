@@ -35,7 +35,18 @@
       "Bash(pnpm --filter @vibebase/core test run)",
       "Bash(wrangler whoami:*)",
       "Bash(chmod:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(mkdir:*)",
+      "Bash(pnpm -F @vibebase/dashboard lint)",
+      "Bash(pnpm -F @vibebase/dashboard test run)",
+      "Bash(pnpm -F @vibebase/dashboard install)",
+      "Bash(pnpm -F @vibebase/dashboard test:run)",
+      "Bash(pnpm -F @vibebase/dashboard typecheck)",
+      "Bash(pnpm -F @vibebase/dashboard test:run useCustomQueries.refactored)",
+      "Bash(mv:*)",
+      "Bash(pnpm -F @vibebase/dashboard lint --max-diagnostics=200)",
+      "Bash(pnpm -F @vibebase/dashboard lint:fix)",
+      "Bash(pnpm -F @vibebase/dashboard lint --max-diagnostics=20)"
     ],
     "deny": []
   }

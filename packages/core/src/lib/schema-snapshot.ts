@@ -104,7 +104,7 @@ export class SchemaSnapshotManager {
       schemas.push({
         name: tableInfo.name,
         sql: tableInfo.sql,
-        columns: columnsResult.results.map(col => col as any as ColumnInfo),
+        columns: columnsResult.results.map((col) => col as any as ColumnInfo),
         foreignKeys: foreignKeysResult.results as { from: string; table: string; to: string }[],
         indexes: indexes,
       })
@@ -280,14 +280,14 @@ export class SchemaSnapshotManager {
       id: row.id as string,
       version: row.version as number,
       name: row.name as string,
-      description: row.description === null ? undefined : row.description as string,
+      description: row.description === null ? undefined : (row.description as string),
       fullSchema: row.full_schema as string,
       tablesJson: row.tables_json as string,
       schemaHash: row.schema_hash as string,
       createdAt: row.created_at as string,
-      createdBy: row.created_by === null ? undefined : row.created_by as string,
+      createdBy: row.created_by === null ? undefined : (row.created_by as string),
       snapshotType: row.snapshot_type as 'manual' | 'auto' | 'pre_change',
-      d1BookmarkId: row.d1_bookmark_id === null ? undefined : row.d1_bookmark_id as string,
+      d1BookmarkId: row.d1_bookmark_id === null ? undefined : (row.d1_bookmark_id as string),
     }))
 
     return {
@@ -316,14 +316,14 @@ export class SchemaSnapshotManager {
       id: record.id as string,
       version: record.version as number,
       name: record.name as string,
-      description: record.description === null ? undefined : record.description as string,
+      description: record.description === null ? undefined : (record.description as string),
       fullSchema: record.full_schema as string,
       tablesJson: record.tables_json as string,
       schemaHash: record.schema_hash as string,
       createdAt: record.created_at as string,
-      createdBy: record.created_by === null ? undefined : record.created_by as string,
+      createdBy: record.created_by === null ? undefined : (record.created_by as string),
       snapshotType: record.snapshot_type as 'manual' | 'auto' | 'pre_change',
-      d1BookmarkId: record.d1_bookmark_id === null ? undefined : record.d1_bookmark_id as string,
+      d1BookmarkId: record.d1_bookmark_id === null ? undefined : (record.d1_bookmark_id as string),
     }
   }
 

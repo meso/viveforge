@@ -7,7 +7,7 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "types": [], // Override parent types to exclude @cloudflare/workers-types
+    "types": ["vitest/globals"], // Override parent types to exclude @cloudflare/workers-types, add vitest globals
     "paths": {
       "react": ["./node_modules/preact/compat/"],
       "react-dom": ["./node_modules/preact/compat/"]
