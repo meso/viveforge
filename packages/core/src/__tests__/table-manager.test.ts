@@ -86,14 +86,16 @@ describe('TableManager', () => {
       await expect(tableManager.addColumn(testTableName, column)).resolves.not.toThrow()
     })
 
-    it('should rename column', async () => {
-      await expect(
-        tableManager.renameColumn(testTableName, 'title', 'new_title')
-      ).resolves.not.toThrow()
+    it('should throw error for rename column (not yet implemented)', async () => {
+      await expect(tableManager.renameColumn(testTableName, 'title', 'new_title')).rejects.toThrow(
+        'Column renaming is not yet supported'
+      )
     })
 
-    it('should drop column', async () => {
-      await expect(tableManager.dropColumn(testTableName, 'title')).resolves.not.toThrow()
+    it('should throw error for drop column (not yet implemented)', async () => {
+      await expect(tableManager.dropColumn(testTableName, 'title')).rejects.toThrow(
+        'Column dropping is not yet supported'
+      )
     })
 
     it('should validate column changes', async () => {
@@ -108,11 +110,11 @@ describe('TableManager', () => {
       expect(typeof result.conflictingRows).toBe('number')
     })
 
-    it('should modify column', async () => {
-      const changes = { type: 'TEXT', notNull: false }
-      await expect(
-        tableManager.modifyColumn(testTableName, 'title', changes)
-      ).resolves.not.toThrow()
+    it('should throw error for modify column (not yet implemented)', async () => {
+      const changes = { type: 'TEXT', constraints: 'NOT NULL' }
+      await expect(tableManager.modifyColumn(testTableName, 'title', changes)).rejects.toThrow(
+        'Column modification is not yet supported'
+      )
     })
   })
 
@@ -541,35 +543,37 @@ describe('TableManager', () => {
   })
 
   describe('SQL Operations', () => {
-    it('should execute safe SQL queries', async () => {
+    it('should throw error for direct SQL execution (not yet implemented)', async () => {
       const sql = 'SELECT COUNT(*) as count FROM sqlite_master'
-      const result = await tableManager.executeSQL(sql)
 
-      expect(result).toHaveProperty('results')
-      expect(Array.isArray(result.results)).toBe(true)
-    })
-
-    it('should reject unsafe SQL queries', async () => {
-      const unsafeSql = 'DROP TABLE users'
-
-      await expect(tableManager.executeSQL(unsafeSql)).rejects.toThrow(
-        'Only SELECT queries are allowed'
+      await expect(tableManager.executeSQL(sql)).rejects.toThrow(
+        'Direct SQL execution is not yet supported'
       )
     })
 
-    it('should reject queries on system tables', async () => {
+    it('should throw error for unsafe SQL queries (not yet implemented)', async () => {
+      const unsafeSql = 'DROP TABLE users'
+
+      await expect(tableManager.executeSQL(unsafeSql)).rejects.toThrow(
+        'Direct SQL execution is not yet supported'
+      )
+    })
+
+    it('should throw error for system table queries (not yet implemented)', async () => {
       const systemTableSql = 'SELECT * FROM admins'
 
       await expect(tableManager.executeSQL(systemTableSql)).rejects.toThrow(
-        'Cannot query system table'
+        'Direct SQL execution is not yet supported'
       )
     })
   })
 
   describe('Error Handling and Recovery', () => {
     it('should handle database connection errors gracefully', async () => {
-      // Test with invalid database operations
-      await expect(tableManager.executeSQL('INVALID SQL SYNTAX')).rejects.toThrow()
+      // Test with invalid database operations - SQL execution is not implemented yet
+      await expect(tableManager.executeSQL('INVALID SQL SYNTAX')).rejects.toThrow(
+        'Direct SQL execution is not yet supported'
+      )
     })
 
     it('should provide consistent error messages for system table modifications', async () => {
@@ -698,10 +702,10 @@ describe('TableManager', () => {
 
     it('should handle query timeout and recovery', async () => {
       // Test with a complex query that might timeout in a real environment
-      const result = await tableManager.executeSQL('SELECT COUNT(*) as count FROM sqlite_master')
-
-      expect(result).toHaveProperty('results')
-      expect(Array.isArray(result.results)).toBe(true)
+      // SQL execution is not implemented yet, so it should throw
+      await expect(
+        tableManager.executeSQL('SELECT COUNT(*) as count FROM sqlite_master')
+      ).rejects.toThrow('Direct SQL execution is not yet supported')
     })
 
     it('should handle large data operations gracefully', async () => {

@@ -1,9 +1,14 @@
-import type { D1Database, ExecutionContext, TableDataResult } from '../types/cloudflare'
+import type {
+  CustomDurableObjectNamespace,
+  D1Database,
+  ExecutionContext,
+  TableDataResult,
+} from '../types/cloudflare'
 import { DataManager } from './data-manager'
 import { ErrorHandler } from './error-handler'
 
 interface TableAccessControllerEnvironment {
-  REALTIME?: DurableObjectNamespace<undefined>
+  REALTIME?: CustomDurableObjectNamespace
 }
 
 /**
@@ -212,12 +217,14 @@ export class TableAccessController {
   /**
    * Get all accessible tables for a user
    */
-  async getAccessibleTables(userId?: string): Promise<Array<{
-    name: string
-    accessPolicy: 'public' | 'private'
-    canRead: boolean
-    canWrite: boolean
-  }>> {
+  async getAccessibleTables(userId?: string): Promise<
+    Array<{
+      name: string
+      accessPolicy: 'public' | 'private'
+      canRead: boolean
+      canWrite: boolean
+    }>
+  > {
     return this.errorHandler.handleOperation(
       async () => {
         // Get all user tables (non-system tables)

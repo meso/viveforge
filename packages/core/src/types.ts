@@ -2,7 +2,12 @@ import type { User, VibebaseAuthClient } from './lib/auth-client'
 import type { Database } from './lib/database'
 import type { LocalTableInfo, TableManager } from './lib/table-manager'
 import type { AuthContext } from './types/auth'
-import type { D1Database, DurableObjectNamespace, KVNamespace, R2Bucket } from './types/cloudflare'
+import type {
+  CustomDurableObjectNamespace,
+  D1Database,
+  KVNamespace,
+  R2Bucket,
+} from './types/cloudflare'
 
 export interface Env {
   DB?: D1Database
@@ -32,7 +37,7 @@ export interface Env {
   GITHUB_CLIENT_SECRET?: string
 
   // Durable Objects
-  REALTIME?: DurableObjectNamespace<undefined>
+  REALTIME?: CustomDurableObjectNamespace
 
   // Web Push VAPID keys
   VAPID_PUBLIC_KEY?: string

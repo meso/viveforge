@@ -156,8 +156,14 @@ export interface ExecutionContext {
   passThroughOnException(): void
 }
 
-// Use Cloudflare's Durable Object types directly
-export type DurableObjectNamespace<_T = unknown> = unknown
+// Custom Durable Object types to avoid conflicts with Cloudflare types
+export interface CustomDurableObjectNamespace {
+  idFromName(name: string): DurableObjectId
+  idFromString(id: string): DurableObjectId
+  newUniqueId(options?: { jurisdiction?: string }): DurableObjectId
+  get(id: DurableObjectId): DurableObjectStub
+}
+
 export type DurableObjectId = CfDurableObjectId
 
 // Extended Durable Object Stub with custom methods
@@ -169,6 +175,7 @@ export interface DurableObjectStub extends CfDurableObjectStub {
 export interface ValidationResult {
   valid: boolean
   errors: string[]
+  warnings?: string[]
   conflictingRows: number
 }
 
@@ -199,4 +206,5 @@ export interface OperationResult {
 export interface TableDataResult {
   data: Record<string, unknown>[]
   total: number
+  hasMore?: boolean
 }

@@ -1,8 +1,7 @@
 import type { D1Database } from '../types/cloudflare'
 import type { CountResult, TableInfo } from '../types/database'
 import { ErrorHandler } from './error-handler'
-import type { ColumnDefinition, ColumnInfo } from './schema-manager'
-import { SchemaManager } from './schema-manager'
+import type { ColumnDefinition, ColumnInfo, SchemaManager } from './schema-manager'
 import { validateAndEscapeTableName } from './sql-utils'
 
 // System tables that cannot be modified by users
@@ -136,7 +135,7 @@ export class TableOperations {
         }
 
         return result.results.map((fk) => {
-          const foreignKey = fk as any as ForeignKeyInfo
+          const foreignKey = fk as unknown as ForeignKeyInfo
           return {
             from: foreignKey.from,
             table: foreignKey.table,
@@ -174,7 +173,7 @@ export class TableOperations {
    */
   validateTableName(tableName: string): void {
     validateAndEscapeTableName(tableName)
-    
+
     if (this.isSystemTable(tableName)) {
       throw new Error('Cannot modify system table')
     }

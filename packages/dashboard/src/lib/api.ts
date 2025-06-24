@@ -1,14 +1,3 @@
-import type {
-  ApiResponse,
-  ColumnInfo,
-  ForeignKeyInfo,
-  IndexInfo,
-  Item,
-  OAuthProvider,
-  SchemaSnapshot,
-  SupportedProvider,
-  TableInfo,
-} from '../types/api'
 import { apiClient } from './api-client'
 import { tableApi } from './table-api'
 

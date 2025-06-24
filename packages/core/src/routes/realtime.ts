@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { HookManager } from '../lib/hook-manager'
 import { getAuthContext, getCurrentEndUser } from '../middleware/auth'
 import type { Env, Variables } from '../types'
+import type { CustomDurableObjectNamespace, DurableObjectStub } from '../types/cloudflare'
 
 export const realtime = new Hono<{ Bindings: Env; Variables: Variables }>()
 
@@ -28,8 +29,9 @@ realtime.get('/sse', async (c) => {
     const clientId = crypto.randomUUID()
 
     // Get Durable Object ID (use a single global instance for now)
-    const id = c.env.REALTIME.idFromName('global')
-    const stub = c.env.REALTIME.get(id)
+    const realtime = c.env.REALTIME as CustomDurableObjectNamespace
+    const id = realtime.idFromName('global')
+    const stub = realtime.get(id)
 
     // Build URL for Durable Object
     const url = new URL('/connect', 'http://internal')
@@ -80,11 +82,12 @@ realtime.post('/subscribe', zValidator('json', subscribeSchema), async (c) => {
     }
 
     // Get Durable Object
-    const id = c.env.REALTIME.idFromName('global')
-    const stub = c.env.REALTIME.get(id)
+    const realtime = c.env.REALTIME as CustomDurableObjectNamespace
+    const id = realtime.idFromName('global')
+    const stub = realtime.get(id)
 
     // Update subscriptions
-    const extendedStub = stub as any
+    const extendedStub = stub as DurableObjectStub
     if (extendedStub.updateSubscriptions) {
       await extendedStub.updateSubscriptions(clientId, { tables, hookIds })
     }
@@ -127,8 +130,9 @@ realtime.post('/process-events', async (c) => {
     }
 
     // Get Durable Object
-    const id = c.env.REALTIME.idFromName('global')
-    const stub = c.env.REALTIME.get(id)
+    const realtime = c.env.REALTIME as CustomDurableObjectNamespace
+    const id = realtime.idFromName('global')
+    const stub = realtime.get(id)
 
     let processedCount = 0
 

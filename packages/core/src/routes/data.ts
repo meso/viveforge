@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { TableManager } from '../lib/table-manager'
 import { getAuthContext, getCurrentEndUser } from '../middleware/auth'
 import type { Env, Variables } from '../types'
-import type { TableDataResult } from '../types/cloudflare'
+import type { CustomDurableObjectNamespace, TableDataResult } from '../types/cloudflare'
 
 export const data = new Hono<{ Bindings: Env; Variables: Variables }>()
 
@@ -15,7 +15,7 @@ data.use('*', async (c, next) => {
   c.set(
     'tableManager',
     new TableManager(c.env.DB, c.env.SYSTEM_STORAGE, c.executionCtx, {
-      REALTIME: c.env.REALTIME,
+      REALTIME: c.env.REALTIME as CustomDurableObjectNamespace,
     })
   )
   await next()

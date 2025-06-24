@@ -51,10 +51,10 @@ export class TableValidator {
   validateTableName(tableName: string): void {
     // Basic format validation
     this.validateNameFormat(tableName, 'table')
-    
+
     // Escape validation
     validateAndEscapeTableName(tableName)
-    
+
     // System table check
     if (this.isSystemTable(tableName)) {
       throw new Error('Cannot modify system table')
@@ -103,7 +103,7 @@ export class TableValidator {
 
     // Ensure there's an id column if no primary key is specified
     if (!hasPrimaryKey) {
-      const hasIdColumn = columns.some(col => col.name.toLowerCase() === 'id')
+      const hasIdColumn = columns.some((col) => col.name.toLowerCase() === 'id')
       if (!hasIdColumn) {
         throw new Error('Table must have either a primary key or an id column')
       }
@@ -114,14 +114,14 @@ export class TableValidator {
    * Validate data for insert/update operations
    */
   validateInsertData(
-    tableName: string,
+    _tableName: string,
     data: Record<string, unknown>,
     columns: Array<{ name: string; type: string; notnull: number }>
   ): void {
     // Check required fields
     for (const column of columns) {
       const value = data[column.name]
-      
+
       // Check NOT NULL constraints
       if (column.notnull === 1 && (value === null || value === undefined)) {
         // Skip auto-generated columns
@@ -139,7 +139,7 @@ export class TableValidator {
 
     // Check for invalid column names
     for (const key of Object.keys(data)) {
-      if (!columns.some(col => col.name === key)) {
+      if (!columns.some((col) => col.name === key)) {
         throw new Error(`Unknown column: ${key}`)
       }
     }
@@ -149,7 +149,7 @@ export class TableValidator {
    * Validate data for update operations
    */
   validateUpdateData(
-    tableName: string,
+    _tableName: string,
     data: Record<string, unknown>,
     columns: Array<{ name: string; type: string; notnull: number }>
   ): void {
@@ -160,14 +160,14 @@ export class TableValidator {
     // Don't allow updating system columns
     const systemColumns = ['id', 'created_at']
     for (const systemCol of systemColumns) {
-      if (data.hasOwnProperty(systemCol)) {
+      if (Object.hasOwn(data, systemCol)) {
         throw new Error(`Cannot update system column: ${systemCol}`)
       }
     }
 
     // Validate each provided column
     for (const [key, value] of Object.entries(data)) {
-      const column = columns.find(col => col.name === key)
+      const column = columns.find((col) => col.name === key)
       if (!column) {
         throw new Error(`Unknown column: ${key}`)
       }
@@ -190,7 +190,7 @@ export class TableValidator {
   validateForeignKeyDefinition(foreignKey: { table: string; column: string }): void {
     this.validateNameFormat(foreignKey.table, 'table')
     this.validateNameFormat(foreignKey.column, 'column')
-    
+
     if (this.isSystemTable(foreignKey.table)) {
       throw new Error(`Cannot reference system table: ${foreignKey.table}`)
     }
@@ -201,9 +201,20 @@ export class TableValidator {
    */
   private validateColumnType(type: string): void {
     const validTypes = [
-      'TEXT', 'INTEGER', 'REAL', 'BLOB', 'NUMERIC',
-      'VARCHAR', 'CHAR', 'DECIMAL', 'FLOAT', 'DOUBLE',
-      'BOOLEAN', 'DATE', 'DATETIME', 'TIMESTAMP'
+      'TEXT',
+      'INTEGER',
+      'REAL',
+      'BLOB',
+      'NUMERIC',
+      'VARCHAR',
+      'CHAR',
+      'DECIMAL',
+      'FLOAT',
+      'DOUBLE',
+      'BOOLEAN',
+      'DATE',
+      'DATETIME',
+      'TIMESTAMP',
     ]
 
     const normalizedType = type.toUpperCase().split('(')[0] // Remove size specifications
@@ -223,7 +234,7 @@ export class TableValidator {
         if (typeof value !== 'number' && typeof value !== 'string') {
           throw new Error(`Column ${columnName} must be a number`)
         }
-        if (typeof value === 'string' && isNaN(Number(value))) {
+        if (typeof value === 'string' && Number.isNaN(Number(value))) {
           throw new Error(`Column ${columnName} must be a valid number`)
         }
         break
@@ -236,7 +247,7 @@ export class TableValidator {
         if (typeof value !== 'number' && typeof value !== 'string') {
           throw new Error(`Column ${columnName} must be a number`)
         }
-        if (typeof value === 'string' && isNaN(Number(value))) {
+        if (typeof value === 'string' && Number.isNaN(Number(value))) {
           throw new Error(`Column ${columnName} must be a valid number`)
         }
         break
@@ -250,8 +261,15 @@ export class TableValidator {
         break
 
       case 'BOOLEAN':
-        if (typeof value !== 'boolean' && value !== 0 && value !== 1 && 
-            value !== '0' && value !== '1' && value !== 'true' && value !== 'false') {
+        if (
+          typeof value !== 'boolean' &&
+          value !== 0 &&
+          value !== 1 &&
+          value !== '0' &&
+          value !== '1' &&
+          value !== 'true' &&
+          value !== 'false'
+        ) {
           throw new Error(`Column ${columnName} must be a boolean value`)
         }
         break
@@ -262,7 +280,7 @@ export class TableValidator {
         if (typeof value !== 'string' && !(value instanceof Date)) {
           throw new Error(`Column ${columnName} must be a date string or Date object`)
         }
-        if (typeof value === 'string' && isNaN(Date.parse(value))) {
+        if (typeof value === 'string' && Number.isNaN(Date.parse(value))) {
           throw new Error(`Column ${columnName} must be a valid date`)
         }
         break
@@ -299,11 +317,41 @@ export class TableValidator {
 
     // Check for SQL reserved words
     const reservedWords = [
-      'SELECT', 'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'DROP', 'ALTER',
-      'TABLE', 'INDEX', 'VIEW', 'FROM', 'WHERE', 'JOIN', 'INNER', 'LEFT',
-      'RIGHT', 'OUTER', 'ON', 'AND', 'OR', 'NOT', 'NULL', 'PRIMARY', 'KEY',
-      'FOREIGN', 'REFERENCES', 'UNIQUE', 'CHECK', 'DEFAULT', 'AUTO_INCREMENT',
-      'INTEGER', 'TEXT', 'REAL', 'BLOB', 'NUMERIC'
+      'SELECT',
+      'INSERT',
+      'UPDATE',
+      'DELETE',
+      'CREATE',
+      'DROP',
+      'ALTER',
+      'TABLE',
+      'INDEX',
+      'VIEW',
+      'FROM',
+      'WHERE',
+      'JOIN',
+      'INNER',
+      'LEFT',
+      'RIGHT',
+      'OUTER',
+      'ON',
+      'AND',
+      'OR',
+      'NOT',
+      'NULL',
+      'PRIMARY',
+      'KEY',
+      'FOREIGN',
+      'REFERENCES',
+      'UNIQUE',
+      'CHECK',
+      'DEFAULT',
+      'AUTO_INCREMENT',
+      'INTEGER',
+      'TEXT',
+      'REAL',
+      'BLOB',
+      'NUMERIC',
     ]
 
     if (reservedWords.includes(name.toUpperCase())) {
@@ -344,7 +392,7 @@ export class TableValidator {
           .all()
 
         const columns = result.results as Array<{ name: string }>
-        return columns.some(col => col.name === columnName)
+        return columns.some((col) => col.name === columnName)
       },
       { operationName: 'validateColumnExists', tableName }
     )

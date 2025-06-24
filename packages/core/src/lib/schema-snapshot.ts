@@ -104,7 +104,7 @@ export class SchemaSnapshotManager {
       schemas.push({
         name: tableInfo.name,
         sql: tableInfo.sql,
-        columns: columnsResult.results.map((col) => col as any as ColumnInfo),
+        columns: columnsResult.results.map((col) => col as unknown as ColumnInfo),
         foreignKeys: foreignKeysResult.results as { from: string; table: string; to: string }[],
         indexes: indexes,
       })
@@ -200,16 +200,49 @@ export class SchemaSnapshotManager {
     return nextVersion
   }
 
-  // Create a new snapshot
+  // Create a new snapshot (overloaded method for backward compatibility)
   async createSnapshot(
-    options: {
+    description?: string,
+    snapshotType?: 'manual' | 'auto' | 'pre_change'
+  ): Promise<{ id: string }>
+  async createSnapshot(options: {
+    name?: string
+    description?: string
+    createdBy?: string
+    snapshotType?: 'manual' | 'auto' | 'pre_change'
+    d1BookmarkId?: string
+  }): Promise<{ id: string }>
+  async createSnapshot(
+    optionsOrDescription?:
+      | {
+          name?: string
+          description?: string
+          createdBy?: string
+          snapshotType?: 'manual' | 'auto' | 'pre_change'
+          d1BookmarkId?: string
+        }
+      | string,
+    snapshotType?: 'manual' | 'auto' | 'pre_change'
+  ): Promise<{ id: string }> {
+    // Handle the two different call signatures
+    let options: {
       name?: string
       description?: string
       createdBy?: string
       snapshotType?: 'manual' | 'auto' | 'pre_change'
       d1BookmarkId?: string
     } = {}
-  ): Promise<string> {
+
+    if (typeof optionsOrDescription === 'string') {
+      // Called with description and snapshotType
+      options = {
+        description: optionsOrDescription,
+        snapshotType: snapshotType || 'manual',
+      }
+    } else {
+      // Called with options object
+      options = optionsOrDescription || {}
+    }
     const schemas = await this.getAllTableSchemas()
     const fullSchema = schemas.map((s) => s.sql).join(';\n')
     const schemaHash = await this.calculateSchemaHash(schemas)
@@ -255,7 +288,7 @@ export class SchemaSnapshotManager {
       )
       .run()
 
-    return id
+    return { id }
   }
 
   // Get all snapshots

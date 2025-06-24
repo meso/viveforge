@@ -3,6 +3,7 @@ import { Database } from '../lib/database'
 import type { TableSchema } from '../lib/schema-snapshot'
 import { TableManager } from '../lib/table-manager'
 import type { Env, Variables } from '../types'
+import type { CustomDurableObjectNamespace } from '../types/cloudflare'
 
 const snapshots = new Hono<{ Bindings: Env; Variables: Variables }>()
 
@@ -14,7 +15,7 @@ snapshots.use('*', async (c, next) => {
   }
 
   const tableManager = new TableManager(env.DB, env.SYSTEM_STORAGE, c.executionCtx, {
-    REALTIME: env.REALTIME,
+    REALTIME: env.REALTIME as CustomDurableObjectNamespace,
   })
   const db = new Database(env.DB)
 

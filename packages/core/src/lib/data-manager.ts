@@ -1,6 +1,6 @@
 import type {
+  CustomDurableObjectNamespace,
   D1Database,
-  DurableObjectNamespace,
   ExecutionContext,
   TableDataResult,
 } from '../types/cloudflare'
@@ -14,7 +14,7 @@ import {
 import { SYSTEM_TABLES } from './table-manager'
 
 interface DataManagerEnvironment {
-  REALTIME?: DurableObjectNamespace<undefined>
+  REALTIME?: CustomDurableObjectNamespace
 }
 
 export class DataManager {
@@ -391,6 +391,127 @@ export class DataManager {
       env: this.env,
       executionCtx: this.executionCtx,
     })
+  }
+
+  // Update record with access control
+  async updateRecordWithAccessControl(
+    tableName: string,
+    id: string,
+    data: Record<string, unknown>,
+    accessPolicy: 'public' | 'private',
+    userId?: string
+  ): Promise<void> {
+    await this.enableForeignKeys()
+
+    // Validate table name and check if it's a system table
+    validateNotSystemTable(tableName, SYSTEM_TABLES)
+    const safeTableName = validateAndEscapeTableName(tableName)
+
+    // For private tables, check ownership first
+    if (accessPolicy === 'private' && userId) {
+      const existingRecord = await this.db
+        .prepare(`SELECT owner_id FROM ${safeTableName} WHERE id = ?`)
+        .bind(id)
+        .first()
+
+      if (!existingRecord) {
+        throw new Error('Record not found')
+      }
+
+      const ownerId = (existingRecord as { owner_id?: string }).owner_id
+      if (ownerId !== userId) {
+        throw new Error('Access denied - user does not own this record')
+      }
+    }
+
+    // Remove system fields from update data
+    const updateData = { ...data }
+    delete updateData.id
+    delete updateData.created_at
+    delete updateData.owner_id // Don't allow changing ownership
+
+    // Add updated_at timestamp
+    updateData.updated_at = new Date().toISOString()
+
+    const columns = Object.keys(updateData)
+    const values = Object.values(updateData)
+    const safeColumns = columns.map((col) => validateAndEscapeColumnName(col))
+    const setClause = safeColumns.map((col) => `${col} = ?`).join(', ')
+
+    let whereClause = 'WHERE id = ?'
+    const bindings: (string | number | boolean | null)[] = [
+      ...(values as (string | number | boolean | null)[]),
+      id,
+    ]
+
+    // Additional access control for private tables
+    if (accessPolicy === 'private' && userId) {
+      whereClause += ' AND owner_id = ?'
+      bindings.push(userId)
+    }
+
+    const sql = `UPDATE ${safeTableName} SET ${setClause} ${whereClause}`
+
+    await this.db
+      .prepare(sql)
+      .bind(...bindings)
+      .run()
+
+    // Process hooks after successful update
+    await this.hookManager.processDataEvent(tableName, id, 'update', updateData, {
+      env: this.env,
+      executionCtx: this.executionCtx,
+    })
+  }
+
+  // Delete record with access control
+  async deleteRecordWithAccessControl(
+    tableName: string,
+    id: string,
+    accessPolicy: 'public' | 'private',
+    userId?: string
+  ): Promise<void> {
+    await this.enableForeignKeys()
+
+    // Validate table name and check if it's a system table
+    validateNotSystemTable(tableName, SYSTEM_TABLES)
+    const safeTableName = validateAndEscapeTableName(tableName)
+
+    // Get record data before deletion for hooks and access control
+    let whereClause = 'WHERE id = ?'
+    const bindings: (string | number | boolean | null)[] = [id]
+
+    if (accessPolicy === 'private' && userId) {
+      whereClause += ' AND owner_id = ?'
+      bindings.push(userId)
+    }
+
+    const record = await this.db
+      .prepare(`SELECT * FROM ${safeTableName} ${whereClause}`)
+      .bind(...bindings)
+      .first()
+
+    if (!record) {
+      throw new Error('Record not found or access denied')
+    }
+
+    // Delete the record
+    await this.db
+      .prepare(`DELETE FROM ${safeTableName} ${whereClause}`)
+      .bind(...bindings)
+      .run()
+
+    // Process hooks after successful delete
+    await this.hookManager.processDataEvent(
+      tableName,
+      id,
+      'delete',
+      record as Record<string, unknown>,
+      {
+        env: this.env,
+        executionCtx: this.executionCtx,
+      }
+    )
   }
 
   // Generate unique ID (similar to what SQLite's randomblob would generate)

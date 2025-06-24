@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import type { ColumnInfo } from '../lib/schema-manager'
 import { type LocalTableInfo, TableManager } from '../lib/table-manager'
 import type { Env, Variables } from '../types'
+import type { CustomDurableObjectNamespace } from '../types/cloudflare'
 
 export const docs = new Hono<{ Bindings: Env; Variables: Variables }>()
 
@@ -14,7 +15,7 @@ docs.use('*', async (c, next) => {
   c.set(
     'tableManager',
     new TableManager(c.env.DB, c.env.SYSTEM_STORAGE, c.executionCtx, {
-      REALTIME: c.env.REALTIME,
+      REALTIME: c.env.REALTIME as CustomDurableObjectNamespace,
     })
   )
   await next()

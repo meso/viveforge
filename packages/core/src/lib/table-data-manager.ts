@@ -1,4 +1,9 @@
-import type { D1Database, ExecutionContext, TableDataResult } from '../types/cloudflare'
+import type {
+  CustomDurableObjectNamespace,
+  D1Database,
+  ExecutionContext,
+  TableDataResult,
+} from '../types/cloudflare'
 import type { CountResult, IndexColumnInfo } from '../types/database'
 import { DataManager } from './data-manager'
 import { ErrorHandler } from './error-handler'
@@ -6,7 +11,7 @@ import type { IndexInfo } from './index-manager'
 import { validateAndEscapeTableName } from './sql-utils'
 
 interface TableDataManagerEnvironment {
-  REALTIME?: DurableObjectNamespace<undefined>
+  REALTIME?: CustomDurableObjectNamespace
 }
 
 /**
@@ -108,7 +113,7 @@ export class TableDataManager {
 
         // Check each index to find indexed columns
         for (const indexRow of indexesResult.results) {
-          const index = indexRow as any as IndexInfo
+          const index = indexRow as unknown as IndexInfo
           const indexName = index.name
 
           // Skip SQLite auto-created indexes for primary keys/unique constraints
@@ -187,7 +192,7 @@ export class TableDataManager {
 
         // Build WHERE clause
         const whereConditions: string[] = []
-        const bindValues: any[] = []
+        const bindValues: (string | number | boolean | null)[] = []
 
         for (const param of validSearchParams) {
           const column = searchableColumns.find((col) => col.name === param.column)
@@ -219,7 +224,10 @@ export class TableDataManager {
 
         // Get total count
         const countQuery = `SELECT COUNT(*) as count FROM "${tableName_escaped}" WHERE ${whereClause}`
-        const countResult = await this.db.prepare(countQuery).bind(...bindValues).first()
+        const countResult = await this.db
+          .prepare(countQuery)
+          .bind(...bindValues)
+          .first()
         const total = (countResult as CountResult)?.count || 0
 
         // Get data with pagination

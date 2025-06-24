@@ -1,9 +1,14 @@
 import { nanoid } from 'nanoid'
-import type { D1Database, DurableObjectNamespace, ExecutionContext } from '../types/cloudflare'
+import type {
+  CustomDurableObjectNamespace,
+  D1Database,
+  DurableObjectStub,
+  ExecutionContext,
+} from '../types/cloudflare'
 import { NotificationManager } from './notification-manager'
 
 interface RealtimeEnvironment {
-  REALTIME?: DurableObjectNamespace
+  REALTIME?: CustomDurableObjectNamespace
   VAPID_PUBLIC_KEY?: string
   VAPID_PRIVATE_KEY?: string
   VAPID_SUBJECT?: string
@@ -236,11 +241,11 @@ export class HookManager {
     eventType: HookEventType,
     recordId: string,
     eventData: Record<string, unknown>,
-    realtimeNamespace: DurableObjectNamespace
+    realtimeNamespace: CustomDurableObjectNamespace
   ): Promise<void> {
     try {
       const id = realtimeNamespace.idFromName('global')
-      const stub = realtimeNamespace.get(id) as any
+      const stub = realtimeNamespace.get(id) as DurableObjectStub
 
       const response = await stub.fetch('http://internal/broadcast', {
         method: 'POST',

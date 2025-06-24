@@ -25,7 +25,10 @@ export function HomePage() {
       setStats({
         userTables,
         systemTables,
-        dbStatus: health.database === 'connected' ? 'connected' : 'disconnected',
+        dbStatus:
+          (health as { database?: string })?.database === 'connected'
+            ? 'connected'
+            : 'disconnected',
       })
     } catch (error) {
       console.error('Failed to load stats:', error)

@@ -1,4 +1,5 @@
 import type {
+  CustomDurableObjectNamespace,
   D1Database,
   ExecutionContext,
   OperationResult,
@@ -13,15 +14,15 @@ import { IndexManager } from './index-manager'
 import type { ColumnDefinition, ColumnInfo } from './schema-manager'
 import { SchemaManager } from './schema-manager'
 import { SchemaSnapshotManager } from './schema-snapshot'
+import { validateAndEscapeColumnName, validateAndEscapeTableName } from './sql-utils'
 import { TableAccessController } from './table-access-controller'
 import { TableDataManager } from './table-data-manager'
 import type { LocalTableInfo } from './table-operations'
 import { SYSTEM_TABLES, TableOperations } from './table-operations'
 import { TableValidator } from './table-validator'
-import { validateAndEscapeColumnName, validateAndEscapeTableName } from './sql-utils'
 
 interface TableManagerEnvironment {
-  REALTIME?: DurableObjectNamespace<undefined>
+  REALTIME?: CustomDurableObjectNamespace
 }
 
 /**
@@ -47,7 +48,7 @@ export class TableManager {
     private env?: TableManagerEnvironment
   ) {
     this.errorHandler = ErrorHandler.getInstance()
-    
+
     // Initialize legacy components (maintain compatibility)
     this.snapshotManager = new SchemaSnapshotManager(db, systemStorage)
     this.schemaManager = new SchemaManager(
@@ -343,23 +344,29 @@ export class TableManager {
    * Create a manual snapshot
    */
   async createManualSnapshot(description?: string): Promise<OperationResult> {
-    return this.snapshotManager.createSnapshot(description, 'manual')
+    const result = await this.snapshotManager.createSnapshot(description, 'manual')
+    return {
+      success: true,
+      message: `Snapshot created with ID: ${result.id}`,
+    }
   }
 
   /**
    * Create a snapshot (legacy method for backward compatibility)
    */
-  async createSnapshot(options: {
-    name?: string
-    description?: string
-    createdBy?: string
-    snapshotType?: 'manual' | 'auto' | 'pre_change'
-  } = {}): Promise<string> {
+  async createSnapshot(
+    options: {
+      name?: string
+      description?: string
+      createdBy?: string
+      snapshotType?: 'manual' | 'auto' | 'pre_change'
+    } = {}
+  ): Promise<string> {
     const result = await this.snapshotManager.createSnapshot(
       options.description || options.name,
       options.snapshotType || 'manual'
     )
-    return result.id || 'unknown'
+    return result.id
   }
 
   /**
@@ -433,19 +440,19 @@ export class TableManager {
 
           return {
             valid: errors.length === 0,
-            isValid: errors.length === 0,
             errors,
             warnings,
-            conflictingRows: [],
+            conflictingRows: 0,
           }
         } catch (error) {
-          errors.push(`Schema validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+          errors.push(
+            `Schema validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+          )
           return {
             valid: false,
-            isValid: false,
             errors,
             warnings,
-            conflictingRows: [],
+            conflictingRows: 0,
           }
         }
       },
@@ -459,7 +466,9 @@ export class TableManager {
    * Rename a column (placeholder - requires table recreation in SQLite)
    */
   async renameColumn(tableName: string, oldName: string, newName: string): Promise<void> {
-    console.warn(`Column renaming from ${oldName} to ${newName} in table ${tableName} is not yet implemented. SQLite requires table recreation.`)
+    console.warn(
+      `Column renaming from ${oldName} to ${newName} in table ${tableName} is not yet implemented. SQLite requires table recreation.`
+    )
     throw new Error('Column renaming is not yet supported')
   }
 
@@ -467,28 +476,38 @@ export class TableManager {
    * Drop a column (placeholder - requires table recreation in SQLite)
    */
   async dropColumn(tableName: string, columnName: string): Promise<void> {
-    console.warn(`Column dropping for ${columnName} in table ${tableName} is not yet implemented. SQLite requires table recreation.`)
+    console.warn(
+      `Column dropping for ${columnName} in table ${tableName} is not yet implemented. SQLite requires table recreation.`
+    )
     throw new Error('Column dropping is not yet supported')
   }
 
   /**
    * Modify a column (placeholder - requires table recreation in SQLite)
    */
-  async modifyColumn(tableName: string, columnName: string, newDefinition: { type: string; constraints?: string }): Promise<void> {
-    console.warn(`Column modification for ${columnName} in table ${tableName} is not yet implemented. SQLite requires table recreation.`)
+  async modifyColumn(
+    tableName: string,
+    columnName: string,
+    _newDefinition: { type: string; constraints?: string }
+  ): Promise<void> {
+    console.warn(
+      `Column modification for ${columnName} in table ${tableName} is not yet implemented. SQLite requires table recreation.`
+    )
     throw new Error('Column modification is not yet supported')
   }
 
   /**
    * Validate column changes (placeholder)
    */
-  async validateColumnChanges(tableName: string, changes: unknown): Promise<ValidationResult> {
+  async validateColumnChanges(
+    _tableName: string,
+    _columnName: string,
+    _changes: unknown
+  ): Promise<ValidationResult> {
     return {
       valid: true,
-      isValid: true,
       errors: [],
-      warnings: [],
-      conflictingRows: [],
+      conflictingRows: 0,
     }
   }
 
@@ -497,7 +516,7 @@ export class TableManager {
   /**
    * Execute SQL query (with safety checks)
    */
-  async executeSQL(query: string): Promise<unknown> {
+  async executeSQL(_query: string): Promise<unknown> {
     console.warn('Direct SQL execution is not yet implemented for security reasons')
     throw new Error('Direct SQL execution is not yet supported')
   }
@@ -562,7 +581,7 @@ export class TableManager {
     // For now, we'll log a warning and continue without the foreign key
     console.warn(
       `Foreign key constraints for column ${columnName} in table ${tableName} will be added in a future version. ` +
-      `SQLite requires table recreation for this operation.`
+        `SQLite requires table recreation for this operation.`
     )
   }
 }

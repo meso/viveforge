@@ -3,6 +3,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { SYSTEM_TABLES, TableManager } from '../lib/table-manager'
 import type { Env, Variables } from '../types'
+import type { CustomDurableObjectNamespace } from '../types/cloudflare'
 
 export const tables = new Hono<{ Bindings: Env; Variables: Variables }>()
 
@@ -15,7 +16,7 @@ tables.use('*', async (c, next) => {
   c.set(
     'tableManager',
     new TableManager(c.env.DB, c.env.SYSTEM_STORAGE, c.executionCtx, {
-      REALTIME: c.env.REALTIME,
+      REALTIME: c.env.REALTIME as CustomDurableObjectNamespace,
     })
   )
   await next()
@@ -373,7 +374,13 @@ tables.patch(
         return c.json({ error: 'Cannot modify system column' }, 403)
       }
 
-      await tm.modifyColumn(tableName, columnName, changes)
+      // Transform the changes to match the expected format
+      const transformedChanges = {
+        type: changes.type || 'TEXT',
+        constraints: changes.notNull ? 'NOT NULL' : undefined,
+      }
+
+      await tm.modifyColumn(tableName, columnName, transformedChanges)
       return c.json({ success: true, column: columnName, changes })
     } catch (error) {
       console.error('Error modifying column:', error)
@@ -429,8 +436,8 @@ tables.post('/query', zValidator('json', executeSQLSchema), async (c) => {
   }
 
   try {
-    const { sql, params = [] } = c.req.valid('json')
-    const result = await tm.executeSQL(sql, params)
+    const { sql } = c.req.valid('json')
+    const result = await tm.executeSQL(sql)
     return c.json({ result })
   } catch (error) {
     console.error('Error executing SQL:', error)
@@ -682,13 +689,18 @@ tables.get('/:tableName/search', zValidator('query', searchQuerySchema), async (
     }
 
     // Perform search
-    const result = await tableManager.searchRecords(tableName, {
-      column,
-      operator,
-      value,
+    const result = await tableManager.searchRecords(
+      tableName,
+      [
+        {
+          column,
+          operator,
+          value: value || '',
+        },
+      ],
       limit,
-      offset: offset || 0,
-    })
+      offset || 0
+    )
 
     return c.json({
       data: result.data,

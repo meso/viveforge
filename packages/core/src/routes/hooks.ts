@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { HookManager } from '../lib/hook-manager'
 import { TableManager } from '../lib/table-manager'
 import type { Env, Variables } from '../types'
+import type { CustomDurableObjectNamespace } from '../types/cloudflare'
 
 export const hooks = new Hono<{ Bindings: Env; Variables: Variables }>()
 
@@ -16,7 +17,7 @@ hooks.use('*', async (c, next) => {
   c.set(
     'tableManager',
     new TableManager(c.env.DB, c.env.SYSTEM_STORAGE, c.executionCtx, {
-      REALTIME: c.env.REALTIME,
+      REALTIME: c.env.REALTIME as CustomDurableObjectNamespace,
     })
   )
   await next()

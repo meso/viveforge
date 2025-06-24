@@ -128,7 +128,7 @@ export class SchemaManager {
     }
 
     return result.results.map((fk) => {
-      const foreignKey = fk as any as ForeignKeyInfo
+      const foreignKey = fk as unknown as ForeignKeyInfo
       return {
         from: foreignKey.from,
         table: foreignKey.table,
