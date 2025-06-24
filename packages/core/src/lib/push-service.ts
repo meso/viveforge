@@ -8,7 +8,7 @@ export interface PushSubscription {
   p256dh?: string
   auth?: string
   fcmToken?: string
-  deviceInfo?: Record<string, any>
+  deviceInfo?: Record<string, unknown>
   platform?: 'web' | 'ios' | 'android' | 'desktop'
 }
 
@@ -19,7 +19,7 @@ export interface NotificationPayload {
   image?: string
   badge?: string
   tag?: string
-  data?: Record<string, any>
+  data?: Record<string, unknown>
   actions?: NotificationAction[]
   requireInteraction?: boolean
   silent?: boolean
@@ -211,8 +211,8 @@ export class WebPushService extends PushService {
 
   private async encryptPayload(
     payload: string,
-    p256dh: string,
-    auth: string
+    _p256dh: string,
+    _auth: string
   ): Promise<ArrayBuffer> {
     // This is a simplified version. In production, use a proper web-push library
     // or implement the full encryption spec: https://tools.ietf.org/html/rfc8291
@@ -284,7 +284,14 @@ export class WebPushService extends PushService {
 }
 
 // Factory function to create push service based on provider
-export function createPushService(provider: 'webpush' | 'fcm', config: any): PushService {
+export function createPushService(
+  provider: 'webpush' | 'fcm',
+  config: {
+    vapidPublicKey?: string
+    vapidPrivateKey?: string
+    vapidSubject?: string
+  }
+): PushService {
   switch (provider) {
     case 'webpush':
       return new WebPushService(config.vapidPublicKey, config.vapidPrivateKey, config.vapidSubject)

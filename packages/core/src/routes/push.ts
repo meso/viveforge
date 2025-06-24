@@ -1,3 +1,4 @@
+import type { D1Database } from '@cloudflare/workers-types'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { NotificationManager } from '../lib/notification-manager'
@@ -77,6 +78,48 @@ const sendNotificationSchema = z.object({
 
 export const push = new Hono<{ Bindings: Env }>()
 
+// Helper function to validate required environment variables
+function validateNotificationEnv(env: Env): {
+  valid: boolean
+  error?: string
+  config?: {
+    db: D1Database
+    vapidConfig: {
+      publicKey: string
+      privateKey: string
+      subject: string
+    }
+  }
+} {
+  if (!env.DB) {
+    return { valid: false, error: 'Database not configured' }
+  }
+
+  if (!env.VAPID_PUBLIC_KEY) {
+    return { valid: false, error: 'VAPID public key not configured' }
+  }
+
+  if (!env.VAPID_PRIVATE_KEY) {
+    return { valid: false, error: 'VAPID private key not configured' }
+  }
+
+  if (!env.VAPID_SUBJECT) {
+    return { valid: false, error: 'VAPID subject not configured' }
+  }
+
+  return {
+    valid: true,
+    config: {
+      db: env.DB,
+      vapidConfig: {
+        publicKey: env.VAPID_PUBLIC_KEY,
+        privateKey: env.VAPID_PRIVATE_KEY,
+        subject: env.VAPID_SUBJECT,
+      },
+    },
+  }
+}
+
 // Get VAPID public key
 push.get('/vapid-public-key', async (c) => {
   const vapidPublicKey = c.env.VAPID_PUBLIC_KEY
@@ -101,11 +144,15 @@ push.post('/subscribe', async (c) => {
 
     const userId = authContext.user.id
 
-    const manager = new NotificationManager(c.env.DB!, {
-      publicKey: c.env.VAPID_PUBLIC_KEY!,
-      privateKey: c.env.VAPID_PRIVATE_KEY!,
-      subject: c.env.VAPID_SUBJECT!,
-    })
+    const envValidation = validateNotificationEnv(c.env)
+    if (!envValidation.valid || !envValidation.config) {
+      return c.json({ error: envValidation.error }, 500)
+    }
+
+    const manager = new NotificationManager(
+      envValidation.config.db,
+      envValidation.config.vapidConfig
+    )
 
     const subscriptionId = await manager.subscribe(
       userId,
@@ -139,11 +186,15 @@ push.post('/unsubscribe', async (c) => {
 
     const userId = authContext.user.id
 
-    const manager = new NotificationManager(c.env.DB!, {
-      publicKey: c.env.VAPID_PUBLIC_KEY!,
-      privateKey: c.env.VAPID_PRIVATE_KEY!,
-      subject: c.env.VAPID_SUBJECT!,
-    })
+    const envValidation = validateNotificationEnv(c.env)
+    if (!envValidation.valid || !envValidation.config) {
+      return c.json({ error: envValidation.error }, 500)
+    }
+
+    const manager = new NotificationManager(
+      envValidation.config.db,
+      envValidation.config.vapidConfig
+    )
 
     await manager.unsubscribe(userId, validated.endpoint, validated.fcmToken)
 
@@ -169,11 +220,12 @@ push.get('/subscriptions/:userId', async (c) => {
 
   const userId = c.req.param('userId')
 
-  const manager = new NotificationManager(c.env.DB, {
-    publicKey: c.env.VAPID_PUBLIC_KEY,
-    privateKey: c.env.VAPID_PRIVATE_KEY,
-    subject: c.env.VAPID_SUBJECT,
-  })
+  const envValidation = validateNotificationEnv(c.env)
+  if (!envValidation.valid || !envValidation.config) {
+    return c.json({ error: envValidation.error }, 500)
+  }
+
+  const manager = new NotificationManager(envValidation.config.db, envValidation.config.vapidConfig)
 
   const subscriptions = await manager.getUserSubscriptions(userId)
 
@@ -188,9 +240,13 @@ push.get('/rules', async (c) => {
     return c.json({ error: 'Admin access required' }, 403)
   }
 
-  const result = await c.env
-    .DB!.prepare('SELECT * FROM notification_rules ORDER BY created_at DESC')
-    .all()
+  if (!c.env.DB) {
+    return c.json({ error: 'Database not configured' }, 500)
+  }
+
+  const result = await c.env.DB.prepare(
+    'SELECT * FROM notification_rules ORDER BY created_at DESC'
+  ).all()
 
   const rules = result.results.map((row) => ({
     id: row.id,
@@ -229,11 +285,15 @@ push.post('/rules', async (c) => {
     const body = await c.req.json()
     const validated = notificationRuleSchema.parse(body)
 
-    const manager = new NotificationManager(c.env.DB!, {
-      publicKey: c.env.VAPID_PUBLIC_KEY!,
-      privateKey: c.env.VAPID_PRIVATE_KEY!,
-      subject: c.env.VAPID_SUBJECT!,
-    })
+    const envValidation = validateNotificationEnv(c.env)
+    if (!envValidation.valid || !envValidation.config) {
+      return c.json({ error: envValidation.error }, 500)
+    }
+
+    const manager = new NotificationManager(
+      envValidation.config.db,
+      envValidation.config.vapidConfig
+    )
 
     const ruleId = await manager.createRule(validated)
 
@@ -262,8 +322,11 @@ push.put('/rules/:id', async (c) => {
     const body = await c.req.json()
     const validated = notificationRuleSchema.parse(body)
 
-    await c.env
-      .DB!.prepare(`
+    if (!c.env.DB) {
+      return c.json({ error: 'Database not configured' }, 500)
+    }
+
+    await c.env.DB.prepare(`
       UPDATE notification_rules SET
         name = ?, description = ?, trigger_type = ?, table_name = ?, event_type = ?,
         conditions = ?, recipient_type = ?, recipient_value = ?, title_template = ?,
@@ -314,7 +377,11 @@ push.delete('/rules/:id', async (c) => {
 
   const ruleId = c.req.param('id')
 
-  await c.env.DB!.prepare('DELETE FROM notification_rules WHERE id = ?').bind(ruleId).run()
+  if (!c.env.DB) {
+    return c.json({ error: 'Database not configured' }, 500)
+  }
+
+  await c.env.DB.prepare('DELETE FROM notification_rules WHERE id = ?').bind(ruleId).run()
 
   return c.json({
     success: true,
@@ -333,11 +400,15 @@ push.post('/send', async (c) => {
       return c.json({ error: 'Admin or API key access required' }, 403)
     }
 
-    const manager = new NotificationManager(c.env.DB!, {
-      publicKey: c.env.VAPID_PUBLIC_KEY!,
-      privateKey: c.env.VAPID_PRIVATE_KEY!,
-      subject: c.env.VAPID_SUBJECT!,
-    })
+    const envValidation = validateNotificationEnv(c.env)
+    if (!envValidation.valid || !envValidation.config) {
+      return c.json({ error: envValidation.error }, 500)
+    }
+
+    const manager = new NotificationManager(
+      envValidation.config.db,
+      envValidation.config.vapidConfig
+    )
 
     // Determine recipients
     let userIds: string[] = []
@@ -347,10 +418,14 @@ push.post('/send', async (c) => {
       (!validated.userIds && !validated.recipientType)
     ) {
       // Get all users with active subscriptions
-      const result = await c.env
-        .DB!.prepare('SELECT DISTINCT user_id FROM push_subscriptions WHERE active = 1')
-        .all()
-      userIds = result.results.map((row) => row.user_id as string)
+      if (!c.env.DB) {
+        return c.json({ error: 'Database not configured' }, 500)
+      }
+      const result = await c.env.DB.prepare(
+        'SELECT DISTINCT user_id FROM push_subscriptions WHERE active = 1'
+      ).all()
+      userIds =
+        result.results.map((row) => (row as Record<string, unknown>).user_id as string) || []
     } else if (validated.userIds) {
       userIds = validated.userIds
     }
@@ -401,11 +476,15 @@ push.post('/admin/subscribe', async (c) => {
     // Use admin user ID for subscription
     const adminUserId = `admin_${authContext.user.id}`
 
-    const manager = new NotificationManager(c.env.DB!, {
-      publicKey: c.env.VAPID_PUBLIC_KEY!,
-      privateKey: c.env.VAPID_PRIVATE_KEY!,
-      subject: c.env.VAPID_SUBJECT!,
-    })
+    const envValidation = validateNotificationEnv(c.env)
+    if (!envValidation.valid || !envValidation.config) {
+      return c.json({ error: envValidation.error }, 500)
+    }
+
+    const manager = new NotificationManager(
+      envValidation.config.db,
+      envValidation.config.vapidConfig
+    )
 
     const subscriptionId = await manager.subscribe(
       adminUserId,
@@ -439,11 +518,15 @@ push.post('/admin/unsubscribe', async (c) => {
 
     const adminUserId = `admin_${authContext.user.id}`
 
-    const manager = new NotificationManager(c.env.DB!, {
-      publicKey: c.env.VAPID_PUBLIC_KEY!,
-      privateKey: c.env.VAPID_PRIVATE_KEY!,
-      subject: c.env.VAPID_SUBJECT!,
-    })
+    const envValidation = validateNotificationEnv(c.env)
+    if (!envValidation.valid || !envValidation.config) {
+      return c.json({ error: envValidation.error }, 500)
+    }
+
+    const manager = new NotificationManager(
+      envValidation.config.db,
+      envValidation.config.vapidConfig
+    )
 
     await manager.unsubscribe(adminUserId, validated.endpoint, validated.fcmToken)
 
@@ -470,11 +553,15 @@ push.post('/admin/test', async (c) => {
 
     const adminUserId = `admin_${authContext.user.id}`
 
-    const manager = new NotificationManager(c.env.DB!, {
-      publicKey: c.env.VAPID_PUBLIC_KEY!,
-      privateKey: c.env.VAPID_PRIVATE_KEY!,
-      subject: c.env.VAPID_SUBJECT!,
-    })
+    const envValidation = validateNotificationEnv(c.env)
+    if (!envValidation.valid || !envValidation.config) {
+      return c.json({ error: envValidation.error }, 500)
+    }
+
+    const manager = new NotificationManager(
+      envValidation.config.db,
+      envValidation.config.vapidConfig
+    )
 
     const payload = {
       title: 'Test Notification',
@@ -494,7 +581,7 @@ push.post('/admin/test', async (c) => {
       result,
       message: `Test notification sent. Sent: ${result.sent}, Failed: ${result.failed}`,
     })
-  } catch (error) {
+  } catch (_error) {
     return c.json({ error: 'Failed to send test notification' }, 500)
   }
 })
@@ -509,11 +596,12 @@ push.get('/admin/subscription', async (c) => {
 
   const adminUserId = `admin_${authContext.user.id}`
 
-  const manager = new NotificationManager(c.env.DB, {
-    publicKey: c.env.VAPID_PUBLIC_KEY,
-    privateKey: c.env.VAPID_PRIVATE_KEY,
-    subject: c.env.VAPID_SUBJECT,
-  })
+  const envValidation = validateNotificationEnv(c.env)
+  if (!envValidation.valid || !envValidation.config) {
+    return c.json({ error: envValidation.error }, 500)
+  }
+
+  const manager = new NotificationManager(envValidation.config.db, envValidation.config.vapidConfig)
 
   const subscriptions = await manager.getUserSubscriptions(adminUserId)
 
@@ -537,7 +625,7 @@ push.get('/logs', async (c) => {
   const status = c.req.query('status')
 
   let query = 'SELECT * FROM notification_logs'
-  const params: any[] = []
+  const params: (string | number)[] = []
   const conditions: string[] = []
 
   if (userId) {
@@ -551,30 +639,37 @@ push.get('/logs', async (c) => {
   }
 
   if (conditions.length > 0) {
-    query += ' WHERE ' + conditions.join(' AND ')
+    query += ` WHERE ${conditions.join(' AND ')}`
   }
 
   query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?'
   params.push(limit, offset)
 
-  const result = await c.env
-    .DB!.prepare(query)
+  if (!c.env.DB) {
+    return c.json({ error: 'Database not configured' }, 500)
+  }
+
+  const result = await c.env.DB.prepare(query)
     .bind(...params)
     .all()
 
-  const logs = result.results.map((row) => ({
-    id: row.id,
-    ruleId: row.rule_id,
-    templateId: row.template_id,
-    userId: row.user_id,
-    provider: row.provider,
-    title: row.title,
-    body: row.body,
-    status: row.status,
-    errorMessage: row.error_message,
-    sentAt: row.sent_at,
-    createdAt: row.created_at,
-  }))
+  const logs =
+    result.results.map((row) => {
+      const r = row as Record<string, unknown>
+      return {
+        id: r.id,
+        ruleId: r.rule_id,
+        templateId: r.template_id,
+        userId: r.user_id,
+        provider: r.provider,
+        title: r.title,
+        body: r.body,
+        status: r.status,
+        errorMessage: r.error_message,
+        sentAt: r.sent_at,
+        createdAt: r.created_at,
+      }
+    }) || []
 
   return c.json({ logs })
 })

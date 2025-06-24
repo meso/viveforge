@@ -80,8 +80,11 @@ export class SchemaSnapshotManager {
         const indexInfoResult = await this.db.prepare(`PRAGMA index_info("${indexName}")`).all()
 
         const columns = indexInfoResult.results
-          .sort((a: any, b: any) => a.seqno - b.seqno)
-          .map((col: any) => col.name)
+          .sort(
+            (a: Record<string, unknown>, b: Record<string, unknown>) =>
+              (a.seqno as number) - (b.seqno as number)
+          )
+          .map((col: Record<string, unknown>) => col.name as string)
 
         // Get the original SQL from sqlite_master
         const sqlResult = await this.db
@@ -273,7 +276,7 @@ export class SchemaSnapshotManager {
       .bind(limit, offset)
       .all()
 
-    const snapshots = result.results.map((row: any) => ({
+    const snapshots = result.results.map((row: Record<string, unknown>) => ({
       id: row.id,
       version: row.version,
       name: row.name,
@@ -308,18 +311,19 @@ export class SchemaSnapshotManager {
 
     if (!result) return null
 
+    const record = result as Record<string, unknown>
     return {
-      id: (result as any).id,
-      version: (result as any).version,
-      name: (result as any).name,
-      description: (result as any).description,
-      fullSchema: (result as any).full_schema,
-      tablesJson: (result as any).tables_json,
-      schemaHash: (result as any).schema_hash,
-      createdAt: (result as any).created_at,
-      createdBy: (result as any).created_by,
-      snapshotType: (result as any).snapshot_type,
-      d1BookmarkId: (result as any).d1_bookmark_id,
+      id: record.id as string,
+      version: record.version as number,
+      name: record.name as string,
+      description: record.description as string | null,
+      fullSchema: record.full_schema as string,
+      tablesJson: record.tables_json as string,
+      schemaHash: record.schema_hash as string,
+      createdAt: record.created_at as string,
+      createdBy: record.created_by as string | null,
+      snapshotType: record.snapshot_type as string,
+      d1BookmarkId: record.d1_bookmark_id as string | null,
     }
   }
 
@@ -333,7 +337,7 @@ export class SchemaSnapshotManager {
     const schemas: TableSchema[] = JSON.parse(snapshot.tablesJson)
 
     // Try to get data from R2
-    let snapshotData: { [tableName: string]: any[] } = {}
+    let snapshotData: { [tableName: string]: Record<string, unknown>[] } = {}
     if (this.systemStorage) {
       try {
         const dataKey = `snapshots/${snapshotId}/data.json`
@@ -368,7 +372,7 @@ export class SchemaSnapshotManager {
         .all()
 
       // Sort tables for deletion in reverse dependency order
-      const tableNames = currentTables.results.map((t: any) => t.name as string)
+      const tableNames = currentTables.results.map((t: Record<string, unknown>) => t.name as string)
       const deletionOrder = this.sortTablesForDeletion(tableNames)
 
       // Add DROP statements in correct order

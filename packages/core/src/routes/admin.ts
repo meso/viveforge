@@ -19,7 +19,7 @@ admin.get('/', async (c) => {
     const result = await db.prepare('SELECT * FROM admins ORDER BY created_at DESC').all()
 
     // Convert is_root from SQLite integer to boolean
-    const admins = result.results.map((admin: any) => ({
+    const admins = result.results.map((admin: Record<string, unknown>) => ({
       ...admin,
       is_root: Boolean(admin.is_root),
     }))

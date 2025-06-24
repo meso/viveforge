@@ -14,8 +14,8 @@ tables.use('*', async (c, next) => {
   }
   c.set(
     'tableManager',
-    new TableManager(c.env.DB, c.env.SYSTEM_STORAGE as any, c.executionCtx, {
-      REALTIME: c.env.REALTIME as any,
+    new TableManager(c.env.DB, c.env.SYSTEM_STORAGE, c.executionCtx, {
+      REALTIME: c.env.REALTIME,
     })
   )
   await next()
@@ -24,7 +24,10 @@ tables.use('*', async (c, next) => {
 // Get all tables
 tables.get('/', async (c) => {
   try {
-    const tm = c.get('tableManager') as TableManager
+    const tm = c.get('tableManager')
+    if (!tm) {
+      return c.json({ error: 'TableManager not available' }, 500)
+    }
     const tables = await tm.getTables()
     const baseUrl = new URL(c.req.url).origin
 
@@ -50,7 +53,7 @@ tables.get('/', async (c) => {
 
 // Get table schema
 tables.get('/:tableName/schema', async (c) => {
-  const tm = c.get('tableManager') as TableManager
+  const tm = c.get('tableManager')
   if (!tm) {
     return c.json({ error: 'Database not available' }, 500)
   }
@@ -68,7 +71,7 @@ tables.get('/:tableName/schema', async (c) => {
 
 // Get table data
 tables.get('/:tableName/data', async (c) => {
-  const tm = c.get('tableManager') as TableManager
+  const tm = c.get('tableManager')
   if (!tm) {
     return c.json({ error: 'Database not available' }, 500)
   }
@@ -107,7 +110,7 @@ const createTableSchema = z.object({
 })
 
 tables.post('/', zValidator('json', createTableSchema), async (c) => {
-  const tm = c.get('tableManager') as TableManager
+  const tm = c.get('tableManager')
   if (!tm) {
     return c.json({ error: 'Database not available' }, 500)
   }
@@ -129,7 +132,7 @@ tables.post('/', zValidator('json', createTableSchema), async (c) => {
 
 // Drop table
 tables.delete('/:tableName', async (c) => {
-  const tm = c.get('tableManager') as TableManager
+  const tm = c.get('tableManager')
   if (!tm) {
     return c.json({ error: 'Database not available' }, 500)
   }
@@ -151,7 +154,7 @@ tables.delete('/:tableName', async (c) => {
 
 // Create record in table
 tables.post('/:tableName/data', async (c) => {
-  const tm = c.get('tableManager') as TableManager
+  const tm = c.get('tableManager')
   if (!tm) {
     return c.json({ error: 'Database not available' }, 500)
   }
@@ -185,7 +188,7 @@ tables.post('/:tableName/data', async (c) => {
 
 // Update record in table
 tables.put('/:tableName/data/:id', async (c) => {
-  const tm = c.get('tableManager') as TableManager
+  const tm = c.get('tableManager')
   if (!tm) {
     return c.json({ error: 'Database not available' }, 500)
   }
@@ -220,7 +223,7 @@ tables.put('/:tableName/data/:id', async (c) => {
 
 // Delete record from table
 tables.delete('/:tableName/data/:id', async (c) => {
-  const tm = c.get('tableManager') as TableManager
+  const tm = c.get('tableManager')
   if (!tm) {
     return c.json({ error: 'Database not available' }, 500)
   }
@@ -258,7 +261,7 @@ const addColumnSchema = z.object({
 })
 
 tables.post('/:tableName/columns', zValidator('json', addColumnSchema), async (c) => {
-  const tm = c.get('tableManager') as TableManager
+  const tm = c.get('tableManager')
   if (!tm) {
     return c.json({ error: 'Database not available' }, 500)
   }
@@ -287,7 +290,7 @@ const renameColumnSchema = z.object({
 })
 
 tables.put('/:tableName/columns/:columnName', zValidator('json', renameColumnSchema), async (c) => {
-  const tm = c.get('tableManager') as TableManager
+  const tm = c.get('tableManager')
   if (!tm) {
     return c.json({ error: 'Database not available' }, 500)
   }
@@ -311,7 +314,7 @@ tables.put('/:tableName/columns/:columnName', zValidator('json', renameColumnSch
 
 // Drop column
 tables.delete('/:tableName/columns/:columnName', async (c) => {
-  const tm = c.get('tableManager') as TableManager
+  const tm = c.get('tableManager')
   if (!tm) {
     return c.json({ error: 'Database not available' }, 500)
   }
@@ -355,7 +358,7 @@ tables.patch(
   '/:tableName/columns/:columnName',
   zValidator('json', modifyColumnSchema),
   async (c) => {
-    const tm = c.get('tableManager') as TableManager
+    const tm = c.get('tableManager')
     if (!tm) {
       return c.json({ error: 'Database not available' }, 500)
     }
@@ -389,7 +392,7 @@ tables.post(
   '/:tableName/columns/:columnName/validate',
   zValidator('json', modifyColumnSchema),
   async (c) => {
-    const tm = c.get('tableManager') as TableManager
+    const tm = c.get('tableManager')
     if (!tm) {
       return c.json({ error: 'Database not available' }, 500)
     }
@@ -420,7 +423,7 @@ const executeSQLSchema = z.object({
 })
 
 tables.post('/query', zValidator('json', executeSQLSchema), async (c) => {
-  const tm = c.get('tableManager') as TableManager
+  const tm = c.get('tableManager')
   if (!tm) {
     return c.json({ error: 'Database not available' }, 500)
   }
@@ -445,7 +448,7 @@ tables.post('/query', zValidator('json', executeSQLSchema), async (c) => {
 // Get all indexes across all tables
 tables.get('/indexes', async (c) => {
   try {
-    const tableManager = c.get('tableManager')!
+    const tableManager = c.get('tableManager')
     if (!tableManager) {
       return c.json({ error: 'TableManager not available' }, 500)
     }
@@ -466,7 +469,10 @@ tables.get('/indexes', async (c) => {
 tables.get('/:tableName/indexes', async (c) => {
   try {
     const tableName = c.req.param('tableName')
-    const tableManager = c.get('tableManager')!
+    const tableManager = c.get('tableManager')
+    if (!tableManager) {
+      return c.json({ error: 'TableManager not available' }, 500)
+    }
 
     const indexes = await tableManager.getTableIndexes(tableName)
     return c.json({ indexes })
@@ -492,7 +498,10 @@ tables.post('/:tableName/indexes', zValidator('json', createIndexSchema), async 
   try {
     const tableName = c.req.param('tableName')
     const { name, columns, unique } = c.req.valid('json')
-    const tableManager = c.get('tableManager')!
+    const tableManager = c.get('tableManager')
+    if (!tableManager) {
+      return c.json({ error: 'TableManager not available' }, 500)
+    }
 
     await tableManager.createIndex(name, tableName, columns, { unique })
 
@@ -520,7 +529,10 @@ tables.post('/:tableName/indexes', zValidator('json', createIndexSchema), async 
 tables.delete('/:tableName/indexes/:indexName', async (c) => {
   try {
     const indexName = c.req.param('indexName')
-    const tableManager = c.get('tableManager')!
+    const tableManager = c.get('tableManager')
+    if (!tableManager) {
+      return c.json({ error: 'TableManager not available' }, 500)
+    }
 
     await tableManager.dropIndex(indexName)
 
@@ -562,7 +574,10 @@ tables.get('/:tableName/search', zValidator('query', searchQuerySchema), async (
   try {
     const tableName = c.req.param('tableName')
     const { column, operator, value, limit, offset } = c.req.valid('query')
-    const tableManager = c.get('tableManager')!
+    const tableManager = c.get('tableManager')
+    if (!tableManager) {
+      return c.json({ error: 'TableManager not available' }, 500)
+    }
 
     // Check if table is a system table
     if (SYSTEM_TABLES.includes(tableName as (typeof SYSTEM_TABLES)[number])) {
@@ -611,7 +626,18 @@ tables.get('/:tableName/search', zValidator('query', searchQuerySchema), async (
     }
 
     // Get column info to validate operator
-    const columnInfo = searchableColumns.find((col) => col.name === column)!
+    const columnInfo = searchableColumns.find((col) => col.name === column)
+    if (!columnInfo) {
+      return c.json(
+        {
+          error: {
+            code: 'COLUMN_NOT_FOUND',
+            message: `Column '${column}' not found in searchable columns`,
+          },
+        },
+        400
+      )
+    }
     const supportedOperators =
       columnInfo.type === 'TEXT'
         ? ['eq', 'is_null', 'is_not_null']
@@ -694,7 +720,10 @@ tables.get('/:tableName/search', zValidator('query', searchQuerySchema), async (
 tables.get('/:tableName/policy', async (c) => {
   try {
     const tableName = c.req.param('tableName')
-    const tableManager = c.get('tableManager')!
+    const tableManager = c.get('tableManager')
+    if (!tableManager) {
+      return c.json({ error: 'TableManager not available' }, 500)
+    }
 
     // Check if table is a system table
     if (SYSTEM_TABLES.includes(tableName as (typeof SYSTEM_TABLES)[number])) {
@@ -733,7 +762,10 @@ tables.put('/:tableName/policy', zValidator('json', policyUpdateSchema), async (
   try {
     const tableName = c.req.param('tableName')
     const { access_policy } = c.req.valid('json')
-    const tableManager = c.get('tableManager')!
+    const tableManager = c.get('tableManager')
+    if (!tableManager) {
+      return c.json({ error: 'TableManager not available' }, 500)
+    }
 
     // Check if table is a system table
     if (SYSTEM_TABLES.includes(tableName as (typeof SYSTEM_TABLES)[number])) {

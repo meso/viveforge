@@ -21,9 +21,9 @@ adminOAuth.get('/providers', async (c) => {
       ORDER BY provider
     `).all()
 
-    const providers = result.results.map((p: any) => ({
+    const providers = result.results.map((p: Record<string, unknown>) => ({
       ...p,
-      scopes: p.scopes ? JSON.parse(p.scopes) : [],
+      scopes: p.scopes ? JSON.parse(p.scopes as string) : [],
     }))
 
     return c.json({ providers })

@@ -13,8 +13,8 @@ data.use('*', async (c, next) => {
   }
   c.set(
     'tableManager',
-    new TableManager(c.env.DB, c.env.SYSTEM_STORAGE as any, c.executionCtx, {
-      REALTIME: c.env.REALTIME as any,
+    new TableManager(c.env.DB, c.env.SYSTEM_STORAGE, c.executionCtx, {
+      REALTIME: c.env.REALTIME,
     })
   )
   await next()
@@ -83,7 +83,7 @@ data.get('/:tableName', async (c) => {
       )
     }
 
-    let result
+    let result: TableDataResult
 
     // Apply access control based on authentication type and table policy
     if (authContext?.type === 'admin') {
@@ -153,7 +153,7 @@ data.get('/:tableName/:id', async (c) => {
   const currentUser = c.get('currentEndUser')
 
   try {
-    let record
+    let record: Record<string, unknown> | null
 
     // Apply access control based on authentication type
     if (authContext?.type === 'admin') {
@@ -210,7 +210,7 @@ data.post('/:tableName', async (c) => {
       return c.json({ error: 'Validation failed', details: errors }, 400)
     }
 
-    let id
+    let id: string
 
     // Apply access control based on authentication type
     if (authContext?.type === 'admin') {
@@ -227,7 +227,7 @@ data.post('/:tableName', async (c) => {
     }
 
     // Get the created record to return (with access control)
-    let createdRecord
+    let createdRecord: Record<string, unknown> | null
     if (authContext?.type === 'user' && currentUser) {
       createdRecord = await tm.getRecordByIdWithAccessControl(tableName, id, currentUser.id)
     } else {

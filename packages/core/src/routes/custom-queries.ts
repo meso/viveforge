@@ -169,9 +169,11 @@ customQueries.post(
       // Extract parameter names from SQL
       const paramRegex = /:(\w+)/g
       const sqlParams = new Set<string>()
-      let match
-      while ((match = paramRegex.exec(data.sql_query)) !== null) {
+      let match: RegExpExecArray | null
+      match = paramRegex.exec(data.sql_query)
+      while (match !== null) {
         sqlParams.add(match[1])
+        match = paramRegex.exec(data.sql_query)
       }
 
       // Validate that all SQL parameters are defined
@@ -279,9 +281,11 @@ customQueries.put(
         // Extract parameter names from SQL
         const paramRegex = /:(\w+)/g
         const sqlParams = new Set<string>()
-        let match
-        while ((match = paramRegex.exec(data.sql_query)) !== null) {
+        let match: RegExpExecArray | null
+        match = paramRegex.exec(data.sql_query)
+        while (match !== null) {
           sqlParams.add(match[1])
+          match = paramRegex.exec(data.sql_query)
         }
 
         // Validate that all SQL parameters are defined
@@ -421,7 +425,7 @@ customQueries.post('/:id/test', zValidator('json', testQuerySchema), async (c) =
     const preparedParams = prepareQueryParameters(queryDef.parameters, parameters)
 
     const startTime = Date.now()
-    let result
+    let result: { results: unknown[]; success: boolean; meta: unknown }
     let error = null
 
     try {

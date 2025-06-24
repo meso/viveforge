@@ -72,11 +72,11 @@ export class SchemaManager {
 
     // Build foreign key constraints
     const foreignKeys = columns
-      .filter((col) => col.foreignKey && col.foreignKey.table && col.foreignKey.column)
+      .filter((col) => col.foreignKey?.table && col.foreignKey.column)
       .map((col) => {
         const safeColumnName = validateAndEscapeColumnName(col.name)
-        const safeRefTable = validateAndEscapeTableName(col.foreignKey!.table!)
-        const safeRefColumn = validateAndEscapeColumnName(col.foreignKey!.column!)
+        const safeRefTable = validateAndEscapeTableName(col.foreignKey?.table as string)
+        const safeRefColumn = validateAndEscapeColumnName(col.foreignKey?.column as string)
         return `FOREIGN KEY (${safeColumnName}) REFERENCES ${safeRefTable}(${safeRefColumn})`
       })
       .join(', ')
@@ -555,8 +555,9 @@ export class SchemaManager {
     // Look for patterns like: FOREIGN KEY (column) REFERENCES table(column)
     const originalFkRegex =
       /FOREIGN KEY\s*\(\s*"?([^)"]+)"?\s*\)\s*REFERENCES\s+"?([^"(]+)"?\s*\(\s*"?([^)"]+)"?\s*\)/gi
-    let match
-    while ((match = originalFkRegex.exec(sql)) !== null) {
+    let match: RegExpExecArray | null
+    match = originalFkRegex.exec(sql)
+    while (match !== null) {
       const [_fullMatch, fkColumn, refTable, refColumn] = match
       // Only keep if it's not the column we're modifying
       if (fkColumn !== columnName) {
@@ -567,6 +568,7 @@ export class SchemaManager {
           `FOREIGN KEY (${safeFkColumn}) REFERENCES ${safeRefTable}(${safeRefColumn})`
         )
       }
+      match = originalFkRegex.exec(sql)
     }
 
     // If removing foreign key constraint for this column, don't add it back

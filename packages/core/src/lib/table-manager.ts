@@ -74,7 +74,7 @@ export class TableManager {
       this.snapshotManager,
       this.createAsyncSnapshot.bind(this)
     )
-    this.dataManager = new DataManager(db, env as any, executionCtx)
+    this.dataManager = new DataManager(db, env, executionCtx)
     this.indexManager = new IndexManager(db, this.createAsyncSnapshot.bind(this))
   }
 
@@ -725,8 +725,9 @@ export class TableManager {
     // Look for patterns like: FOREIGN KEY (column) REFERENCES table(column)
     const originalFkRegex =
       /FOREIGN KEY\s*\(\s*"?([^)"]+)"?\s*\)\s*REFERENCES\s+"?([^"(]+)"?\s*\(\s*"?([^)"]+)"?\s*\)/gi
-    let match
-    while ((match = originalFkRegex.exec(sql)) !== null) {
+    let match: RegExpExecArray | null
+    match = originalFkRegex.exec(sql)
+    while (match !== null) {
       const [_fullMatch, fkColumn, refTable, refColumn] = match
       // Only keep if it's not the column we're modifying
       if (fkColumn !== columnName) {
@@ -734,6 +735,7 @@ export class TableManager {
           `FOREIGN KEY (${validateAndEscapeColumnName(fkColumn)}) REFERENCES ${validateAndEscapeTableName(refTable)}(${validateAndEscapeColumnName(refColumn)})`
         )
       }
+      match = originalFkRegex.exec(sql)
     }
 
     // If removing foreign key constraint for this column, don't add it back
@@ -765,7 +767,7 @@ export class TableManager {
     for (const systemTable of SYSTEM_TABLES) {
       if (normalizedSQL.includes(systemTable.toUpperCase())) {
         this.errorHandler.throwError({
-          code: 'SYSTEM_TABLE_QUERY' as any,
+          code: 'SYSTEM_TABLE_QUERY' as never,
           message: `Cannot query system table: ${systemTable}`,
           userMessage: `Querying system table "${systemTable}" is not allowed for security reasons.`,
           context: { tableName: systemTable, operation: 'sql_query' },
@@ -911,7 +913,7 @@ export class TableManager {
           name: string
           type: string
           notnull: number
-          dflt_value: any
+          dflt_value: unknown
           pk: number
         }>
 

@@ -53,7 +53,7 @@ apiKeys.get('/', async (c) => {
     const adminResult = await c.env.DB?.prepare(`
       SELECT id FROM admins WHERE github_username = ?
     `)
-      .bind((user as any).username || user.email)
+      .bind((user as Record<string, unknown>).username || user.email)
       .first()
 
     if (!adminResult) {
@@ -87,7 +87,7 @@ apiKeys.post('/', async (c) => {
     const adminResult = await c.env.DB?.prepare(`
       SELECT id FROM admins WHERE github_username = ?
     `)
-      .bind((user as any).username || user.email)
+      .bind((user as Record<string, unknown>).username || user.email)
       .first()
 
     if (!adminResult) {
@@ -160,7 +160,7 @@ apiKeys.patch('/:id/revoke', async (c) => {
     const adminResult = await c.env.DB?.prepare(`
       SELECT id FROM admins WHERE github_username = ?
     `)
-      .bind((user as any).username || user.email)
+      .bind((user as Record<string, unknown>).username || user.email)
       .first()
 
     if (!adminResult) {
@@ -224,7 +224,7 @@ apiKeys.delete('/:id', async (c) => {
     const adminResult = await c.env.DB?.prepare(`
       SELECT id FROM admins WHERE github_username = ?
     `)
-      .bind((user as any).username || user.email)
+      .bind((user as Record<string, unknown>).username || user.email)
       .first()
 
     if (!adminResult) {

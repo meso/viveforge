@@ -18,7 +18,7 @@ const errorResponse = (
       success: false,
       error: { code, message },
     },
-    status as any
+    status as 400 | 403 | 404 | 500
   )
 }
 

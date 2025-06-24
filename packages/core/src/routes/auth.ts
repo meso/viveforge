@@ -52,7 +52,7 @@ auth.get('/callback', async (c) => {
     }
     const existingAdmin = await db
       .prepare('SELECT id, is_root FROM admins WHERE github_username = ?')
-      .bind((user as any).username || user.email)
+      .bind(((user as Record<string, unknown>).username as string) || user.email)
       .first()
 
     // 管理者チェック
@@ -68,15 +68,17 @@ auth.get('/callback', async (c) => {
         // 初回ログイン者をroot adminとして登録
         await db
           .prepare('INSERT INTO admins (github_username, is_root) VALUES (?, ?)')
-          .bind((user as any).username || user.email, true)
+          .bind(((user as Record<string, unknown>).username as string) || user.email, true)
           .run()
 
         console.log(
-          `First admin registered: GitHub username ${(user as any).username || user.email}`
+          `First admin registered: GitHub username ${((user as Record<string, unknown>).username as string) || user.email}`
         )
       } else {
         // 管理者として登録されていない
-        return c.html(getAccessDeniedHTML((user as any).username || user.email))
+        return c.html(
+          getAccessDeniedHTML(((user as Record<string, unknown>).username as string) || user.email)
+        )
       }
     }
 
@@ -204,10 +206,10 @@ auth.get('/me', async (c) => {
   return c.json({
     user: {
       id: user.id,
-      username: (user as any).username || user.email,
+      username: ((user as Record<string, unknown>).username as string) || user.email,
       email: user.email,
       name: user.name,
-      scope: (user as any).scope || ['user'],
+      scope: ((user as Record<string, unknown>).scope as string[]) || ['user'],
     },
   })
 })
@@ -223,10 +225,10 @@ auth.get('/status', async (c) => {
     user: user
       ? {
           id: user.id,
-          username: (user as any).username || user.email,
+          username: ((user as Record<string, unknown>).username as string) || user.email,
           email: user.email,
           name: user.name,
-          scope: (user as any).scope || ['user'],
+          scope: ((user as Record<string, unknown>).scope as string[]) || ['user'],
         }
       : null,
   })

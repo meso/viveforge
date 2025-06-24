@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { Database } from '../lib/database'
+import type { TableSchema } from '../lib/schema-snapshot'
 import { TableManager } from '../lib/table-manager'
 import type { Env, Variables } from '../types'
 
@@ -12,8 +13,8 @@ snapshots.use('*', async (c, next) => {
     return c.json({ error: 'Database not configured' }, 500)
   }
 
-  const tableManager = new TableManager(env.DB, env.SYSTEM_STORAGE as any, c.executionCtx, {
-    REALTIME: env.REALTIME as any,
+  const tableManager = new TableManager(env.DB, env.SYSTEM_STORAGE, c.executionCtx, {
+    REALTIME: env.REALTIME,
   })
   const db = new Database(env.DB)
 
@@ -29,7 +30,10 @@ snapshots.get('/', async (c) => {
     const limit = parseInt(c.req.query('limit') || '20')
     const offset = parseInt(c.req.query('offset') || '0')
 
-    const tableManager = c.get('tableManager')!
+    const tableManager = c.get('tableManager')
+    if (!tableManager) {
+      return c.json({ error: 'TableManager not available' }, 500)
+    }
     const result = await tableManager.getSnapshots(limit, offset)
 
     return c.json(result)
@@ -43,7 +47,10 @@ snapshots.get('/', async (c) => {
 snapshots.get('/:id', async (c) => {
   try {
     const id = c.req.param('id')
-    const tableManager = c.get('tableManager')!
+    const tableManager = c.get('tableManager')
+    if (!tableManager) {
+      return c.json({ error: 'TableManager not available' }, 500)
+    }
     const snapshot = await tableManager.getSnapshot(id)
 
     if (!snapshot) {
@@ -63,7 +70,10 @@ snapshots.post('/', async (c) => {
     const body = await c.req.json()
     const { name, description } = body
 
-    const tableManager = c.get('tableManager')!
+    const tableManager = c.get('tableManager')
+    if (!tableManager) {
+      return c.json({ error: 'TableManager not available' }, 500)
+    }
     const adminId = c.get('adminId') // If available from auth
 
     const id = await tableManager.createSnapshot({
@@ -85,9 +95,9 @@ snapshots.post('/:id/restore', async (c) => {
   try {
     const id = c.req.param('id')
 
-    const tableManager = c.get('tableManager')!
+    const tableManager = c.get('tableManager')
     if (!tableManager) {
-      throw new Error('TableManager not available')
+      return c.json({ error: 'TableManager not available' }, 500)
     }
 
     await tableManager.restoreSnapshot(id)
@@ -119,7 +129,10 @@ snapshots.post('/:id/restore', async (c) => {
 snapshots.delete('/:id', async (c) => {
   try {
     const id = c.req.param('id')
-    const tableManager = c.get('tableManager')!
+    const tableManager = c.get('tableManager')
+    if (!tableManager) {
+      return c.json({ error: 'TableManager not available' }, 500)
+    }
 
     await tableManager.deleteSnapshot(id)
 
@@ -135,7 +148,10 @@ snapshots.get('/compare/:id1/:id2', async (c) => {
   try {
     const id1 = c.req.param('id1')
     const id2 = c.req.param('id2')
-    const tableManager = c.get('tableManager')!
+    const tableManager = c.get('tableManager')
+    if (!tableManager) {
+      return c.json({ error: 'TableManager not available' }, 500)
+    }
 
     const snapshot1 = await tableManager.getSnapshot(id1)
     const snapshot2 = await tableManager.getSnapshot(id2)
@@ -145,14 +161,14 @@ snapshots.get('/compare/:id1/:id2', async (c) => {
     }
 
     // Parse schemas for comparison
-    const schemas1 = JSON.parse((snapshot1 as any).tablesJson as string)
-    const schemas2 = JSON.parse((snapshot2 as any).tablesJson as string)
+    const schemas1: TableSchema[] = JSON.parse(snapshot1.tablesJson as string)
+    const schemas2: TableSchema[] = JSON.parse(snapshot2.tablesJson as string)
 
     // Simple comparison - can be enhanced
-    const added = schemas2.filter((s2: any) => !schemas1.find((s1: any) => s1.name === s2.name))
-    const removed = schemas1.filter((s1: any) => !schemas2.find((s2: any) => s2.name === s1.name))
-    const modified = schemas2.filter((s2: any) => {
-      const s1 = schemas1.find((s: any) => s.name === s2.name)
+    const added = schemas2.filter((s2) => !schemas1.find((s1) => s1.name === s2.name))
+    const removed = schemas1.filter((s1) => !schemas2.find((s2) => s2.name === s1.name))
+    const modified = schemas2.filter((s2) => {
+      const s1 = schemas1.find((s) => s.name === s2.name)
       return s1 && s1.sql !== s2.sql
     })
 

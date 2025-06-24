@@ -13,7 +13,7 @@ export interface NotificationRule {
   triggerType: 'db_change' | 'api'
   tableName?: string
   eventType?: 'insert' | 'update' | 'delete'
-  conditions?: Record<string, any>
+  conditions?: Record<string, unknown>
   recipientType: 'specific_user' | 'column_reference' | 'all_users'
   recipientValue?: string
   titleTemplate: string
@@ -21,7 +21,7 @@ export interface NotificationRule {
   iconUrl?: string
   imageUrl?: string
   clickAction?: string
-  platformConfig?: Record<string, any>
+  platformConfig?: Record<string, unknown>
   priority: 'high' | 'normal' | 'low'
   ttl: number
   enabled: boolean
@@ -44,7 +44,18 @@ export class NotificationManager {
   }
 
   // Subscribe a device for push notifications
-  async subscribe(userId: string, subscription: any, deviceInfo?: any): Promise<string> {
+  async subscribe(
+    userId: string,
+    subscription: {
+      endpoint?: string
+      keys?: {
+        p256dh?: string
+        auth?: string
+      }
+      fcmToken?: string
+    },
+    deviceInfo?: Record<string, unknown>
+  ): Promise<string> {
     const id = crypto.randomUUID()
     const provider = subscription.endpoint ? 'webpush' : 'fcm'
 
@@ -176,7 +187,7 @@ export class NotificationManager {
   async processDbChange(
     tableName: string,
     eventType: string,
-    data: Record<string, any>
+    data: Record<string, unknown>
   ): Promise<void> {
     const rules = await this.getRulesForTrigger(tableName, eventType)
 
@@ -242,14 +253,14 @@ export class NotificationManager {
   }
 
   // Template processing
-  private processTemplate(template: string, data: Record<string, any>): string {
+  private processTemplate(template: string, data: Record<string, unknown>): string {
     return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
       return data[key]?.toString() || match
     })
   }
 
   // Execute a notification rule
-  private async executeRule(rule: NotificationRule, data: Record<string, any>): Promise<void> {
+  private async executeRule(rule: NotificationRule, data: Record<string, unknown>): Promise<void> {
     // Determine recipients
     const userIds = await this.getRecipients(rule, data)
 
@@ -278,7 +289,7 @@ export class NotificationManager {
   // Get recipients based on rule configuration
   private async getRecipients(
     rule: NotificationRule,
-    data: Record<string, any>
+    data: Record<string, unknown>
   ): Promise<string[]> {
     switch (rule.recipientType) {
       case 'specific_user':
@@ -286,7 +297,7 @@ export class NotificationManager {
 
       case 'column_reference':
         if (rule.recipientValue && data[rule.recipientValue]) {
-          return [data[rule.recipientValue]]
+          return [data[rule.recipientValue] as string]
         }
         return []
 
@@ -304,8 +315,8 @@ export class NotificationManager {
 
   // Evaluate rule conditions
   private evaluateConditions(
-    conditions: Record<string, any> | undefined,
-    data: Record<string, any>
+    conditions: Record<string, unknown> | undefined,
+    data: Record<string, unknown>
   ): boolean {
     if (!conditions) return true
 
@@ -375,10 +386,10 @@ export class NotificationManager {
   }
 
   // Detect platform from device info
-  private detectPlatform(deviceInfo?: any): string {
+  private detectPlatform(deviceInfo?: Record<string, unknown>): string {
     if (!deviceInfo) return 'web'
 
-    const userAgent = deviceInfo.userAgent?.toLowerCase() || ''
+    const userAgent = (deviceInfo.userAgent as string)?.toLowerCase() || ''
 
     if (userAgent.includes('android')) return 'android'
     if (userAgent.includes('iphone') || userAgent.includes('ipad')) return 'ios'
@@ -388,25 +399,25 @@ export class NotificationManager {
   }
 
   // Convert database row to NotificationRule
-  private rowToRule(row: any): NotificationRule {
+  private rowToRule(row: Record<string, unknown>): NotificationRule {
     return {
-      id: row.id,
-      name: row.name,
-      description: row.description,
-      triggerType: row.trigger_type,
-      tableName: row.table_name,
-      eventType: row.event_type,
-      conditions: row.conditions ? JSON.parse(row.conditions) : undefined,
-      recipientType: row.recipient_type,
-      recipientValue: row.recipient_value,
-      titleTemplate: row.title_template,
-      bodyTemplate: row.body_template,
-      iconUrl: row.icon_url,
-      imageUrl: row.image_url,
-      clickAction: row.click_action,
-      platformConfig: row.platform_config ? JSON.parse(row.platform_config) : undefined,
-      priority: row.priority,
-      ttl: row.ttl,
+      id: row.id as string,
+      name: row.name as string,
+      description: row.description as string | undefined,
+      triggerType: row.trigger_type as 'db_change' | 'api',
+      tableName: row.table_name as string | undefined,
+      eventType: row.event_type as 'insert' | 'update' | 'delete' | undefined,
+      conditions: row.conditions ? JSON.parse(row.conditions as string) : undefined,
+      recipientType: row.recipient_type as 'specific_user' | 'column_reference' | 'all_users',
+      recipientValue: row.recipient_value as string | undefined,
+      titleTemplate: row.title_template as string,
+      bodyTemplate: row.body_template as string,
+      iconUrl: row.icon_url as string | undefined,
+      imageUrl: row.image_url as string | undefined,
+      clickAction: row.click_action as string | undefined,
+      platformConfig: row.platform_config ? JSON.parse(row.platform_config as string) : undefined,
+      priority: row.priority as 'high' | 'normal' | 'low',
+      ttl: row.ttl as number,
       enabled: row.enabled === 1,
     }
   }

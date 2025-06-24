@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
-import { TableManager } from '../lib/table-manager'
+import type { ColumnInfo } from '../lib/schema-manager'
+import { type LocalTableInfo, TableManager } from '../lib/table-manager'
 import type { Env, Variables } from '../types'
 
 export const docs = new Hono<{ Bindings: Env; Variables: Variables }>()
@@ -12,8 +13,8 @@ docs.use('*', async (c, next) => {
   }
   c.set(
     'tableManager',
-    new TableManager(c.env.DB, c.env.SYSTEM_STORAGE as any, c.executionCtx, {
-      REALTIME: c.env.REALTIME as any,
+    new TableManager(c.env.DB, c.env.SYSTEM_STORAGE, c.executionCtx, {
+      REALTIME: c.env.REALTIME,
     })
   )
   await next()
@@ -90,7 +91,7 @@ docs.get('/swagger', async (c) => {
 })
 
 // Generate OpenAPI 3.0 specification
-async function generateOpenAPISpec(tables: any[], tm: TableManager, baseUrl: string) {
+async function generateOpenAPISpec(tables: LocalTableInfo[], tm: TableManager, baseUrl: string) {
   const spec = {
     openapi: '3.0.0',
     info: {
@@ -108,9 +109,9 @@ async function generateOpenAPISpec(tables: any[], tm: TableManager, baseUrl: str
         description: 'Vibebase Instance',
       },
     ],
-    paths: {} as any,
+    paths: {} as Record<string, unknown>,
     components: {
-      schemas: {} as any,
+      schemas: {} as Record<string, unknown>,
       responses: {
         NotFound: {
           description: 'Resource not found',
@@ -166,10 +167,10 @@ async function generateOpenAPISpec(tables: any[], tm: TableManager, baseUrl: str
 }
 
 // Generate schema for a table
-function generateTableSchema(_tableName: string, columns: any[]) {
-  const properties: any = {}
+function generateTableSchema(_tableName: string, columns: ColumnInfo[]) {
+  const properties: Record<string, unknown> = {}
   const _required: string[] = []
-  const inputProperties: any = {}
+  const inputProperties: Record<string, unknown> = {}
   const inputRequired: string[] = []
 
   for (const column of columns) {
@@ -205,9 +206,9 @@ function generateTableSchema(_tableName: string, columns: any[]) {
 }
 
 // Convert SQL type to JSON schema type
-function getFieldSchema(column: any) {
+function getFieldSchema(column: ColumnInfo) {
   const type = column.type.toUpperCase()
-  const schema: any = { description: `${column.name} field` }
+  const schema: Record<string, unknown> = { description: `${column.name} field` }
 
   switch (type) {
     case 'INTEGER':
@@ -588,8 +589,8 @@ function generateTablePaths(
 
 // Generate documentation for a specific table
 async function generateTableDocumentation(
-  table: any,
-  columns: any[],
+  table: LocalTableInfo,
+  columns: ColumnInfo[],
   searchableColumns: Array<{ name: string; type: string }>,
   baseUrl: string
 ) {
@@ -645,7 +646,7 @@ async function generateTableDocumentation(
         description: `Create a new ${table.name} record`,
         body: {
           type: 'object',
-          properties: userColumns.reduce((props: any, col) => {
+          properties: userColumns.reduce((props: Record<string, unknown>, col) => {
             props[col.name] = {
               type: getSqlTypeMapping(col.type),
               required: !!col.notnull,
@@ -661,7 +662,7 @@ async function generateTableDocumentation(
         description: `Update a ${table.name} record`,
         body: {
           type: 'object',
-          properties: userColumns.reduce((props: any, col) => {
+          properties: userColumns.reduce((props: Record<string, unknown>, col) => {
             props[col.name] = {
               type: getSqlTypeMapping(col.type),
               required: false,
@@ -745,7 +746,7 @@ async function generateTableDocumentation(
   }
 }
 
-function getColumnDescription(column: any): string {
+function getColumnDescription(column: ColumnInfo): string {
   let desc = `${column.type}`
   if (column.notnull) desc += ', required'
   if (column.dflt_value) desc += `, default: ${column.dflt_value}`
@@ -766,8 +767,8 @@ function getSqlTypeMapping(sqlType: string): string {
   }
 }
 
-function generateExampleBody(columns: any[], isUpdate = false): any {
-  const example: any = {}
+function generateExampleBody(columns: ColumnInfo[], isUpdate = false): Record<string, unknown> {
+  const example: Record<string, unknown> = {}
 
   for (const col of columns) {
     const type = col.type.toUpperCase()

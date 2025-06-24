@@ -68,7 +68,7 @@ custom.all('/:slug', async (c) => {
     const preparedParams = prepareQueryParameters(paramDefs, providedParams)
 
     const startTime = Date.now()
-    let result
+    let result: { results: unknown[]; success: boolean; meta: unknown }
     let error = null
 
     try {

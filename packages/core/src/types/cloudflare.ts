@@ -175,7 +175,7 @@ export interface ExecutionContext {
 }
 
 // Durable Objects types
-export interface DurableObjectNamespace<Env = undefined> {
+export interface DurableObjectNamespace<_Env = undefined> {
   idFromName(name: string): DurableObjectId
   idFromString(id: string): DurableObjectId
   newUniqueId(options?: { jurisdiction?: string }): DurableObjectId

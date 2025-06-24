@@ -97,7 +97,7 @@ export class DataManager {
         tableName,
         id,
         'delete',
-        record as Record<string, any>,
+        record as Record<string, unknown>,
         {
           env: this.env,
           executionCtx: this.executionCtx,
@@ -272,7 +272,7 @@ export class DataManager {
 
     // Generate ID if not provided
     const id = (data.id as string) || this.generateId()
-    const dataWithId = { ...data, id } as Record<string, any>
+    const dataWithId = { ...data, id } as Record<string, unknown>
 
     // Add timestamps if not provided
     const now = new Date().toISOString()
@@ -320,7 +320,7 @@ export class DataManager {
 
     // Generate ID if not provided
     const id = (data.id as string) || this.generateId()
-    const dataWithId = { ...data, id } as Record<string, any>
+    const dataWithId = { ...data, id } as Record<string, unknown>
 
     // Add owner_id for private tables
     if (accessPolicy === 'private' && userId) {

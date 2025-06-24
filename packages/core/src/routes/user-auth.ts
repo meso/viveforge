@@ -123,7 +123,7 @@ userAuth.get('/callback/:provider', async (c) => {
       return c.json({ error: 'Invalid or expired OAuth state' }, 400)
     }
 
-    let authState
+    let authState: { state: string; provider: string; callback_url?: string }
     try {
       authState = JSON.parse(storedAuthState)
     } catch {
