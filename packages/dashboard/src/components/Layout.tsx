@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import type { ComponentChildren } from 'preact'
-import { Link } from 'preact-router/match'
+import { route } from 'preact-router'
 import { useAuthMonitor } from '../hooks/useAuthMonitor'
 
 interface LayoutProps {
@@ -56,16 +56,19 @@ interface NavLinkProps {
 
 function NavLink({ href, children }: NavLinkProps) {
   return (
-    <Link
-      {...({ href } as any)}
+    <a
+      href={href}
+      onClick={(e) => {
+        e.preventDefault()
+        route(href)
+      }}
       class={clsx(
         'inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium',
         'hover:border-gray-300 hover:text-gray-700',
-        'border-transparent text-gray-500'
+        'border-transparent text-gray-500 cursor-pointer'
       )}
-      activeClassName="border-indigo-500 text-gray-900"
     >
       {children}
-    </Link>
+    </a>
   )
 }

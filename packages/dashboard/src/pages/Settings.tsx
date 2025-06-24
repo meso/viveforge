@@ -366,6 +366,7 @@ export function SettingsPage() {
         <div class="w-64 flex-shrink-0">
           <nav class="space-y-1">
             <button
+              type="button"
               onClick={() => setActiveSection('app-settings')}
               class={`w-full text-left px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                 activeSection === 'app-settings'
@@ -376,6 +377,7 @@ export function SettingsPage() {
               Application Settings
             </button>
             <button
+              type="button"
               onClick={() => setActiveSection('admins')}
               class={`w-full text-left px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                 activeSection === 'admins'
@@ -386,6 +388,7 @@ export function SettingsPage() {
               Admin Management
             </button>
             <button
+              type="button"
               onClick={() => setActiveSection('api-keys')}
               class={`w-full text-left px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                 activeSection === 'api-keys'
@@ -408,6 +411,7 @@ export function SettingsPage() {
                   <h3 class="text-lg font-medium text-gray-900">Application Settings</h3>
                   {!editingAppSettings && (
                     <button
+                      type="button"
                       onClick={() => setEditingAppSettings(true)}
                       class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
                     >
@@ -427,10 +431,14 @@ export function SettingsPage() {
                 ) : (
                   <div class="space-y-4">
                     <div>
-                      <label class="block text-sm font-medium text-gray-700 mb-1">
+                      <label
+                        htmlFor="app-name"
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                      >
                         Application Name
                       </label>
                       <input
+                        id="app-name"
                         type="text"
                         value={appSettingsForm.app_name || ''}
                         onChange={(e) =>
@@ -449,10 +457,11 @@ export function SettingsPage() {
                     </div>
 
                     <div>
-                      <label class="block text-sm font-medium text-gray-700 mb-1">
+                      <label htmlFor="app-url" class="block text-sm font-medium text-gray-700 mb-1">
                         Application URL (optional)
                       </label>
                       <input
+                        id="app-url"
                         type="url"
                         value={appSettingsForm.app_url || ''}
                         onChange={(e) =>
@@ -468,10 +477,14 @@ export function SettingsPage() {
                     </div>
 
                     <div>
-                      <label class="block text-sm font-medium text-gray-700 mb-1">
+                      <label
+                        htmlFor="support-email"
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                      >
                         Support Email (optional)
                       </label>
                       <input
+                        id="support-email"
                         type="email"
                         value={appSettingsForm.support_email || ''}
                         onChange={(e) =>
@@ -487,10 +500,14 @@ export function SettingsPage() {
                     </div>
 
                     <div>
-                      <label class="block text-sm font-medium text-gray-700 mb-1">
+                      <label
+                        htmlFor="app-description"
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                      >
                         Application Description (optional)
                       </label>
                       <textarea
+                        id="app-description"
                         value={appSettingsForm.app_description || ''}
                         onChange={(e) =>
                           setAppSettingsForm((prev) => ({
@@ -508,6 +525,7 @@ export function SettingsPage() {
                     {editingAppSettings && (
                       <div class="flex gap-3 pt-4">
                         <button
+                          type="button"
                           onClick={() => {
                             setEditingAppSettings(false)
                             // Reset form to original values
@@ -523,6 +541,7 @@ export function SettingsPage() {
                           Cancel
                         </button>
                         <button
+                          type="button"
                           onClick={saveAppSettings}
                           disabled={appSettingsSaving}
                           class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:opacity-50"
@@ -604,6 +623,7 @@ export function SettingsPage() {
                             </div>
                             {!admin.is_root && (
                               <button
+                                type="button"
                                 onClick={() =>
                                   setRemoveConfirm({
                                     id: admin.id,
@@ -633,6 +653,7 @@ export function SettingsPage() {
                   <h3 class="text-lg font-medium text-gray-900">API Keys</h3>
                   <div class="flex items-center space-x-2">
                     <button
+                      type="button"
                       onClick={() => setShowCreateKey(true)}
                       class="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
                     >
@@ -703,6 +724,7 @@ export function SettingsPage() {
                               </div>
                               {key.is_active && (
                                 <button
+                                  type="button"
                                   onClick={() => setRevokeConfirm({ id: key.id, name: key.name })}
                                   class="text-red-600 hover:text-red-800 text-sm font-medium"
                                 >
@@ -729,8 +751,14 @@ export function SettingsPage() {
                   <form onSubmit={createApiKey}>
                     <div class="space-y-4">
                       <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                        <label
+                          htmlFor="api-key-name"
+                          class="block text-sm font-medium text-gray-700 mb-1"
+                        >
+                          Name
+                        </label>
                         <input
+                          id="api-key-name"
                           type="text"
                           value={newKeyData.name}
                           onInput={(e) =>
@@ -746,13 +774,17 @@ export function SettingsPage() {
                       </div>
 
                       <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <label
+                          htmlFor="api-key-permissions"
+                          class="block text-sm font-medium text-gray-700 mb-2"
+                        >
                           Permissions
                         </label>
-                        <div class="space-y-2 max-h-32 overflow-y-auto">
+                        <div id="api-key-permissions" class="space-y-2 max-h-32 overflow-y-auto">
                           {availableScopes.map((scope) => (
-                            <label key={scope} class="flex items-center">
+                            <label key={scope} htmlFor={`scope-${scope}`} class="flex items-center">
                               <input
+                                id={`scope-${scope}`}
                                 type="checkbox"
                                 checked={newKeyData.scopes.includes(scope)}
                                 onChange={() => toggleScope(scope)}
@@ -765,10 +797,14 @@ export function SettingsPage() {
                       </div>
 
                       <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                        <label
+                          htmlFor="api-key-expiry"
+                          class="block text-sm font-medium text-gray-700 mb-1"
+                        >
                           Expires in (days)
                         </label>
                         <select
+                          id="api-key-expiry"
                           value={newKeyData.expires_in_days || ''}
                           onChange={(e) =>
                             setNewKeyData((prev) => ({
@@ -825,7 +861,9 @@ export function SettingsPage() {
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
+                  aria-label="Success checkmark"
                 >
+                  <title>Success checkmark</title>
                   <path
                     stroke-linecap="round"
                     stroke-linejoin="round"
@@ -857,6 +895,7 @@ export function SettingsPage() {
                 )}
               </div>
               <button
+                type="button"
                 onClick={() => setCreatedKey(null)}
                 class="w-full px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
               >
@@ -878,7 +917,9 @@ export function SettingsPage() {
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
+                  aria-label="Warning triangle"
                 >
+                  <title>Warning triangle</title>
                   <path
                     stroke-linecap="round"
                     stroke-linejoin="round"
@@ -897,12 +938,14 @@ export function SettingsPage() {
               <div class="items-center px-4 py-3">
                 <div class="flex space-x-3">
                   <button
+                    type="button"
                     onClick={() => setRevokeConfirm(null)}
                     class="flex-1 px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300"
                   >
                     Cancel
                   </button>
                   <button
+                    type="button"
                     onClick={() => revokeApiKey(revokeConfirm.id)}
                     class="flex-1 px-4 py-2 bg-red-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300"
                   >
@@ -926,7 +969,9 @@ export function SettingsPage() {
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
+                  aria-label="Warning triangle"
                 >
+                  <title>Warning triangle</title>
                   <path
                     stroke-linecap="round"
                     stroke-linejoin="round"
@@ -945,12 +990,14 @@ export function SettingsPage() {
               <div class="items-center px-4 py-3">
                 <div class="flex space-x-3">
                   <button
+                    type="button"
                     onClick={() => setRemoveConfirm(null)}
                     class="flex-1 px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300"
                   >
                     Cancel
                   </button>
                   <button
+                    type="button"
                     onClick={() => removeAdmin(removeConfirm.id)}
                     class="flex-1 px-4 py-2 bg-red-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300"
                   >

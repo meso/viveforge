@@ -47,7 +47,7 @@ export interface ColumnInfo {
   name: string
   type: string
   notnull: number
-  dflt_value: any
+  dflt_value: string | number | null
   pk: number
 }
 
@@ -182,7 +182,7 @@ export const api = {
     tableName: string,
     limit = 100,
     offset = 0
-  ): Promise<{ data: any[]; total: number }> {
+  ): Promise<{ data: Record<string, unknown>[]; total: number }> {
     const response = await fetchWithAuth(
       `${API_BASE}/api/tables/${tableName}/data?limit=${limit}&offset=${offset}`
     )
@@ -226,7 +226,7 @@ export const api = {
     return response.json()
   },
 
-  async executeSQL(sql: string, params: any[] = []): Promise<{ result: any }> {
+  async executeSQL(sql: string, params: unknown[] = []): Promise<{ result: unknown }> {
     const response = await fetchWithAuth(`${API_BASE}/api/tables/query`, {
       method: 'POST',
       headers: {
@@ -309,7 +309,7 @@ export const api = {
       notNull?: boolean
       foreignKey?: { table: string; column: string } | null
     }
-  ): Promise<{ success: boolean; column: string; changes: any }> {
+  ): Promise<{ success: boolean; column: string; changes: Record<string, unknown> }> {
     const response = await fetchWithAuth(
       `${API_BASE}/api/tables/${tableName}/columns/${columnName}`,
       {
@@ -357,7 +357,7 @@ export const api = {
   async updateRecord(
     tableName: string,
     id: string,
-    data: Record<string, any>
+    data: Record<string, unknown>
   ): Promise<{ success: boolean }> {
     const response = await fetchWithAuth(`${API_BASE}/api/tables/${tableName}/data/${id}`, {
       method: 'PUT',
@@ -445,7 +445,7 @@ export const api = {
     return response.json()
   },
 
-  async compareSnapshots(id1: string, id2: string): Promise<any> {
+  async compareSnapshots(id1: string, id2: string): Promise<Record<string, unknown>> {
     const response = await fetchWithAuth(`${API_BASE}/api/snapshots/compare/${id1}/${id2}`)
     if (!response.ok) {
       throw new Error('Failed to compare snapshots')
@@ -545,7 +545,7 @@ export const api = {
       scopes?: string[]
       redirect_uri?: string
     }
-  ): Promise<{ success: boolean; message: string; provider: any }> {
+  ): Promise<{ success: boolean; message: string; provider: OAuthProvider }> {
     const response = await fetchWithAuth(`${API_BASE}/api/admin/oauth/providers/${provider}`, {
       method: 'PUT',
       headers: {

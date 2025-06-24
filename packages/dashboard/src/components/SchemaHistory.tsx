@@ -10,7 +10,13 @@ interface SchemaHistoryProps {
 function Spinner({ size = 'sm' }: { size?: 'sm' | 'md' }) {
   const sizeClasses = size === 'sm' ? 'h-4 w-4' : 'h-6 w-6'
   return (
-    <svg class={`animate-spin ${sizeClasses} text-white`} fill="none" viewBox="0 0 24 24">
+    <svg
+      class={`animate-spin ${sizeClasses} text-white`}
+      fill="none"
+      viewBox="0 0 24 24"
+      aria-label="Loading spinner"
+    >
+      <title>Loading spinner</title>
       <circle
         class="opacity-25"
         cx="12"
@@ -164,8 +170,15 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
         {/* Header */}
         <div class="px-6 py-4 border-b flex items-center justify-between">
           <h2 class="text-xl font-semibold text-gray-900">Schema Snapshots</h2>
-          <button onClick={onClose} class="text-gray-400 hover:text-gray-600">
-            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <button type="button" onClick={onClose} class="text-gray-400 hover:text-gray-600">
+            <svg
+              class="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              aria-label="Close"
+            >
+              <title>Close</title>
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -187,7 +200,13 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
         <div class="mx-6 mt-4 bg-blue-50 border border-blue-200 rounded-md p-4">
           <div class="flex">
             <div class="flex-shrink-0">
-              <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+              <svg
+                class="h-5 w-5 text-blue-400"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+                aria-label="Information"
+              >
+                <title>Information</title>
                 <path
                   fill-rule="evenodd"
                   d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
@@ -228,10 +247,18 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
               {!showCreateForm && (
                 <div class="mb-6">
                   <button
+                    type="button"
                     onClick={() => setShowCreateForm(true)}
                     class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                   >
-                    <svg class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg
+                      class="h-5 w-5 mr-2"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      aria-label="Plus"
+                    >
+                      <title>Plus</title>
                       <path
                         stroke-linecap="round"
                         stroke-linejoin="round"
@@ -251,8 +278,14 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
                   <form onSubmit={handleCreateSnapshot}>
                     <div class="space-y-3">
                       <div>
-                        <label class="block text-sm font-medium text-gray-700">Name</label>
+                        <label
+                          htmlFor="snapshot_name"
+                          class="block text-sm font-medium text-gray-700"
+                        >
+                          Name
+                        </label>
                         <input
+                          id="snapshot_name"
                           type="text"
                           value={newSnapshot.name}
                           onInput={(e) =>
@@ -266,8 +299,14 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
                         />
                       </div>
                       <div>
-                        <label class="block text-sm font-medium text-gray-700">Description</label>
+                        <label
+                          htmlFor="snapshot_description"
+                          class="block text-sm font-medium text-gray-700"
+                        >
+                          Description
+                        </label>
                         <textarea
+                          id="snapshot_description"
                           value={newSnapshot.description}
                           onInput={(e) =>
                             setNewSnapshot({
@@ -317,9 +356,10 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
                   </div>
                 ) : (
                   snapshots.map((snapshot) => (
-                    <div
+                    <button
+                      type="button"
                       key={snapshot.id}
-                      class={`border rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer ${
+                      class={`text-left w-full border rounded-lg p-4 hover:shadow-md transition-shadow ${
                         selectedSnapshot?.id === snapshot.id
                           ? 'border-indigo-500 bg-indigo-50'
                           : 'border-gray-200'
@@ -355,6 +395,7 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
                         </div>
                         <div class="ml-4 flex items-center space-x-2">
                           <button
+                            type="button"
                             onClick={(e) => {
                               e.stopPropagation()
                               setConfirmRestore(snapshot.id)
@@ -366,6 +407,7 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
 
                           <div class="relative">
                             <button
+                              type="button"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 setOpenMenuId(openMenuId === snapshot.id ? null : snapshot.id)
@@ -373,7 +415,13 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
                               data-menu-button="true"
                               class="inline-flex items-center p-1.5 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 rounded-md"
                             >
-                              <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                              <svg
+                                class="h-4 w-4"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                                aria-label="More options"
+                              >
+                                <title>More options</title>
                                 <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
                               </svg>
                             </button>
@@ -386,6 +434,7 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
                               >
                                 <div class="py-1">
                                   <button
+                                    type="button"
                                     onClick={(e) => {
                                       e.preventDefault()
                                       e.stopPropagation()
@@ -400,7 +449,9 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
                                         fill="none"
                                         viewBox="0 0 24 24"
                                         stroke="currentColor"
+                                        aria-label="Delete"
                                       >
+                                        <title>Delete</title>
                                         <path
                                           stroke-linecap="round"
                                           stroke-linejoin="round"
@@ -417,7 +468,7 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
                           </div>
                         </div>
                       </div>
-                    </div>
+                    </button>
                   ))
                 )}
               </div>
@@ -436,7 +487,9 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
+                    aria-label="Warning"
                   >
+                    <title>Warning</title>
                     <path
                       stroke-linecap="round"
                       stroke-linejoin="round"
@@ -462,6 +515,7 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
 
               <div class="flex space-x-3">
                 <button
+                  type="button"
                   onClick={handleRestore}
                   disabled={isRestoring}
                   class={`inline-flex justify-center items-center space-x-2 py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
@@ -472,6 +526,7 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
                   <span>{isRestoring ? 'Restoring...' : 'Restore'}</span>
                 </button>
                 <button
+                  type="button"
                   onClick={() => setConfirmRestore(null)}
                   disabled={isRestoring}
                   class={`inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
@@ -498,7 +553,9 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
+                    aria-label="Warning"
                   >
+                    <title>Warning</title>
                     <path
                       stroke-linecap="round"
                       stroke-linejoin="round"
@@ -520,6 +577,7 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
 
               <div class="flex space-x-3">
                 <button
+                  type="button"
                   onClick={handleDelete}
                   disabled={isDeleting}
                   class={`inline-flex justify-center items-center space-x-2 py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 ${
@@ -530,6 +588,7 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
                   <span>{isDeleting ? 'Deleting...' : 'Delete'}</span>
                 </button>
                 <button
+                  type="button"
                   onClick={() => setConfirmDelete(null)}
                   disabled={isDeleting}
                   class={`inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${

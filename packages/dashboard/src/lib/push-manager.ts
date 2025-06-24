@@ -118,8 +118,8 @@ export class PushManager {
         subscription: {
           endpoint: subscription.endpoint,
           keys: {
-            p256dh: this.arrayBufferToBase64(subscription.getKey('p256dh')!),
-            auth: this.arrayBufferToBase64(subscription.getKey('auth')!),
+            p256dh: this.arrayBufferToBase64(subscription.getKey('p256dh') || new ArrayBuffer(0)),
+            auth: this.arrayBufferToBase64(subscription.getKey('auth') || new ArrayBuffer(0)),
           },
         },
         deviceInfo: this.getDeviceInfo(),
@@ -254,8 +254,8 @@ export class PushManager {
         subscription: {
           endpoint: subscription.endpoint,
           keys: {
-            p256dh: this.arrayBufferToBase64(subscription.getKey('p256dh')!),
-            auth: this.arrayBufferToBase64(subscription.getKey('auth')!),
+            p256dh: this.arrayBufferToBase64(subscription.getKey('p256dh') || new ArrayBuffer(0)),
+            auth: this.arrayBufferToBase64(subscription.getKey('auth') || new ArrayBuffer(0)),
           },
         },
         deviceInfo: this.getDeviceInfo(),

@@ -218,7 +218,12 @@ export default function PushNotifications() {
 
         <div className="space-y-4">
           <div>
-            <label htmlFor="vapid-public-key" className="block text-sm font-medium text-gray-700 mb-2">Public Key</label>
+            <label
+              htmlFor="vapid-public-key"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              Public Key
+            </label>
             <div id="vapid-public-key" className="bg-gray-50 p-3 rounded-md">
               <code className="text-sm text-gray-800 break-all">
                 {vapidPublicKey || 'Loading...'}
@@ -230,7 +235,9 @@ export default function PushNotifications() {
           </div>
 
           <div>
-            <label htmlFor="vapid-subject" className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
+            <label htmlFor="vapid-subject" className="block text-sm font-medium text-gray-700 mb-2">
+              Subject
+            </label>
             <div id="vapid-subject" className="bg-gray-50 p-3 rounded-md">
               <code className="text-sm text-gray-800">mailto:support@vibebase.app</code>
             </div>
@@ -240,8 +247,14 @@ export default function PushNotifications() {
           </div>
 
           <div>
-            <label htmlFor="api-endpoints" className="block text-sm font-medium text-gray-700 mb-2">API Endpoints</label>
-            <div id="api-endpoints" className="bg-gray-50 p-3 rounded-md space-y-2">
+            <label htmlFor="api-endpoints" className="block text-sm font-medium text-gray-700 mb-2">
+              API Endpoints
+            </label>
+            <section
+              id="api-endpoints"
+              className="bg-gray-50 p-3 rounded-md space-y-2"
+              aria-label="API endpoints information"
+            >
               <div>
                 <strong>Subscribe:</strong>{' '}
                 <code className="text-sm">POST /api/push/subscribe</code>
@@ -254,7 +267,7 @@ export default function PushNotifications() {
                 <strong>Send Notification:</strong>{' '}
                 <code className="text-sm">POST /api/push/send</code>
               </div>
-            </div>
+            </section>
             <p className="text-xs text-gray-500 mt-1">
               Use these endpoints in your application for end-user push notification management
             </p>
@@ -274,8 +287,10 @@ export default function PushNotifications() {
 
         <div className="space-y-4">
           <div>
-            <label htmlFor="browser-permission" className="block text-sm font-medium text-gray-700">Browser Permission</label>
-            <span
+            <label htmlFor="browser-permission" className="block text-sm font-medium text-gray-700">
+              Browser Permission
+            </label>
+            <output
               id="browser-permission"
               className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                 permission === 'granted'
@@ -284,23 +299,28 @@ export default function PushNotifications() {
                     ? 'bg-red-100 text-red-800'
                     : 'bg-yellow-100 text-yellow-800'
               }`}
+              aria-label={`Browser notification permission status: ${permission || 'Unknown'}`}
             >
               {permission || 'Unknown'}
-            </span>
+            </output>
           </div>
 
           <div>
-            <label htmlFor="admin-subscription-status" className="block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="admin-subscription-status"
+              className="block text-sm font-medium text-gray-700"
+            >
               Admin Subscription Status
             </label>
-            <span
+            <output
               id="admin-subscription-status"
               className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                 isAdminSubscribed ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
               }`}
+              aria-label={`Admin subscription status: ${isAdminSubscribed ? 'Subscribed' : 'Not Subscribed'}`}
             >
               {isAdminSubscribed ? 'Subscribed' : 'Not Subscribed'}
-            </span>
+            </output>
           </div>
 
           <div className="flex space-x-3">
@@ -336,7 +356,11 @@ export default function PushNotifications() {
           </div>
 
           {permission === 'denied' && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+            <div
+              className="bg-yellow-50 border border-yellow-200 rounded-md p-4"
+              role="alert"
+              aria-live="polite"
+            >
               <div className="flex">
                 <div className="ml-3">
                   <h3 className="text-sm font-medium text-yellow-800">Notifications Blocked</h3>
@@ -435,7 +459,9 @@ export default function PushNotifications() {
           ))}
         </ul>
         {rules.length === 0 && (
-          <div className="text-center py-8 text-gray-500">No notification rules configured yet</div>
+          <output className="text-center py-8 text-gray-500" aria-live="polite">
+            No notification rules configured yet
+          </output>
         )}
       </div>
     </div>
@@ -462,7 +488,7 @@ export default function PushNotifications() {
       enabled: editingRule?.enabled ?? true,
     })
 
-    const handleSubmit = async (e: any) => {
+    const handleSubmit = async (e: Event) => {
       e.preventDefault()
       setLoading(true)
 
@@ -505,7 +531,7 @@ export default function PushNotifications() {
             console.error('Validation errors:', errorData.details)
           }
           alert(
-            `Failed to ${editingRule ? 'update' : 'create'} rule: ${errorData.error}${errorData.details ? '\n\nValidation errors: ' + JSON.stringify(errorData.details, null, 2) : ''}`
+            `Failed to ${editingRule ? 'update' : 'create'} rule: ${errorData.error}${errorData.details ? `\n\nValidation errors: ${JSON.stringify(errorData.details, null, 2)}` : ''}`
           )
         }
       } catch (error) {
@@ -516,42 +542,65 @@ export default function PushNotifications() {
     }
 
     return (
-      <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div
+        className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="rule-form-title"
+      >
         <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
           <div className="mt-3">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
+            <h3 id="rule-form-title" className="text-lg font-medium text-gray-900 mb-4">
               {editingRule ? 'Edit Notification Rule' : 'Create Notification Rule'}
             </h3>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="rule-name" className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                  <label
+                    htmlFor="rule-name"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Name *
+                  </label>
                   <input
                     id="rule-name"
                     type="text"
                     required
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: (e.target as HTMLInputElement).value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: (e.target as HTMLInputElement).value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="rule-description" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="rule-description"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Description
                   </label>
                   <input
                     id="rule-description"
                     type="text"
                     value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: (e.target as HTMLInputElement).value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        description: (e.target as HTMLInputElement).value,
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="rule-trigger-type" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="rule-trigger-type"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Trigger Type *
                   </label>
                   <select
@@ -573,7 +622,10 @@ export default function PushNotifications() {
                 {formData.triggerType === 'db_change' && (
                   <>
                     <div>
-                      <label htmlFor="rule-table-name" className="block text-sm font-medium text-gray-700 mb-1">
+                      <label
+                        htmlFor="rule-table-name"
+                        className="block text-sm font-medium text-gray-700 mb-1"
+                      >
                         Table Name *
                       </label>
                       <input
@@ -581,13 +633,21 @@ export default function PushNotifications() {
                         type="text"
                         required
                         value={formData.tableName}
-                        onChange={(e) => setFormData({ ...formData, tableName: (e.target as HTMLInputElement).value })}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            tableName: (e.target as HTMLInputElement).value,
+                          })
+                        }
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
 
                     <div>
-                      <label htmlFor="rule-event-type" className="block text-sm font-medium text-gray-700 mb-1">
+                      <label
+                        htmlFor="rule-event-type"
+                        className="block text-sm font-medium text-gray-700 mb-1"
+                      >
                         Event Type *
                       </label>
                       <select
@@ -596,7 +656,10 @@ export default function PushNotifications() {
                         onChange={(e) =>
                           setFormData({
                             ...formData,
-                            eventType: (e.target as HTMLSelectElement).value as 'insert' | 'update' | 'delete',
+                            eventType: (e.target as HTMLSelectElement).value as
+                              | 'insert'
+                              | 'update'
+                              | 'delete',
                           })
                         }
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -610,7 +673,10 @@ export default function PushNotifications() {
                 )}
 
                 <div>
-                  <label htmlFor="rule-recipient-type" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="rule-recipient-type"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Recipient Type *
                   </label>
                   <select
@@ -635,7 +701,10 @@ export default function PushNotifications() {
 
                 {formData.recipientType !== 'all_users' && (
                   <div>
-                    <label htmlFor="rule-recipient-value" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label
+                      htmlFor="rule-recipient-value"
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
                       {formData.recipientType === 'specific_user' ? 'User ID' : 'Column Name'} *
                     </label>
                     <input
@@ -643,14 +712,22 @@ export default function PushNotifications() {
                       type="text"
                       required
                       value={formData.recipientValue}
-                      onChange={(e) => setFormData({ ...formData, recipientValue: (e.target as HTMLInputElement).value })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          recipientValue: (e.target as HTMLInputElement).value,
+                        })
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                 )}
 
                 <div>
-                  <label htmlFor="rule-title-template" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="rule-title-template"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Title Template *
                   </label>
                   <input
@@ -658,14 +735,22 @@ export default function PushNotifications() {
                     type="text"
                     required
                     value={formData.titleTemplate}
-                    onChange={(e) => setFormData({ ...formData, titleTemplate: (e.target as HTMLInputElement).value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        titleTemplate: (e.target as HTMLInputElement).value,
+                      })
+                    }
                     placeholder="e.g., New message from {{user_name}}"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="rule-body-template" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="rule-body-template"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Body Template *
                   </label>
                   <input
@@ -673,56 +758,91 @@ export default function PushNotifications() {
                     type="text"
                     required
                     value={formData.bodyTemplate}
-                    onChange={(e) => setFormData({ ...formData, bodyTemplate: (e.target as HTMLInputElement).value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        bodyTemplate: (e.target as HTMLInputElement).value,
+                      })
+                    }
                     placeholder="e.g., {{message}}"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="rule-icon-url" className="block text-sm font-medium text-gray-700 mb-1">Icon URL</label>
+                  <label
+                    htmlFor="rule-icon-url"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Icon URL
+                  </label>
                   <input
                     id="rule-icon-url"
                     type="url"
                     value={formData.iconUrl}
-                    onChange={(e) => setFormData({ ...formData, iconUrl: (e.target as HTMLInputElement).value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, iconUrl: (e.target as HTMLInputElement).value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="rule-image-url" className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
+                  <label
+                    htmlFor="rule-image-url"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Image URL
+                  </label>
                   <input
                     id="rule-image-url"
                     type="url"
                     value={formData.imageUrl}
-                    onChange={(e) => setFormData({ ...formData, imageUrl: (e.target as HTMLInputElement).value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, imageUrl: (e.target as HTMLInputElement).value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="rule-click-action" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="rule-click-action"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Click Action URL
                   </label>
                   <input
                     id="rule-click-action"
                     type="text"
                     value={formData.clickAction}
-                    onChange={(e) => setFormData({ ...formData, clickAction: (e.target as HTMLInputElement).value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        clickAction: (e.target as HTMLInputElement).value,
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="rule-priority" className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                  <label
+                    htmlFor="rule-priority"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Priority
+                  </label>
                   <select
                     id="rule-priority"
                     value={formData.priority}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        priority: (e.target as HTMLSelectElement).value as 'high' | 'normal' | 'low',
+                        priority: (e.target as HTMLSelectElement).value as
+                          | 'high'
+                          | 'normal'
+                          | 'low',
                       })
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -734,14 +854,22 @@ export default function PushNotifications() {
                 </div>
 
                 <div>
-                  <label htmlFor="rule-ttl" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="rule-ttl"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     TTL (seconds)
                   </label>
                   <input
                     id="rule-ttl"
                     type="number"
                     value={formData.ttl}
-                    onChange={(e) => setFormData({ ...formData, ttl: parseInt((e.target as HTMLInputElement).value) })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        ttl: parseInt((e.target as HTMLInputElement).value),
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -752,7 +880,9 @@ export default function PushNotifications() {
                   type="checkbox"
                   id="enabled"
                   checked={formData.enabled}
-                  onChange={(e) => setFormData({ ...formData, enabled: (e.target as HTMLInputElement).checked })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, enabled: (e.target as HTMLInputElement).checked })
+                  }
                   className="mr-2"
                 />
                 <label htmlFor="enabled" className="text-sm font-medium text-gray-700">
@@ -831,7 +961,9 @@ export default function PushNotifications() {
           ))}
         </ul>
         {logs.length === 0 && (
-          <div className="text-center py-8 text-gray-500">No notification logs available</div>
+          <output className="text-center py-8 text-gray-500" aria-live="polite">
+            No notification logs available
+          </output>
         )}
       </div>
     </div>
@@ -848,7 +980,11 @@ export default function PushNotifications() {
 
       {/* Tabs */}
       <div className="border-b border-gray-200 mb-8">
-        <nav className="-mb-px flex space-x-8">
+        <div
+          className="-mb-px flex space-x-8"
+          role="tablist"
+          aria-label="Push notifications navigation"
+        >
           {[
             { id: 'settings', name: 'Settings' },
             { id: 'test', name: 'Test' },
@@ -858,7 +994,10 @@ export default function PushNotifications() {
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id as any)}
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              aria-controls={`${tab.id}-panel`}
+              onClick={() => setActiveTab(tab.id as 'settings' | 'test' | 'rules' | 'logs')}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === tab.id
                   ? 'border-blue-500 text-blue-600'
@@ -868,14 +1007,22 @@ export default function PushNotifications() {
               {tab.name}
             </button>
           ))}
-        </nav>
+        </div>
       </div>
 
       {/* Tab Content */}
-      {activeTab === 'settings' && renderSettings()}
-      {activeTab === 'test' && renderTest()}
-      {activeTab === 'rules' && renderRules()}
-      {activeTab === 'logs' && renderLogs()}
+      <div role="tabpanel" id="settings-panel" aria-labelledby="settings-tab">
+        {activeTab === 'settings' && renderSettings()}
+      </div>
+      <div role="tabpanel" id="test-panel" aria-labelledby="test-tab">
+        {activeTab === 'test' && renderTest()}
+      </div>
+      <div role="tabpanel" id="rules-panel" aria-labelledby="rules-tab">
+        {activeTab === 'rules' && renderRules()}
+      </div>
+      <div role="tabpanel" id="logs-panel" aria-labelledby="logs-tab">
+        {activeTab === 'logs' && renderLogs()}
+      </div>
 
       {/* Rule Form Modal */}
       {showRuleForm && renderRuleForm()}

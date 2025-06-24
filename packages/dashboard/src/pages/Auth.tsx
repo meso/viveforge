@@ -116,12 +116,16 @@ function CallbackUrlsSection() {
           <input
             type="text"
             value={newUrl}
-            onInput={(e) => setNewUrl((e.target as HTMLInputElement).value)}
+            onInput={(e) => {
+              const target = e.target as HTMLInputElement
+              setNewUrl(target.value)
+            }}
             onKeyPress={handleKeyPress}
             placeholder="https://myapp.com/auth/callback or myapp://auth/callback"
             class="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
           <button
+            type="button"
             onClick={addUrl}
             disabled={!newUrl.trim() || isSaving}
             class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -148,7 +152,10 @@ function CallbackUrlsSection() {
         ) : (
           <div class="space-y-3">
             {callbackUrls.map((url, index) => (
-              <div key={index} class="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+              <div
+                key={`callback-url-${index}-${url}`}
+                class="flex items-center justify-between p-3 bg-gray-50 rounded-md"
+              >
                 <div class="flex-1">
                   <code class="text-sm text-gray-800">{url}</code>
                   <div class="text-xs text-gray-500 mt-1">
@@ -162,6 +169,7 @@ function CallbackUrlsSection() {
                   </div>
                 </div>
                 <button
+                  type="button"
                   onClick={() => removeUrl(index)}
                   disabled={isSaving}
                   class="ml-3 text-red-600 hover:text-red-800 text-sm font-medium disabled:opacity-50"
@@ -285,6 +293,7 @@ export function AuthPage() {
         <div class="w-64 flex-shrink-0">
           <nav class="space-y-1">
             <button
+              type="button"
               onClick={() => setActiveSection('providers')}
               class={`w-full text-left px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                 activeSection === 'providers'
@@ -295,6 +304,7 @@ export function AuthPage() {
               OAuth Providers
             </button>
             <button
+              type="button"
               onClick={() => setActiveSection('callback-urls')}
               class={`w-full text-left px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                 activeSection === 'callback-urls'
@@ -335,6 +345,7 @@ export function AuthPage() {
                     </div>
                   ) : (
                     <button
+                      type="button"
                       onClick={loadData}
                       class="mt-2 text-sm text-red-700 hover:text-red-800 underline"
                     >

@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { SchemaHistory } from '../components/SchemaHistory'
-import { api, type ForeignKeyInfo, type IndexInfo, type TableInfo } from '../lib/api'
+import {
+  api,
+  type ColumnInfo,
+  type ForeignKeyInfo,
+  type IndexInfo,
+  type TableInfo,
+} from '../lib/api'
 
 // Utility function to truncate IDs
 const truncateId = (id: string | null): string => {
@@ -60,14 +66,14 @@ const copyToClipboard = async (text: string): Promise<boolean> => {
 export function DatabasePage() {
   const [tables, setTables] = useState<TableInfo[]>([])
   const [selectedTable, setSelectedTable] = useState<string | null>(null)
-  const [tableData, setTableData] = useState<any[]>([])
-  const [tableColumns, setTableColumns] = useState<any[]>([])
+  const [tableData, setTableData] = useState<Record<string, unknown>[]>([])
+  const [tableColumns, setTableColumns] = useState<ColumnInfo[]>([])
   const [tableForeignKeys, setTableForeignKeys] = useState<ForeignKeyInfo[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [showCreateTableForm, setShowCreateTableForm] = useState(false)
-  const [newRecord, setNewRecord] = useState<Record<string, any>>({})
+  const [newRecord, setNewRecord] = useState<Record<string, unknown>>({})
   const [newTable, setNewTable] = useState({
     name: '',
     columns: [
@@ -112,11 +118,11 @@ export function DatabasePage() {
   const [editingCell, setEditingCell] = useState<{
     rowId: string
     columnName: string
-    value: any
+    value: unknown
   } | null>(null)
   const [editingRecord, setEditingRecord] = useState<{
     id: string
-    data: Record<string, any>
+    data: Record<string, unknown>
   } | null>(null)
   const [clickCount, setClickCount] = useState<{
     [key: string]: { count: number; timeout: number }
@@ -210,7 +216,7 @@ export function DatabasePage() {
       setTableIndexes(indexResult.indexes)
 
       // Initialize new record with empty values for each column
-      const initialRecord: Record<string, any> = {}
+      const initialRecord: Record<string, unknown> = {}
       result.columns.forEach((col) => {
         if (!['id', 'created_at', 'updated_at'].includes(col.name)) {
           initialRecord[col.name] = ''
@@ -632,7 +638,7 @@ export function DatabasePage() {
   }
 
   // Handle inline cell editing
-  const handleCellDoubleClick = (rowId: string, columnName: string, currentValue: any) => {
+  const handleCellDoubleClick = (rowId: string, columnName: string, currentValue: unknown) => {
     // Don't allow editing of system columns
     if (['id', 'created_at', 'updated_at'].includes(columnName)) {
       return
@@ -656,7 +662,7 @@ export function DatabasePage() {
   }
 
   // Save inline cell edit
-  const handleCellSave = async (rowId: string, columnName: string, newValue: any) => {
+  const handleCellSave = async (rowId: string, columnName: string, newValue: unknown) => {
     if (!selectedTable) return
 
     // 編集状態を先にクリアしてチカチカを防ぐ
@@ -767,7 +773,14 @@ export function DatabasePage() {
             onClick={() => setShowSchemaHistory(true)}
             class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:w-auto"
           >
-            <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg
+              class="h-4 w-4 mr-2"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              aria-label="History"
+            >
+              <title>History</title>
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -791,6 +804,7 @@ export function DatabasePage() {
         <div class="mt-4 bg-red-50 border border-red-200 rounded-md p-4">
           <div class="text-sm text-red-700">{error}</div>
           <button
+            type="button"
             onClick={() => setError(null)}
             class="mt-2 text-xs text-red-600 hover:text-red-500"
           >
@@ -804,8 +818,11 @@ export function DatabasePage() {
           <h3 class="text-lg font-medium text-gray-900 mb-4">Create New Table</h3>
           <form onSubmit={handleCreateTable}>
             <div class="mb-4">
-              <label class="block text-sm font-medium text-gray-700">Table Name</label>
+              <label htmlFor="table-name" class="block text-sm font-medium text-gray-700">
+                Table Name
+              </label>
               <input
+                id="table-name"
                 type="text"
                 value={newTable.name}
                 onInput={(e) =>
@@ -819,10 +836,10 @@ export function DatabasePage() {
             </div>
 
             <div class="mb-4">
-              <label class="block text-sm font-medium text-gray-700 mb-2">Columns</label>
+              <div class="block text-sm font-medium text-gray-700 mb-2">Columns</div>
               <div class="space-y-2">
                 {newTable.columns.map((col, idx) => (
-                  <div key={idx}>
+                  <div key={`column-${idx}-${col.name}`}>
                     <div class="flex space-x-2">
                       <input
                         type="text"
@@ -853,8 +870,9 @@ export function DatabasePage() {
                       </select>
 
                       {/* NOT NULL Toggle */}
-                      <label class="flex items-center space-x-1">
+                      <label htmlFor={`not-null-${idx}`} class="flex items-center space-x-1">
                         <input
+                          id={`not-null-${idx}`}
                           type="checkbox"
                           checked={col.notNull || false}
                           onChange={(e) => {
@@ -868,8 +886,9 @@ export function DatabasePage() {
                       </label>
 
                       {/* Foreign Key Toggle */}
-                      <label class="flex items-center space-x-1">
+                      <label htmlFor={`foreign-key-${idx}`} class="flex items-center space-x-1">
                         <input
+                          id={`foreign-key-${idx}`}
                           type="checkbox"
                           checked={col.foreignKey?.enabled || false}
                           onChange={(e) => {
@@ -970,7 +989,7 @@ export function DatabasePage() {
             {/* Index Settings Section */}
             <div class="mb-4">
               <div class="flex items-center justify-between mb-2">
-                <label class="block text-sm font-medium text-gray-700">Indexes (Optional)</label>
+                <div class="block text-sm font-medium text-gray-700">Indexes (Optional)</div>
                 <button
                   type="button"
                   onClick={() => {
@@ -1000,7 +1019,7 @@ export function DatabasePage() {
 
               <div class="space-y-3">
                 {newTable.indexes.map((index, idx) => (
-                  <div key={idx} class="p-3 bg-gray-50 rounded-md">
+                  <div key={`index-${idx}-${index.name}`} class="p-3 bg-gray-50 rounded-md">
                     <div class="flex space-x-2 mb-2">
                       <input
                         type="text"
@@ -1013,8 +1032,9 @@ export function DatabasePage() {
                         placeholder="index_name"
                         class="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                       />
-                      <label class="flex items-center space-x-1">
+                      <label htmlFor={`unique-index-${idx}`} class="flex items-center space-x-1">
                         <input
+                          id={`unique-index-${idx}`}
                           type="checkbox"
                           checked={index.unique}
                           onChange={(e) => {
@@ -1039,9 +1059,9 @@ export function DatabasePage() {
                     </div>
 
                     <div class="space-y-1">
-                      <label class="text-xs text-gray-700">Columns:</label>
+                      <div class="text-xs text-gray-700">Columns:</div>
                       {index.columns.map((column, colIdx) => (
-                        <div key={colIdx} class="flex space-x-2">
+                        <div key={`table-column-${colIdx}-${column}`} class="flex space-x-2">
                           <select
                             value={column}
                             onChange={(e) => {
@@ -1161,8 +1181,9 @@ export function DatabasePage() {
                               : ''
                           }`}
                         >
-                          <div
-                            class="flex-1 cursor-pointer"
+                          <button
+                            type="button"
+                            class="flex-1 cursor-pointer text-left"
                             onClick={() => setSelectedTable(table.name)}
                           >
                             <div class="flex items-center gap-2">
@@ -1180,10 +1201,11 @@ export function DatabasePage() {
                               )}
                             </div>
                             <div class="text-xs text-gray-500">{table.rowCount || 0} rows</div>
-                          </div>
+                          </button>
                           {table.type === 'user' && (
                             <div class="relative">
                               <button
+                                type="button"
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   setOpenDropdownTable(
@@ -1191,14 +1213,22 @@ export function DatabasePage() {
                                   )
                                 }}
                                 class="p-1 text-gray-400 hover:text-gray-600 rounded"
+                                aria-label="Table options"
                               >
-                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <svg
+                                  class="w-4 h-4"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                  aria-label="More options"
+                                >
+                                  <title>Table options menu</title>
                                   <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
                                 </svg>
                               </button>
                               {openDropdownTable === table.name && (
                                 <div class="absolute right-0 mt-1 w-24 bg-white border border-gray-200 rounded-md shadow-lg z-10">
                                   <button
+                                    type="button"
                                     onClick={(e) => {
                                       e.stopPropagation()
                                       handleDropTable(table.name)
@@ -1225,9 +1255,10 @@ export function DatabasePage() {
                     <h4 class="text-sm font-medium text-gray-700 mb-2">System Tables</h4>
                     <div class="space-y-1">
                       {systemTables.map((table) => (
-                        <div
+                        <button
                           key={table.name}
-                          class={`flex items-center justify-between p-2 rounded cursor-pointer hover:bg-gray-50 ${
+                          type="button"
+                          class={`flex items-center justify-between p-2 rounded cursor-pointer hover:bg-gray-50 text-left w-full ${
                             selectedTable === table.name
                               ? 'bg-indigo-50 border border-indigo-200'
                               : ''
@@ -1239,7 +1270,7 @@ export function DatabasePage() {
                             <div class="text-xs text-gray-500">{table.rowCount || 0} rows</div>
                           </div>
                           <span class="text-xs text-gray-400">Protected</span>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -1302,7 +1333,7 @@ export function DatabasePage() {
                         type="button"
                         onClick={() => {
                           // Reinitialize the form when opening
-                          const initialRecord: Record<string, any> = {}
+                          const initialRecord: Record<string, unknown> = {}
                           tableColumns.forEach((col) => {
                             if (!['id', 'created_at', 'updated_at'].includes(col.name)) {
                               initialRecord[col.name] = ''
@@ -1384,6 +1415,7 @@ export function DatabasePage() {
                             {!['id', 'created_at', 'updated_at'].includes(col.name) && (
                               <div class="flex space-x-2">
                                 <button
+                                  type="button"
                                   onClick={() =>
                                     setEditingColumn({ oldName: col.name, newName: col.name })
                                   }
@@ -1392,6 +1424,7 @@ export function DatabasePage() {
                                   Rename
                                 </button>
                                 <button
+                                  type="button"
                                   onClick={() => {
                                     const fkInfo = getForeignKeyForColumn(col.name)
                                     setModifyingColumn({
@@ -1410,6 +1443,7 @@ export function DatabasePage() {
                                   Modify
                                 </button>
                                 <button
+                                  type="button"
                                   onClick={() => handleDropColumn(col.name)}
                                   class="text-xs text-red-600 hover:text-red-500"
                                 >
@@ -1458,8 +1492,9 @@ export function DatabasePage() {
                             <option value="BOOLEAN">BOOLEAN</option>
                           </select>
 
-                          <label class="flex items-center space-x-1">
+                          <label htmlFor="new-column-not-null" class="flex items-center space-x-1">
                             <input
+                              id="new-column-not-null"
                               type="checkbox"
                               checked={newColumn.notNull}
                               onChange={(e) =>
@@ -1473,8 +1508,12 @@ export function DatabasePage() {
                             <span class="text-xs text-gray-700">NN</span>
                           </label>
 
-                          <label class="flex items-center space-x-1">
+                          <label
+                            htmlFor="new-column-foreign-key"
+                            class="flex items-center space-x-1"
+                          >
                             <input
+                              id="new-column-foreign-key"
                               type="checkbox"
                               checked={newColumn.foreignKey?.enabled}
                               onChange={(e) =>
@@ -1577,6 +1616,7 @@ export function DatabasePage() {
                               </div>
                             </div>
                             <button
+                              type="button"
                               onClick={() => handleDropIndex(index.name)}
                               class="text-xs text-red-600 hover:text-red-500"
                             >
@@ -1615,9 +1655,9 @@ export function DatabasePage() {
                           </div>
 
                           <div class="space-y-2">
-                            <label class="text-xs text-gray-700">Columns:</label>
+                            <div class="text-xs text-gray-700">Columns:</div>
                             {newIndex.columns.map((column, idx) => (
-                              <div key={idx} class="flex space-x-2">
+                              <div key={`column-${idx}-${column}`} class="flex space-x-2">
                                 <select
                                   value={column}
                                   onChange={(e) => {
@@ -1662,8 +1702,9 @@ export function DatabasePage() {
                           </div>
 
                           <div>
-                            <label class="flex items-center space-x-2">
+                            <label htmlFor="new-index-unique" class="flex items-center space-x-2">
                               <input
+                                id="new-index-unique"
                                 type="checkbox"
                                 checked={newIndex.unique}
                                 onChange={(e) =>
@@ -1712,8 +1753,14 @@ export function DatabasePage() {
 
                       <div class="space-y-4">
                         <div>
-                          <label class="block text-sm font-medium text-gray-700">Type</label>
+                          <label
+                            htmlFor="modify-column-type"
+                            class="block text-sm font-medium text-gray-700"
+                          >
+                            Type
+                          </label>
                           <select
+                            id="modify-column-type"
                             value={modifyingColumn.type}
                             onChange={(e) =>
                               setModifyingColumn({
@@ -1732,8 +1779,12 @@ export function DatabasePage() {
                         </div>
 
                         <div>
-                          <label class="flex items-center space-x-2">
+                          <label
+                            htmlFor="modify-column-not-null"
+                            class="flex items-center space-x-2"
+                          >
                             <input
+                              id="modify-column-not-null"
                               type="checkbox"
                               checked={modifyingColumn.notNull}
                               onChange={(e) =>
@@ -1749,8 +1800,12 @@ export function DatabasePage() {
                         </div>
 
                         <div>
-                          <label class="flex items-center space-x-2">
+                          <label
+                            htmlFor="modify-column-foreign-key"
+                            class="flex items-center space-x-2"
+                          >
                             <input
+                              id="modify-column-foreign-key"
                               type="checkbox"
                               checked={modifyingColumn.foreignKey.enabled}
                               onChange={(e) =>
@@ -1812,8 +1867,9 @@ export function DatabasePage() {
 
                       <div class="mt-6 flex space-x-3">
                         <button
+                          type="button"
                           onClick={() => {
-                            const changes: any = {}
+                            const changes: Record<string, unknown> = {}
                             if (
                               modifyingColumn.type !==
                               tableColumns.find((c) => c.name === modifyingColumn.name)?.type
@@ -1845,6 +1901,7 @@ export function DatabasePage() {
                           Apply Changes
                         </button>
                         <button
+                          type="button"
                           onClick={() => setModifyingColumn(null)}
                           class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                         >
@@ -1866,7 +1923,9 @@ export function DatabasePage() {
                             fill="none"
                             viewBox="0 0 24 24"
                             stroke="currentColor"
+                            aria-label="Warning"
                           >
+                            <title>Warning icon</title>
                             <path
                               stroke-linecap="round"
                               stroke-linejoin="round"
@@ -1887,7 +1946,7 @@ export function DatabasePage() {
                         <div class="bg-yellow-50 border border-yellow-200 rounded-md p-3">
                           <ul class="list-disc list-inside space-y-1">
                             {validationWarning.errors.map((error, idx) => (
-                              <li key={idx} class="text-sm text-yellow-800">
+                              <li key={`error-${idx}-${error}`} class="text-sm text-yellow-800">
                                 {error}
                               </li>
                             ))}
@@ -1906,12 +1965,14 @@ export function DatabasePage() {
 
                       <div class="flex space-x-3">
                         <button
+                          type="button"
                           onClick={validationWarning.onConfirm}
                           class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                         >
                           Proceed Anyway
                         </button>
                         <button
+                          type="button"
                           onClick={() => setValidationWarning(null)}
                           class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                         >
@@ -1934,7 +1995,9 @@ export function DatabasePage() {
                               fill="none"
                               viewBox="0 0 24 24"
                               stroke="currentColor"
+                              aria-label="Danger"
                             >
+                              <title>Danger warning icon</title>
                               <path
                                 stroke-linecap="round"
                                 stroke-linejoin="round"
@@ -1948,7 +2011,9 @@ export function DatabasePage() {
                               fill="none"
                               viewBox="0 0 24 24"
                               stroke="currentColor"
+                              aria-label="Question"
                             >
+                              <title>Question icon</title>
                               <path
                                 stroke-linecap="round"
                                 stroke-linejoin="round"
@@ -1971,6 +2036,7 @@ export function DatabasePage() {
 
                       <div class="flex space-x-3">
                         <button
+                          type="button"
                           onClick={confirmationModal.onConfirm}
                           class={`inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                             confirmationModal.variant === 'danger'
@@ -1981,6 +2047,7 @@ export function DatabasePage() {
                           Confirm
                         </button>
                         <button
+                          type="button"
                           onClick={() => setConfirmationModal(null)}
                           class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                         >
@@ -1998,15 +2065,19 @@ export function DatabasePage() {
                       <div class="flex items-center justify-between mb-4">
                         <h3 class="text-lg font-medium text-gray-900">Edit Record</h3>
                         <button
+                          type="button"
                           onClick={() => setEditingRecord(null)}
                           class="text-gray-400 hover:text-gray-600"
+                          aria-label="Close modal"
                         >
                           <svg
                             class="h-6 w-6"
                             fill="none"
                             viewBox="0 0 24 24"
                             stroke="currentColor"
+                            aria-label="Close"
                           >
+                            <title>Close modal</title>
                             <path
                               stroke-linecap="round"
                               stroke-linejoin="round"
@@ -2022,12 +2093,12 @@ export function DatabasePage() {
                           if (['id', 'created_at', 'updated_at'].includes(col.name)) {
                             return (
                               <div key={col.name} class="sm:col-span-2">
-                                <label class="block text-sm font-medium text-gray-500">
+                                <div class="block text-sm font-medium text-gray-500">
                                   {col.name} (read-only)
-                                </label>
+                                </div>
                                 <div class="mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-sm text-gray-500">
                                   {col.name.includes('_at') && editingRecord.data[col.name]
-                                    ? formatDateTime(editingRecord.data[col.name])
+                                    ? formatDateTime(editingRecord.data[col.name] as string)
                                     : editingRecord.data[col.name] || '-'}
                                 </div>
                               </div>
@@ -2038,7 +2109,7 @@ export function DatabasePage() {
 
                           return (
                             <div key={col.name}>
-                              <label class="block text-sm font-medium text-gray-700">
+                              <div class="block text-sm font-medium text-gray-700">
                                 {col.name}
                                 {col.notnull ? <span class="text-red-500 ml-1">*</span> : null}
                                 {fkInfo && (
@@ -2046,12 +2117,12 @@ export function DatabasePage() {
                                     FK → {fkInfo.table}.{fkInfo.to}
                                   </span>
                                 )}
-                              </label>
+                              </div>
                               {fkInfo ? (
                                 <div class="relative">
                                   <input
                                     type="text"
-                                    value={editingRecord.data[col.name] || ''}
+                                    value={(editingRecord.data[col.name] as string) || ''}
                                     onInput={(e) => {
                                       const newValue = (e.target as HTMLInputElement).value
                                       setEditingRecord({
@@ -2109,7 +2180,7 @@ export function DatabasePage() {
                                       ? 'number'
                                       : 'text'
                                   }
-                                  value={editingRecord.data[col.name] || ''}
+                                  value={(editingRecord.data[col.name] as string) || ''}
                                   onInput={(e) =>
                                     setEditingRecord({
                                       ...editingRecord,
@@ -2130,12 +2201,14 @@ export function DatabasePage() {
 
                       <div class="mt-6 flex space-x-3">
                         <button
+                          type="button"
                           onClick={handleRecordSave}
                           class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                         >
                           Save Changes
                         </button>
                         <button
+                          type="button"
                           onClick={() => setEditingRecord(null)}
                           class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                         >
@@ -2153,10 +2226,16 @@ export function DatabasePage() {
                       <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         {Object.entries(newRecord).map(([key, value]) => (
                           <div key={key}>
-                            <label class="block text-xs font-medium text-gray-700">{key}</label>
+                            <label
+                              htmlFor={`new-record-${key}`}
+                              class="block text-xs font-medium text-gray-700"
+                            >
+                              {key}
+                            </label>
                             <input
+                              id={`new-record-${key}`}
                               type="text"
-                              value={value}
+                              value={(value as string) || ''}
                               onInput={(e) =>
                                 setNewRecord({
                                   ...newRecord,
@@ -2178,7 +2257,9 @@ export function DatabasePage() {
                                 class="h-5 w-5 text-red-400"
                                 viewBox="0 0 20 20"
                                 fill="currentColor"
+                                aria-label="Error"
                               >
+                                <title>Error icon</title>
                                 <path
                                   fill-rule="evenodd"
                                   d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
@@ -2249,6 +2330,27 @@ export function DatabasePage() {
                                     ? 'cursor-pointer hover:bg-gray-50'
                                     : ''
                                 }`}
+                                tabIndex={
+                                  !['id', 'created_at', 'updated_at'].includes(col.name) &&
+                                  tables.find((t) => t.name === selectedTable)?.type === 'user'
+                                    ? 0
+                                    : -1
+                                }
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault()
+                                    if (
+                                      !['id', 'created_at', 'updated_at'].includes(col.name) &&
+                                      tables.find((t) => t.name === selectedTable)?.type === 'user'
+                                    ) {
+                                      handleCellDoubleClick(
+                                        row.id as string,
+                                        col.name,
+                                        row[col.name]
+                                      )
+                                    }
+                                  }
+                                }}
                                 onClick={(e) => {
                                   const cellKey = `${row.id}-${col.name}`
 
@@ -2272,7 +2374,7 @@ export function DatabasePage() {
                                     })
                                     e.preventDefault()
                                     e.stopPropagation()
-                                    handleCellDoubleClick(row.id, col.name, row[col.name])
+                                    handleCellDoubleClick(row.id as string, col.name, row[col.name])
                                   } else {
                                     // This is the first click
                                     const timeout = setTimeout(() => {
@@ -2305,7 +2407,7 @@ export function DatabasePage() {
                                           ? 'number'
                                           : 'text'
                                       }
-                                      value={editingCell?.value || ''}
+                                      value={(editingCell?.value as string) || ''}
                                       onInput={(e) => {
                                         if (editingCell) {
                                           const newValue = (e.target as HTMLInputElement).value
@@ -2321,13 +2423,21 @@ export function DatabasePage() {
                                       onKeyDown={(e) => {
                                         if (editingCell) {
                                           if (e.key === 'Enter' && !e.isComposing)
-                                            handleCellSave(row.id, col.name, editingCell.value)
+                                            handleCellSave(
+                                              row.id as string,
+                                              col.name,
+                                              editingCell.value
+                                            )
                                           if (e.key === 'Escape') handleCellCancel()
                                         }
                                       }}
                                       onBlur={() => {
                                         if (editingCell) {
-                                          handleCellSave(row.id, col.name, editingCell.value)
+                                          handleCellSave(
+                                            row.id as string,
+                                            col.name,
+                                            editingCell.value
+                                          )
                                         }
                                       }}
                                       class={`w-full px-2 py-1 border rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
@@ -2381,13 +2491,14 @@ export function DatabasePage() {
                                       )}
                                   </div>
                                 ) : col.name.includes('_at') && row[col.name] ? (
-                                  formatDateTime(row[col.name])
+                                  formatDateTime(row[col.name] as string)
                                 ) : col.name === 'id' || col.name.endsWith('_id') ? (
-                                  row[col.name] && row[col.name].length > 8 ? (
+                                  row[col.name] && (row[col.name] as string).length > 8 ? (
                                     <button
+                                      type="button"
                                       onClick={(e) => {
                                         e.stopPropagation()
-                                        handleIdClick(e, row[col.name], idx, col.name)
+                                        handleIdClick(e, row[col.name] as string, idx, col.name)
                                       }}
                                       onDblClick={(e: MouseEvent) => {
                                         e.preventDefault()
@@ -2396,7 +2507,7 @@ export function DatabasePage() {
                                       class="text-blue-600 hover:text-blue-800 cursor-pointer underline decoration-dotted relative"
                                       title="Click to copy • Cmd+Click to jump to record"
                                     >
-                                      {truncateId(row[col.name])}
+                                      {truncateId(row[col.name] as string)}
                                       {copiedCell === `${idx}-${col.name}` && (
                                         <span class="absolute -top-8 left-0 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
                                           Copied!
@@ -2415,10 +2526,14 @@ export function DatabasePage() {
                               {tables.find((t) => t.name === selectedTable)?.type === 'user' && (
                                 <div class="flex space-x-2">
                                   <button
+                                    type="button"
                                     onClick={() => {
                                       const record = tableData.find((r) => r.id === row.id)
                                       if (record) {
-                                        setEditingRecord({ id: row.id, data: { ...record } })
+                                        setEditingRecord({
+                                          id: row.id as string,
+                                          data: { ...record },
+                                        })
                                       }
                                     }}
                                     class="text-indigo-600 hover:text-indigo-900"
@@ -2426,7 +2541,8 @@ export function DatabasePage() {
                                     Edit
                                   </button>
                                   <button
-                                    onClick={() => handleDeleteRecord(row.id)}
+                                    type="button"
+                                    onClick={() => handleDeleteRecord(row.id as string)}
                                     class="text-red-600 hover:text-red-900"
                                   >
                                     Delete
@@ -2450,7 +2566,9 @@ export function DatabasePage() {
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
+                  aria-label="No table selected"
                 >
+                  <title>Empty state - no table selected</title>
                   <path
                     stroke-linecap="round"
                     stroke-linejoin="round"

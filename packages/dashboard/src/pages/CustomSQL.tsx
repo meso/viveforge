@@ -76,10 +76,12 @@ export function CustomSQL() {
   const extractParametersFromSQL = (sql: string): Parameter[] => {
     const paramRegex = /:(\w+)/g
     const matches = new Set<string>()
-    let match
+    let match: RegExpExecArray | null
 
-    while ((match = paramRegex.exec(sql)) !== null) {
+    match = paramRegex.exec(sql)
+    while (match !== null) {
       matches.add(match[1])
+      match = paramRegex.exec(sql)
     }
 
     return Array.from(matches).map((paramName) => ({
@@ -123,9 +125,12 @@ export function CustomSQL() {
       // Check if SQL contains parameters that are not defined
       const paramRegex = /:(\w+)/g
       const sqlParams = new Set<string>()
-      let match
-      while ((match = paramRegex.exec(formData.sql_query)) !== null) {
+      let match: RegExpExecArray | null
+
+      match = paramRegex.exec(formData.sql_query)
+      while (match !== null) {
         sqlParams.add(match[1])
+        match = paramRegex.exec(formData.sql_query)
       }
 
       const definedParams = new Set(formData.parameters.map((p) => p.name))
@@ -362,6 +367,7 @@ export function CustomSQL() {
       <div class="flex justify-between items-center">
         <h2 class="text-2xl font-bold text-gray-900">Custom SQL APIs</h2>
         <button
+          type="button"
           onClick={() => setIsCreating(true)}
           class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
         >
@@ -382,9 +388,10 @@ export function CustomSQL() {
               <p class="text-gray-500">No custom queries yet</p>
             ) : (
               queries.map((query) => (
-                <div
+                <button
+                  type="button"
                   key={query.id}
-                  class={`p-3 border rounded cursor-pointer hover:bg-gray-50 ${
+                  class={`text-left w-full p-3 border rounded hover:bg-gray-50 ${
                     selectedQuery?.id === query.id
                       ? 'border-indigo-500 bg-indigo-50'
                       : 'border-gray-200'
@@ -436,6 +443,7 @@ export function CustomSQL() {
                     </div>
                     <div class="flex gap-2">
                       <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation()
                           setSelectedQuery(query)
@@ -455,6 +463,7 @@ export function CustomSQL() {
                         Edit
                       </button>
                       <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation()
                           handleDelete(query.id)
@@ -465,7 +474,7 @@ export function CustomSQL() {
                       </button>
                     </div>
                   </div>
-                </div>
+                </button>
               ))
             )}
           </div>
@@ -503,11 +512,15 @@ export function CustomSQL() {
                     <div class="space-y-2">
                       {selectedQuery.parameters.map((param) => (
                         <div key={param.name} class="flex items-center gap-2">
-                          <label class="text-sm font-medium text-gray-700 w-32">
+                          <label
+                            htmlFor={`test-param-${param.name}`}
+                            class="text-sm font-medium text-gray-700 w-32"
+                          >
                             {param.name}
                             {param.required && <span class="text-red-500">*</span>}
                           </label>
                           <input
+                            id={`test-param-${param.name}`}
                             type={param.type === 'number' ? 'number' : 'text'}
                             value={(testParams[param.name] as string) || ''}
                             onChange={(e) =>
@@ -527,6 +540,7 @@ export function CustomSQL() {
                 )}
 
               <button
+                type="button"
                 onClick={handleTest}
                 disabled={testing}
                 class="w-full px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
@@ -574,8 +588,11 @@ export function CustomSQL() {
 
             <div class="space-y-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700">Name</label>
+                <label htmlFor="query-name" class="block text-sm font-medium text-gray-700">
+                  Name
+                </label>
                 <input
+                  id="query-name"
                   type="text"
                   value={formData.name}
                   onChange={(e) => {
@@ -607,7 +624,7 @@ export function CustomSQL() {
 
               <div>
                 <div class="flex justify-between items-center">
-                  <label class="block text-sm font-medium text-gray-700">
+                  <label htmlFor="query-slug" class="block text-sm font-medium text-gray-700">
                     Slug
                     <span class="text-xs text-gray-500">(auto-generated, but editable)</span>
                   </label>
@@ -617,7 +634,8 @@ export function CustomSQL() {
                       setFormData({ ...formData, slug: generateSlugFromName(formData.name) })
                       // Clear slug validation error when regenerating
                       setValidationErrors((prev) => {
-                        const { slug, ...rest } = prev
+                        // Remove slug validation error when regenerating
+                        const { slug: _, ...rest } = prev
                         return rest
                       })
                     }}
@@ -627,6 +645,7 @@ export function CustomSQL() {
                   </button>
                 </div>
                 <input
+                  id="query-slug"
                   type="text"
                   value={formData.slug}
                   onChange={(e) => {
@@ -634,7 +653,8 @@ export function CustomSQL() {
                     // Clear validation error for this field
                     if (validationErrors.slug) {
                       setValidationErrors((prev) => {
-                        const { slug, ...rest } = prev
+                        // Remove slug validation error when regenerating
+                        const { slug: _, ...rest } = prev
                         return rest
                       })
                     }
@@ -653,8 +673,11 @@ export function CustomSQL() {
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-gray-700">Description</label>
+                <label htmlFor="query-description" class="block text-sm font-medium text-gray-700">
+                  Description
+                </label>
                 <input
+                  id="query-description"
                   type="text"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.currentTarget.value })}
@@ -663,8 +686,11 @@ export function CustomSQL() {
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-gray-700">SQL Query</label>
+                <label htmlFor="query-sql" class="block text-sm font-medium text-gray-700">
+                  SQL Query
+                </label>
                 <textarea
+                  id="query-sql"
                   value={formData.sql_query}
                   onChange={(e) => {
                     const newSql = e.currentTarget.value
@@ -685,7 +711,8 @@ export function CustomSQL() {
                     // Clear validation error for this field
                     if (validationErrors.sql_query) {
                       setValidationErrors((prev) => {
-                        const { sql_query, ...rest } = prev
+                        // Remove sql_query validation error when updating
+                        const { sql_query: _, ...rest } = prev
                         return rest
                       })
                     }
@@ -726,14 +753,14 @@ export function CustomSQL() {
 
               <div>
                 <div class="flex justify-between items-center mb-2">
-                  <label class="block text-sm font-medium text-gray-700">
+                  <div class="block text-sm font-medium text-gray-700">
                     Parameters
                     {formData.parameters.length > 0 && (
                       <span class="text-xs text-gray-500 ml-1">
                         ({formData.parameters.length} detected)
                       </span>
                     )}
-                  </label>
+                  </div>
                   <button
                     type="button"
                     onClick={addParameter}
@@ -750,9 +777,10 @@ export function CustomSQL() {
                   </div>
                 ) : (
                   formData.parameters.map((param, index) => (
-                    <div key={index} class="mb-3">
+                    <div key={`param-${param.name}-${index}`} class="mb-3">
                       <div class="flex gap-2 mb-1">
                         <input
+                          id={`param-name-${index}`}
                           type="text"
                           value={param.name}
                           onChange={(e) => updateParameter(index, { name: e.currentTarget.value })}
@@ -764,6 +792,7 @@ export function CustomSQL() {
                           }`}
                         />
                         <select
+                          id={`param-type-${index}`}
                           value={param.type}
                           onChange={(e) =>
                             updateParameter(index, {
@@ -777,8 +806,9 @@ export function CustomSQL() {
                           <option value="boolean">Boolean</option>
                           <option value="date">Date</option>
                         </select>
-                        <label class="flex items-center">
+                        <label htmlFor={`param-required-${index}`} class="flex items-center">
                           <input
+                            id={`param-required-${index}`}
                             type="checkbox"
                             checked={param.required}
                             onChange={(e) =>
@@ -807,8 +837,11 @@ export function CustomSQL() {
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-gray-700">Cache TTL (seconds)</label>
+                <label htmlFor="query-cache-ttl" class="block text-sm font-medium text-gray-700">
+                  Cache TTL (seconds)
+                </label>
                 <input
+                  id="query-cache-ttl"
                   type="number"
                   value={formData.cache_ttl}
                   onChange={(e) =>
@@ -819,8 +852,9 @@ export function CustomSQL() {
               </div>
 
               <div>
-                <label class="flex items-center">
+                <label htmlFor="query-enabled" class="flex items-center">
                   <input
+                    id="query-enabled"
                     type="checkbox"
                     checked={formData.enabled}
                     onChange={(e) => setFormData({ ...formData, enabled: e.currentTarget.checked })}
@@ -833,6 +867,7 @@ export function CustomSQL() {
 
             <div class="flex justify-end gap-2 mt-6">
               <button
+                type="button"
                 onClick={() => {
                   setIsCreating(false)
                   setIsEditing(false)
@@ -843,6 +878,7 @@ export function CustomSQL() {
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={isCreating ? handleCreate : handleUpdate}
                 class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
               >
