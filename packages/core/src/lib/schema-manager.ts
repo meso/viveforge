@@ -16,6 +16,7 @@ export interface ColumnInfo {
   notnull: number
   dflt_value: unknown
   pk: number
+  [key: string]: unknown
 }
 
 export interface ColumnDefinition {
@@ -127,7 +128,7 @@ export class SchemaManager {
     }
 
     return result.results.map((fk) => {
-      const foreignKey = fk as ForeignKeyInfo
+      const foreignKey = fk as any as ForeignKeyInfo
       return {
         from: foreignKey.from,
         table: foreignKey.table,
@@ -271,6 +272,7 @@ export class SchemaManager {
       interface TableInfoColumn {
         name: string
         type: string
+        [key: string]: unknown
       }
 
       const column = currentColumn.results.find((col) => {

@@ -4,11 +4,13 @@ export interface TableInfo {
   sql: string
   type: string
   rowCount?: number
+  [key: string]: unknown
 }
 
 export interface CountResult {
   count: number
   total?: number
+  [key: string]: unknown
 }
 
 export interface ColumnInfo {
@@ -18,18 +20,21 @@ export interface ColumnInfo {
   notnull: number
   dflt_value: unknown
   pk: number
+  [key: string]: unknown
 }
 
 export interface IndexInfo {
   name: string
   unique: number
   sql: string
+  [key: string]: unknown
 }
 
 export interface IndexColumnInfo {
   seqno: number
   cid: number
   name: string
+  [key: string]: unknown
 }
 
 export interface ForeignKeyInfo {
@@ -41,6 +46,7 @@ export interface ForeignKeyInfo {
   on_update: string
   on_delete: string
   match: string
+  [key: string]: unknown
 }
 
 export interface SnapshotRecord {
@@ -55,10 +61,12 @@ export interface SnapshotRecord {
   created_by: string | null
   snapshot_type: string
   d1_bookmark_id: string | null
+  [key: string]: unknown
 }
 
 export interface SchemaSnapshotCounterRecord {
   current_version: number
+  [key: string]: unknown
 }
 
 export interface AdminRecord {

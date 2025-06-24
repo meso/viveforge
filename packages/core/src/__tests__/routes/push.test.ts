@@ -23,7 +23,7 @@ describe('Push Routes', () => {
     app = new Hono<{ Bindings: Env }>()
 
     env = {
-      DB: createMockD1Database(),
+      DB: createMockD1Database() as any,
       VAPID_PUBLIC_KEY: 'test-public-key',
       VAPID_PRIVATE_KEY: 'test-private-key',
       VAPID_SUBJECT: 'mailto:test@example.com',
@@ -60,7 +60,7 @@ describe('Push Routes', () => {
   describe('GET /vapid-public-key', () => {
     it('should return VAPID public key', async () => {
       const req = new Request('http://localhost/api/push/vapid-public-key')
-      const res = await app.request(req, env)
+      const res = await app.request(req, env as any)
 
       expect(res.status).toBe(200)
       const data = (await res.json()) as { publicKey: string }
@@ -108,10 +108,11 @@ describe('Push Routes', () => {
           session: {
             id: 'session123',
             user_id: 'user123',
-            token: 'token123',
+            access_token_hash: 'hash123',
             expires_at: new Date(Date.now() + 86400000).toISOString(),
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
+            token: 'token123',
           },
         })
         await next()
@@ -132,7 +133,7 @@ describe('Push Routes', () => {
       const res = await testApp.request(req)
 
       expect(res.status).toBe(403)
-      const data = await res.json()
+      const data = await res.json() as { error: string }
       expect(data.error).toBe('Admin access required')
     })
 
@@ -172,7 +173,7 @@ describe('Push Routes', () => {
       const res = await testApp.request(req)
 
       expect(res.status).toBe(200)
-      const data = (await res.json()) as { success: boolean }
+      const data = (await res.json()) as { success: boolean; subscriptionId: string }
       expect(data.success).toBe(true)
       expect(data.subscriptionId).toBe('sub-123')
     })
@@ -199,10 +200,11 @@ describe('Push Routes', () => {
           session: {
             id: 'session123',
             user_id: 'user123',
-            token: 'token123',
+            access_token_hash: 'hash123',
             expires_at: new Date(Date.now() + 86400000).toISOString(),
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
+            token: 'token123',
           },
         })
         await next()
@@ -265,7 +267,7 @@ describe('Push Routes', () => {
       const res = await testApp.request(req)
 
       expect(res.status).toBe(200)
-      const data = (await res.json()) as { success: boolean }
+      const data = (await res.json()) as { success: boolean; ruleId: string }
       expect(data.success).toBe(true)
       expect(data.ruleId).toBe('rule-123')
     })
@@ -307,7 +309,7 @@ describe('Push Routes', () => {
       const res = await testApp.request(req)
 
       expect(res.status).toBe(400)
-      const data = await res.json()
+      const data = await res.json() as { error: string; details: unknown }
       expect(data.error).toBe('Invalid request')
       expect(data.details).toBeDefined()
     })
@@ -349,7 +351,7 @@ describe('Push Routes', () => {
       const res = await testApp.request(req)
 
       expect(res.status).toBe(200)
-      const data = (await res.json()) as { success: boolean }
+      const data = (await res.json()) as { success: boolean; result: { sent: number; failed: number } }
       expect(data.success).toBe(true)
       expect(data.result).toEqual({ sent: 1, failed: 0 })
     })
@@ -374,10 +376,11 @@ describe('Push Routes', () => {
           session: {
             id: 'session123',
             user_id: 'user123',
-            token: 'token123',
+            access_token_hash: 'hash123',
             expires_at: new Date(Date.now() + 86400000).toISOString(),
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
+            token: 'token123',
           },
         })
         await next()

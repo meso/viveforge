@@ -2,38 +2,21 @@
  * Cloudflare Workers type definitions for Vibebase
  * These provide proper typing for D1, R2, and ExecutionContext
  */
+import type {
+  DurableObjectId as CfDurableObjectId,
+  DurableObjectNamespace as CfDurableObjectNamespace,
+  DurableObjectStub as CfDurableObjectStub,
+  D1Database as CloudflareD1Database,
+  D1ExecResult as CloudflareD1ExecResult,
+  D1PreparedStatement as CloudflareD1PreparedStatement,
+  D1Result as CloudflareD1Result,
+} from '@cloudflare/workers-types'
 
-// D1 Database types
-export interface D1Database {
-  prepare(query: string): D1PreparedStatement
-  batch(statements: D1PreparedStatement[]): Promise<D1Result[]>
-  exec(query: string): Promise<D1ExecResult>
-}
-
-export interface D1PreparedStatement {
-  bind(...values: (string | number | boolean | null | undefined)[]): D1PreparedStatement
-  first<T = unknown>(): Promise<T | null>
-  run(): Promise<D1Result>
-  all<T = unknown>(): Promise<D1Result<T>>
-}
-
-export interface D1Result<T = unknown> {
-  results: T[]
-  success: boolean
-  meta: {
-    changes: number
-    last_row_id: number
-    duration: number
-    size_after: number
-    rows_read: number
-    rows_written: number
-  }
-}
-
-export interface D1ExecResult {
-  count: number
-  duration: number
-}
+// Use Cloudflare's types directly
+export type D1Database = CloudflareD1Database
+export type D1PreparedStatement = CloudflareD1PreparedStatement
+export type D1Result<T = unknown> = CloudflareD1Result<T>
+export type D1ExecResult = CloudflareD1ExecResult
 
 // R2 Storage types
 export interface R2Bucket {
@@ -174,26 +157,13 @@ export interface ExecutionContext {
   passThroughOnException(): void
 }
 
-// Durable Objects types
-export interface DurableObjectNamespace<_Env = undefined> {
-  idFromName(name: string): DurableObjectId
-  idFromString(id: string): DurableObjectId
-  newUniqueId(options?: { jurisdiction?: string }): DurableObjectId
-  get(id: DurableObjectId): DurableObjectStub
-  jurisdiction?: string
-}
+// Use Cloudflare's Durable Object types directly
+export type DurableObjectNamespace<T = any> = any
+export type DurableObjectId = CfDurableObjectId
 
-export interface DurableObjectId {
-  toString(): string
-  equals(other: DurableObjectId): boolean
-}
-
-export interface DurableObjectStub {
-  fetch(request: RequestInfo, init?: RequestInit): Promise<Response>
-  // Common Durable Object methods
+// Extended Durable Object Stub with custom methods
+export interface DurableObjectStub extends CfDurableObjectStub {
   updateSubscriptions?(clientId: string, data: unknown): Promise<unknown>
-  // Allow arbitrary method calls with proper typing
-  [key: string]: unknown
 }
 
 // Common result types for our application

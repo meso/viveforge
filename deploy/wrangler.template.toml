@@ -1,9 +1,11 @@
-name = "vibebase-core"
+name = "__WORKER_NAME__"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+account_id = "__ACCOUNT_ID__"
 
 # Workers Assets for dashboard
-assets = { directory = "../dashboard/dist", binding = "ASSETS", run_worker_first = true }
+assets = { directory = "../dashboard/dist", binding = "ASSETS" }
 
 # Enable Workers Logs
 [observability]
@@ -13,7 +15,7 @@ enabled = true
 [[d1_databases]]
 binding = "DB"
 database_name = "vibebase-db"
-database_id = "REPLACE_WITH_ACTUAL_DATABASE_ID"
+database_id = "__DATABASE_ID__"
 
 # R2 Storage bindings
 [[r2_buckets]]
@@ -27,10 +29,33 @@ bucket_name = "vibebase-storage"
 # KV Namespace for sessions (will be auto-configured during setup)
 [[kv_namespaces]]
 binding = "SESSIONS"
-id = "REPLACE_WITH_ACTUAL_KV_ID"
+id = "__KV_NAMESPACE_ID__"
 
-[env.production]
-vars = { ENVIRONMENT = "production" }
+[vars]
+ENVIRONMENT = "production"
+VIBEBASE_AUTH_URL = "https://auth.vibebase.workers.dev"
+DEPLOYMENT_DOMAIN = "__DEPLOYMENT_DOMAIN__"
+WORKER_NAME = "__WORKER_NAME__"
+DOMAIN = "__DEPLOYMENT_DOMAIN__"
+VAPID_PUBLIC_KEY = "__VAPID_PUBLIC_KEY__"
+VAPID_SUBJECT = "__VAPID_SUBJECT__"
 
-[env.development]
-vars = { ENVIRONMENT = "development" }
+[env.development.vars]
+ENVIRONMENT = "development"
+VIBEBASE_AUTH_URL = "https://auth.vibebase.workers.dev"
+DEPLOYMENT_DOMAIN = "localhost:8787"
+WORKER_NAME = "__WORKER_NAME__-dev"
+DOMAIN = "localhost:8787"
+
+# Durable Objects for realtime functionality
+[[durable_objects.bindings]]
+name = "REALTIME"
+class_name = "RealtimeConnectionManager"
+
+[[migrations]]
+tag = "v1"
+new_classes = [ "RealtimeConnectionManager" ]
+
+# Cron Triggers for realtime event processing
+[triggers]
+crons = ["*/5 * * * *"]  # 5分ごとに実行

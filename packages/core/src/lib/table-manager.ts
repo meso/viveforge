@@ -143,6 +143,7 @@ export class TableManager {
             .first()
           interface PolicyResult {
             access_policy: 'public' | 'private'
+            [key: string]: unknown
           }
           access_policy = (policyResult as PolicyResult)?.access_policy || 'public'
         } catch (_e) {
@@ -511,6 +512,7 @@ export class TableManager {
       interface TableInfoColumn {
         name: string
         type: string
+        [key: string]: unknown
       }
       const column = currentColumn.results.find((col) => {
         const columnInfo = col as TableInfoColumn
@@ -822,6 +824,7 @@ export class TableManager {
         .first()
       interface AccessPolicyResult {
         access_policy: 'public' | 'private'
+        [key: string]: unknown
       }
       return (result as AccessPolicyResult)?.access_policy || 'public'
     } catch (_e) {
@@ -926,7 +929,7 @@ export class TableManager {
 
         // Check each index to find indexed columns
         for (const indexRow of indexesResult.results) {
-          const index = indexRow as IndexInfo
+          const index = indexRow as any as IndexInfo
           const indexName = index.name
 
           // Skip SQLite auto-created indexes for primary keys/unique constraints

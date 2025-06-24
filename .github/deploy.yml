@@ -1,35 +1,78 @@
-name: Deploy Ourforge
+name: Deploy Vibebase to Cloudflare
 on:
   workflow_dispatch:
+    inputs:
+      worker_name:
+        description: 'Name for your Vibebase instance (leave empty for auto-generated)'
+        required: false
+        default: ''
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    name: Deploy to Cloudflare Workers
+    name: 🚀 Deploy Vibebase to Cloudflare Workers
     steps:
-      - uses: actions/checkout@v3
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
       
-      - name: Install dependencies
+      - name: 📦 Install global dependencies
         run: |
-          cd packages/core
-          npm install
-          cd ../dashboard
-          npm install
+          npm install -g wrangler
+          npm install -g pnpm
       
-      - name: Build dashboard
+      - name: 🔐 Setup Wrangler authentication
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
-          cd packages/dashboard
-          npm run build
+          echo "Setting up Wrangler authentication..."
+          wrangler whoami
       
-      - name: Deploy to Cloudflare Workers
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          workingDirectory: packages/core
-          command: deploy
+      - name: 🎯 Set worker name
+        id: worker-name
+        run: |
+          if [ -n "${{ github.event.inputs.worker_name }}" ]; then
+            echo "WORKER_NAME=${{ github.event.inputs.worker_name }}" >> $GITHUB_ENV
+          else
+            # Generate random worker name
+            RANDOM_SUFFIX=$(openssl rand -hex 4 | cut -c1-4)
+            echo "WORKER_NAME=vibebase-$RANDOM_SUFFIX" >> $GITHUB_ENV
+          fi
+          echo "Worker name: $WORKER_NAME"
+      
+      - name: 🚀 Run automated setup and deployment
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          WORKER_NAME: ${{ env.WORKER_NAME }}
+        run: |
+          chmod +x deploy/setup.sh
+          cd deploy
+          # Run setup script with environment variables
+          export WORKER_NAME="$WORKER_NAME"
+          ./setup.sh
+      
+      - name: 📊 Display deployment summary
+        run: |
+          echo "## 🎉 Deployment Successful!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Your Vibebase instance has been deployed successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📍 Deployment Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **Worker Name**: \`$WORKER_NAME\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Dashboard URL**: https://$WORKER_NAME.workers.dev" >> $GITHUB_STEP_SUMMARY
+          echo "- **API Health Check**: https://$WORKER_NAME.workers.dev/api/health" >> $GITHUB_STEP_SUMMARY
+          echo "- **API Documentation**: https://$WORKER_NAME.workers.dev/api/docs" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔧 Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Visit your dashboard to set up authentication" >> $GITHUB_STEP_SUMMARY
+          echo "2. Configure your first database tables" >> $GITHUB_STEP_SUMMARY
+          echo "3. Start building your app!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📚 Resources" >> $GITHUB_STEP_SUMMARY
+          echo "- [Vibebase Documentation](https://github.com/vibebase/vibebase)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Cloudflare Workers](https://workers.cloudflare.com/)" >> $GITHUB_STEP_SUMMARY

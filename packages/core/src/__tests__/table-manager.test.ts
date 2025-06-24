@@ -752,13 +752,13 @@ describe('TableManager', () => {
     })
 
     it('should handle constructor with minimal parameters', () => {
-      const validDb = createMockD1Database()
+      const validDb = createMockD1Database() as any
 
       expect(() => new TableManager(validDb)).not.toThrow()
     })
 
     it('should handle constructor with storage but no execution context', () => {
-      const validDb = createMockD1Database()
+      const validDb = createMockD1Database() as any
       const validStorage = createMockR2Bucket()
 
       expect(() => new TableManager(validDb, validStorage)).not.toThrow()

@@ -425,7 +425,7 @@ customQueries.post('/:id/test', zValidator('json', testQuerySchema), async (c) =
     const preparedParams = prepareQueryParameters(queryDef.parameters, parameters)
 
     const startTime = Date.now()
-    let result: { results: unknown[]; success: boolean; meta: unknown }
+    let result: { results: unknown[]; success: boolean; meta: unknown } | null = null
     let error = null
 
     try {

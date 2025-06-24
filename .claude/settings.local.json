@@ -23,7 +23,19 @@
       "Bash(npx tsc:*)",
       "Bash(ls:*)",
       "Bash(wrangler secret put:*)",
-      "Bash(pnpm biome check:*)"
+      "Bash(pnpm biome check:*)",
+      "Bash(pnpm exec biome check:*)",
+      "Bash(pnpm biome format:*)",
+      "Bash(npx eslint:*)",
+      "Bash(npx @biomejs/biome check:*)",
+      "Bash(npx @biomejs/biome lint:*)",
+      "Bash(npx @biomejs/biome format:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(npx biome format:*)",
+      "Bash(pnpm --filter @vibebase/core test run)",
+      "Bash(wrangler whoami:*)",
+      "Bash(chmod:*)",
+      "Bash(sed:*)"
     ],
     "deny": []
   }

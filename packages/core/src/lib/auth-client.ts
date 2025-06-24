@@ -15,6 +15,7 @@ export interface User {
   updated_at: string
   username?: string // For compatibility with existing code
   scope?: string[] // For compatibility with existing code
+  [key: string]: unknown // Allow additional properties
 }
 
 export interface TokenPair {

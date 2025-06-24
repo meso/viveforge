@@ -14,7 +14,7 @@ describe('NotificationManager', () => {
   let manager: NotificationManager
 
   beforeEach(() => {
-    db = createMockD1Database()
+    db = createMockD1Database() as any
     manager = new NotificationManager(db, {
       publicKey: 'test-public-key',
       privateKey: 'test-private-key',

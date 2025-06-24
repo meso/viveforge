@@ -240,7 +240,7 @@ export class HookManager {
   ): Promise<void> {
     try {
       const id = realtimeNamespace.idFromName('global')
-      const stub = realtimeNamespace.get(id)
+      const stub = realtimeNamespace.get(id) as any
 
       const response = await stub.fetch('http://internal/broadcast', {
         method: 'POST',

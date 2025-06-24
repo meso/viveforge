@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { TableManager } from '../lib/table-manager'
 import { getAuthContext, getCurrentEndUser } from '../middleware/auth'
 import type { Env, Variables } from '../types'
+import type { TableDataResult } from '../types/cloudflare'
 
 export const data = new Hono<{ Bindings: Env; Variables: Variables }>()
 

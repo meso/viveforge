@@ -84,8 +84,9 @@ realtime.post('/subscribe', zValidator('json', subscribeSchema), async (c) => {
     const stub = c.env.REALTIME.get(id)
 
     // Update subscriptions
-    if (stub.updateSubscriptions) {
-      await stub.updateSubscriptions(clientId, { tables, hookIds })
+    const extendedStub = stub as any
+    if (extendedStub.updateSubscriptions) {
+      await extendedStub.updateSubscriptions(clientId, { tables, hookIds })
     }
 
     return c.json({

@@ -294,6 +294,15 @@ export function createPushService(
 ): PushService {
   switch (provider) {
     case 'webpush':
+      if (!config.vapidPrivateKey) {
+        throw new Error('VAPID private key is required for webpush')
+      }
+      if (!config.vapidSubject) {
+        throw new Error('VAPID subject is required for webpush')
+      }
+      if (!config.vapidPublicKey) {
+        throw new Error('VAPID public key is required for webpush')
+      }
       return new WebPushService(config.vapidPublicKey, config.vapidPrivateKey, config.vapidSubject)
     case 'fcm':
       // TODO: Implement FCM service

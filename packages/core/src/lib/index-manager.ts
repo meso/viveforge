@@ -19,6 +19,7 @@ interface SqliteMasterIndexRecord {
   name: string
   tbl_name: string
   sql: string
+  [key: string]: unknown
 }
 
 // Type for SQL result containing sql column

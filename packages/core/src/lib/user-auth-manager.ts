@@ -271,7 +271,7 @@ export class UserAuthManager {
       )
       .run()
 
-    return { ...userData, created_at: now, updated_at: now }
+    return { ...userData, created_at: now, updated_at: now } as User
   }
 
   private async updateUser(id: string, updates: Partial<User>): Promise<User> {

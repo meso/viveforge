@@ -13,6 +13,7 @@ export interface User {
   is_active: boolean
   created_at: string
   updated_at: string
+  [key: string]: unknown // Allow additional properties
 }
 
 export interface UserSession {
@@ -23,6 +24,8 @@ export interface UserSession {
   expires_at: string
   created_at: string
   updated_at: string
+  token?: string // For backward compatibility
+  [key: string]: unknown // Allow additional properties
 }
 
 export interface OAuthProvider {
@@ -35,6 +38,7 @@ export interface OAuthProvider {
   redirect_uri?: string
   created_at: string
   updated_at: string
+  [key: string]: unknown // Allow additional properties
 }
 
 export interface UserAuthContext {
