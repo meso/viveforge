@@ -128,6 +128,18 @@ vibebase/
 - パラメーター型定義（string/number/boolean/date）
 - クエリの有効/無効切り替え
 
+#### 11. Web Push通知
+- Web Push APIを使用したプッシュ通知
+- VAPID認証による安全な通知配信
+- 管理ダッシュボードでの通知ルール管理
+- データベース変更トリガーによる自動通知
+- 手動通知送信API
+- 通知テンプレート機能
+- デバイス情報の管理（ブラウザ、OS、バージョン）
+- 通知配信ログと分析
+- Service Workerによるオフライン対応
+- リッチ通知（画像、アクション、カスタムデータ）のサポート
+
 ### 📋 予定
 
 #### 匿名ユーザー認証
@@ -146,11 +158,11 @@ vibebase/
 - 実行履歴とモニタリング機能
 - 外部システム連携・データ同期・定期レポート生成に活用
 
-#### Push通知
-- Web Push / FCMを使用したプッシュ通知
+#### FCM（Firebase Cloud Messaging）対応
+- モバイルアプリ向けのプッシュ通知
+- iOSとAndroidの統一的な通知配信
 - トピックベースの通知配信
 - スケジュール通知
-- 通知テンプレート機能
 
 #### 環境管理
 - 本番環境と開発環境の分離
@@ -221,6 +233,74 @@ curl -X POST https://vibebase.mesongo.workers.dev/api/realtime/process-events \
 1. **データ変更** → 即座にSSEクライアントに配信（数百ms）
 2. **フォールバック** → 失敗時はイベントキューに記録
 3. **再送信** → Cronで定期的な失敗イベント再送信
+
+## Web Push通知の使用方法
+
+### VAPID公開鍵の取得
+```bash
+curl https://vibebase.mesongo.workers.dev/api/push/vapid-public-key
+```
+
+### プッシュ通知の購読（JavaScript）
+```javascript
+// Service Workerの登録
+const registration = await navigator.serviceWorker.register('/sw.js');
+
+// プッシュ通知の購読
+const subscription = await registration.pushManager.subscribe({
+  userVisibleOnly: true,
+  applicationServerKey: vapidPublicKey
+});
+
+// サーバーに購読情報を送信
+await fetch('/api/push/subscribe', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    subscription,
+    deviceInfo: {
+      userAgent: navigator.userAgent,
+      platform: navigator.platform
+    }
+  })
+});
+```
+
+### 通知ルールの作成
+```bash
+# データベース変更時の自動通知ルール
+curl -X POST https://vibebase.mesongo.workers.dev/api/push/rules \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "新規ユーザー登録通知",
+    "triggerType": "db_change",
+    "tableName": "users",
+    "eventType": "insert",
+    "recipientType": "all_users",
+    "titleTemplate": "新しいユーザーが登録されました",
+    "bodyTemplate": "{{username}}さんが参加しました！",
+    "iconUrl": "/favicon.svg"
+  }'
+```
+
+### 手動通知の送信
+```bash
+# 特定ユーザーへの通知
+curl -X POST https://vibebase.mesongo.workers.dev/api/push/send \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -H "Content-Type": "application/json" \
+  -d '{
+    "userIds": ["user123", "user456"],
+    "title": "重要なお知らせ",
+    "body": "システムメンテナンスのお知らせです",
+    "icon": "/favicon.svg",
+    "clickAction": "/notifications"
+  }'
+```
 
 ## 開発ガイドライン
 

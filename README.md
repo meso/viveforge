@@ -69,7 +69,7 @@ chmod +x deploy/setup.sh
 
 ## 📋 主要機能
 
-### ✅ 実装済み（v0.1.0 MVP + v0.2.0）
+### ✅ 実装済み（v0.1.0 MVP + v0.2.0 + v0.3.0）
 
 - 🏗️ **管理ダッシュボード** - Webベースの管理画面
 - 🗄️ **データベース機能（D1）** - SQLiteベースのデータベース
@@ -98,10 +98,18 @@ chmod +x deploy/setup.sh
   - SQLからの自動パラメーター抽出
   - GET/POSTメソッド対応
   - キャッシュ機能とアクセス制御
+- 🔔 **Web Push通知** - リッチなプッシュ通知機能
+  - Web Push APIを使用したブラウザ通知
+  - VAPID認証による安全な通知配信
+  - 管理ダッシュボードでの通知ルール管理
+  - データベース変更トリガーによる自動通知
+  - 手動通知送信API
+  - Service Workerによるオフライン対応
+  - 通知配信ログと分析
 
 ### 🚧 開発予定
 
-- 📱 **Push通知** - Web Push/FCM
+- 📱 **FCM対応** - モバイルアプリ向けプッシュ通知
 - 🛠️ **CLIツール** - 開発効率化ツール
 - 🌍 **環境管理** - 本番/開発環境の分離
 
@@ -192,6 +200,48 @@ eventSource.onmessage = (event) => {
 };
 ```
 
+### Web Push通知
+```javascript
+// Service Workerの登録とプッシュ通知の購読
+async function subscribeToPush() {
+  // Service Workerの登録
+  const registration = await navigator.serviceWorker.register('/sw.js');
+  
+  // VAPID公開鍵の取得
+  const response = await fetch('/api/push/vapid-public-key');
+  const { publicKey } = await response.json();
+  
+  // プッシュ通知の購読
+  const subscription = await registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: publicKey
+  });
+  
+  // サーバーに購読情報を送信
+  await fetch('/api/push/subscribe', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer YOUR_TOKEN',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ subscription })
+  });
+}
+```
+
+```bash
+# 手動通知の送信（管理者のみ）
+curl -X POST https://your-worker.your-subdomain.workers.dev/api/push/send \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -d '{
+    "userIds": ["user123"],
+    "title": "新着メッセージ",
+    "body": "重要なお知らせがあります",
+    "icon": "/favicon.svg"
+  }'
+```
+
 詳細なAPI仕様は [DEPLOYMENT.md](./DEPLOYMENT.md) をご覧ください。
 
 ## 🗺️ ロードマップ
@@ -243,9 +293,10 @@ eventSource.onmessage = (event) => {
 
 ### Phase 4: 開発体験向上 (v0.4.0)
 - [x] **カスタムSQL API** - 管理画面で任意のSQLクエリを登録してAPI化
+- [x] **Web Push通知** - ブラウザ向けプッシュ通知機能の実装
 - [ ] **匿名ユーザー認証** - デバイスIDベースの認証でユーザー登録不要の即座利用
 - [ ] **Webhook Cron機能** - 開発者が指定したURLに定期的にHTTPリクエストを送信
-- [ ] Push通知実装（Web Push/FCM）
+- [ ] FCM対応（モバイルアプリ向けプッシュ通知）
 - [ ] CLIツール
 - [ ] 各種フレームワーク用SDK
 - [ ] 開発/本番環境の分離
