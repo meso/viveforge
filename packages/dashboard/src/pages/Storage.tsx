@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'preact/hooks'
+import { formatDateTime } from '../utils/database'
 
 interface StorageObject {
   key: string
@@ -237,9 +238,7 @@ export function StoragePage() {
                     <div class="text-sm text-gray-900">{obj.contentType || 'Unknown'}</div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm text-gray-900">
-                      {new Date(obj.uploaded).toLocaleString()}
-                    </div>
+                    <div class="text-sm text-gray-900">{formatDateTime(obj.uploaded)}</div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <a

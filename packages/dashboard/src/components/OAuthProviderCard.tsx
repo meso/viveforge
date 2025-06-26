@@ -1,6 +1,7 @@
 import { useState } from 'preact/hooks'
 import type { OAuthProvider, SupportedProvider } from '../lib/api'
 import { api } from '../lib/api'
+import { formatDateTime } from '../utils/database'
 
 interface OAuthProviderCardProps {
   supportedProvider: SupportedProvider
@@ -402,8 +403,7 @@ export function OAuthProviderCard({
               </div>
               {configuredProvider && (
                 <div class="text-sm text-gray-600 mt-1">
-                  <strong>Last updated:</strong>{' '}
-                  {new Date(configuredProvider.updated_at).toLocaleDateString()}
+                  <strong>Last updated:</strong> {formatDateTime(configuredProvider.updated_at)}
                 </div>
               )}
             </div>

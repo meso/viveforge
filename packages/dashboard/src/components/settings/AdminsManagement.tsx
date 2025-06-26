@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { Admin } from '../../types/settings'
+import { formatDateTime } from '../../utils/database'
 
 interface AdminsManagementProps {
   onError: (error: string | null) => void
@@ -156,7 +157,7 @@ export function AdminsManagement({ onError }: AdminsManagementProps) {
                           )}
                         </p>
                         <p className="text-xs text-gray-500">
-                          Added {new Date(admin.created_at).toLocaleDateString()}
+                          Added {formatDateTime(admin.created_at)}
                         </p>
                       </div>
                     </div>
