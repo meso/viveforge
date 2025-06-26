@@ -1,4 +1,5 @@
 import type { D1Database } from '../types/cloudflare'
+import { getCurrentDateTimeISO } from './datetime-utils'
 
 export interface AppSetting {
   key: string
@@ -61,7 +62,7 @@ export class AppSettingsManager {
    * Update a single setting
    */
   async updateSetting(key: string, value: string): Promise<void> {
-    const now = new Date().toISOString()
+    const now = getCurrentDateTimeISO()
 
     await this.db
       .prepare(`
@@ -76,7 +77,7 @@ export class AppSettingsManager {
    * Update multiple settings at once
    */
   async updateSettings(settings: Partial<AppSettings>): Promise<void> {
-    const now = new Date().toISOString()
+    const now = getCurrentDateTimeISO()
 
     const batch: D1PreparedStatement[] = []
 

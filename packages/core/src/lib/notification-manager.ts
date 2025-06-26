@@ -1,4 +1,5 @@
 import type { D1Database } from '@cloudflare/workers-types'
+import { getCurrentDateTimeISO } from './datetime-utils'
 import {
   createPushService,
   type NotificationPayload,
@@ -69,7 +70,7 @@ export class NotificationManager {
         p256dh = excluded.p256dh,
         auth = excluded.auth,
         device_info = excluded.device_info,
-        updated_at = datetime('now') || 'Z',
+        updated_at = ?,
         active = 1
     `)
       .bind(
@@ -81,7 +82,8 @@ export class NotificationManager {
         subscription.keys?.auth || null,
         subscription.fcmToken || null,
         JSON.stringify(deviceInfo || {}),
-        this.detectPlatform(deviceInfo)
+        this.detectPlatform(deviceInfo),
+        getCurrentDateTimeISO()
       )
       .run()
 
@@ -93,16 +95,16 @@ export class NotificationManager {
     if (endpoint) {
       await this.db
         .prepare(
-          "UPDATE push_subscriptions SET active = 0, updated_at = datetime('now') || 'Z' WHERE user_id = ? AND endpoint = ?"
+          'UPDATE push_subscriptions SET active = 0, updated_at = ? WHERE user_id = ? AND endpoint = ?'
         )
-        .bind(userId, endpoint)
+        .bind(userId, getCurrentDateTimeISO(), endpoint)
         .run()
     } else if (fcmToken) {
       await this.db
         .prepare(
-          "UPDATE push_subscriptions SET active = 0, updated_at = datetime('now') || 'Z' WHERE user_id = ? AND fcm_token = ?"
+          'UPDATE push_subscriptions SET active = 0, updated_at = ? WHERE user_id = ? AND fcm_token = ?'
         )
-        .bind(userId, fcmToken)
+        .bind(userId, getCurrentDateTimeISO(), fcmToken)
         .run()
     }
   }
@@ -348,7 +350,7 @@ export class NotificationManager {
         .prepare(`
         INSERT INTO notification_logs (
           id, rule_id, template_id, user_id, provider, title, body, status, error_message, sent_at, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now') || 'Z', datetime('now') || 'Z')
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
         .bind(
           crypto.randomUUID(),
@@ -359,7 +361,9 @@ export class NotificationManager {
           log.title,
           log.body,
           log.status,
-          log.error || null
+          log.error || null,
+          getCurrentDateTimeISO(),
+          getCurrentDateTimeISO()
         )
         .run()
     } else {
@@ -368,7 +372,7 @@ export class NotificationManager {
         .prepare(`
         INSERT INTO notification_logs (
           id, rule_id, template_id, user_id, provider, title, body, status, error_message, sent_at, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, datetime('now') || 'Z')
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)
       `)
         .bind(
           crypto.randomUUID(),
@@ -379,7 +383,8 @@ export class NotificationManager {
           log.title,
           log.body,
           log.status,
-          log.error || null
+          log.error || null,
+          getCurrentDateTimeISO()
         )
         .run()
     }

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { nanoid } from 'nanoid'
+import { getCurrentDateTimeISO } from './datetime-utils'
 
 export interface APIKey {
   id: string
@@ -101,7 +102,7 @@ export class APIKeyManager {
 
     // Generate ID manually since D1 might not support RETURNING
     const id = nanoid()
-    const now = new Date().toISOString()
+    const now = getCurrentDateTimeISO()
 
     await this.db
       .prepare(`
@@ -157,7 +158,7 @@ export class APIKeyManager {
       .prepare(`
       UPDATE api_keys SET last_used_at = ? WHERE id = ?
     `)
-      .bind(new Date().toISOString(), result.id)
+      .bind(getCurrentDateTimeISO(), result.id)
       .run()
 
     // Parse scopes (stored as JSON string in database)

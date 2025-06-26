@@ -1,5 +1,6 @@
 import type { Admin } from '../types'
 import type { D1Database } from '../types/cloudflare'
+import { getCurrentDateTimeISO } from './datetime-utils'
 
 export class Database {
   constructor(private db: D1Database) {}
@@ -7,7 +8,7 @@ export class Database {
   // Admins (for dashboard access)
   async createAdmin(admin: Omit<Admin, 'id' | 'createdAt' | 'updatedAt'>): Promise<Admin> {
     const id = crypto.randomUUID()
-    const now = new Date().toISOString()
+    const now = getCurrentDateTimeISO()
 
     const result = await this.db
       .prepare(
@@ -69,7 +70,7 @@ export class Database {
   // Items CRUD
   async createItem(data: { name: string; description?: string; userId?: string }) {
     const id = crypto.randomUUID()
-    const now = new Date().toISOString()
+    const now = getCurrentDateTimeISO()
 
     const result = await this.db
       .prepare(
@@ -141,7 +142,7 @@ export class Database {
   }
 
   async updateItem(id: string, data: { name?: string; description?: string }) {
-    const now = new Date().toISOString()
+    const now = getCurrentDateTimeISO()
 
     const setParts: string[] = []
     const params: (string | null)[] = []

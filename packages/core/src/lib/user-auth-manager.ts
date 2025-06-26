@@ -1,6 +1,7 @@
 import { sign, verify } from 'hono/jwt'
 import type { User, UserSession, UserToken } from '../types/auth'
 import type { D1Database } from '../types/cloudflare'
+import { getCurrentDateTimeISO } from './datetime-utils'
 
 export class UserAuthManager {
   constructor(
@@ -103,7 +104,7 @@ export class UserAuthManager {
         name: providerUser.name,
         avatar_url: providerUser.avatar_url,
         metadata: JSON.stringify(providerUser.metadata || {}),
-        last_login_at: new Date().toISOString(),
+        last_login_at: getCurrentDateTimeISO(),
       })
       return updatedUser
     } else {
@@ -118,7 +119,7 @@ export class UserAuthManager {
         provider_id: providerUser.provider_id,
         role: 'user',
         metadata: JSON.stringify(providerUser.metadata || {}),
-        last_login_at: new Date().toISOString(),
+        last_login_at: getCurrentDateTimeISO(),
         is_active: true,
       })
       return user
@@ -216,7 +217,7 @@ export class UserAuthManager {
       SET access_token_hash = ?, expires_at = ?, updated_at = ?
       WHERE id = ?
     `)
-      .bind(accessTokenHash, new Date(expiresAt * 1000).toISOString(), new Date().toISOString(), id)
+      .bind(accessTokenHash, new Date(expiresAt * 1000).toISOString(), getCurrentDateTimeISO(), id)
       .run()
   }
 
@@ -247,7 +248,7 @@ export class UserAuthManager {
   }
 
   private async createUser(userData: Omit<User, 'created_at' | 'updated_at'>): Promise<User> {
-    const now = new Date().toISOString()
+    const now = getCurrentDateTimeISO()
 
     await this.db
       .prepare(`
@@ -299,7 +300,8 @@ export class UserAuthManager {
       values.push(updates.last_login_at)
     }
 
-    setClauses.push('updated_at = CURRENT_TIMESTAMP')
+    setClauses.push('updated_at = ?')
+    values.push(getCurrentDateTimeISO())
     values.push(id)
 
     await this.db

@@ -13,6 +13,7 @@ import type {
   SnapshotRecord,
   TableInfo,
 } from '../types/database'
+import { getCurrentDateTimeISO } from './datetime-utils'
 import type { IndexInfo } from './index-manager'
 
 interface ColumnInfo {
@@ -271,8 +272,8 @@ export class SchemaSnapshotManager {
       .prepare(`
         INSERT INTO schema_snapshots (
           id, version, name, description, full_schema, tables_json, 
-          schema_hash, created_by, snapshot_type, d1_bookmark_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          schema_hash, created_at, created_by, snapshot_type, d1_bookmark_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .bind(
         id,
@@ -282,6 +283,7 @@ export class SchemaSnapshotManager {
         fullSchema,
         JSON.stringify(schemas),
         schemaHash,
+        getCurrentDateTimeISO(),
         options.createdBy || null,
         options.snapshotType || 'manual',
         options.d1BookmarkId || null

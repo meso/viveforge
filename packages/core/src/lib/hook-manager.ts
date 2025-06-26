@@ -5,6 +5,7 @@ import type {
   DurableObjectStub,
   ExecutionContext,
 } from '../types/cloudflare'
+import { getCurrentDateTimeISO } from './datetime-utils'
 import { NotificationManager } from './notification-manager'
 
 interface RealtimeEnvironment {
@@ -59,7 +60,7 @@ export class HookManager {
 
   async createHook(tableName: string, eventType: HookEventType): Promise<string> {
     const id = nanoid()
-    const now = new Date().toISOString()
+    const now = getCurrentDateTimeISO()
 
     await this.db
       .prepare(
@@ -72,7 +73,7 @@ export class HookManager {
   }
 
   async toggleHook(id: string, enabled: boolean): Promise<Hook> {
-    const now = new Date().toISOString()
+    const now = getCurrentDateTimeISO()
 
     await this.db
       .prepare('UPDATE hooks SET enabled = ?, updated_at = ? WHERE id = ?')
@@ -111,7 +112,7 @@ export class HookManager {
     eventData: Record<string, unknown>
   ): Promise<void> {
     const id = nanoid()
-    const now = new Date().toISOString()
+    const now = getCurrentDateTimeISO()
     const data = JSON.stringify(eventData)
 
     await this.db
@@ -132,7 +133,7 @@ export class HookManager {
   }
 
   async markEventProcessed(id: string): Promise<void> {
-    const now = new Date().toISOString()
+    const now = getCurrentDateTimeISO()
 
     await this.db
       .prepare('UPDATE event_queue SET processed = true, processed_at = ? WHERE id = ?')
@@ -167,7 +168,7 @@ export class HookManager {
           table_name: tableName,
           event_type: eventType,
           record_id: recordId,
-          timestamp: new Date().toISOString(),
+          timestamp: getCurrentDateTimeISO(),
           data: eventData,
         })
       }
@@ -259,7 +260,7 @@ export class HookManager {
             recordId,
             eventType,
             data: eventData,
-            timestamp: new Date().toISOString(),
+            timestamp: getCurrentDateTimeISO(),
           },
         }),
       })

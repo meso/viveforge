@@ -85,8 +85,8 @@ export class SchemaManager {
     const sql = `CREATE TABLE ${safeTableName} (
       id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
       ${columnDefs},
-      created_at DATETIME NOT NULL,
-      updated_at DATETIME NOT NULL${foreignKeys ? `, ${foreignKeys}` : ''}
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP${foreignKeys ? `, ${foreignKeys}` : ''}
     )`
 
     console.log('Creating table with SQL:', sql)

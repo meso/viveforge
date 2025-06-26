@@ -1,6 +1,7 @@
 import type { OAuthProvider, OAuthProviderConfig, OAuthUserInfo } from '../types/auth'
 import type { D1Database } from '../types/cloudflare'
 import { AppSettingsManager } from './app-settings-manager'
+import { getCurrentDateTimeISO } from './datetime-utils'
 
 export class OAuthManager {
   private appSettingsManager: AppSettingsManager
@@ -78,13 +79,13 @@ export class OAuthManager {
           config.is_enabled,
           scopesJson,
           config.redirect_uri,
-          new Date().toISOString(),
+          getCurrentDateTimeISO(),
           provider
         )
         .run()
     } else {
       // Create new provider
-      const now = new Date().toISOString()
+      const now = getCurrentDateTimeISO()
       await this.db
         .prepare(`
         INSERT INTO oauth_providers (id, provider, client_id, client_secret, is_enabled, scopes, redirect_uri, created_at, updated_at)

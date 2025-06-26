@@ -4,6 +4,7 @@ import type {
   ExecutionContext,
   TableDataResult,
 } from '../types/cloudflare'
+import { createTimestamps, getCurrentDateTimeISO } from './datetime-utils'
 import { HookManager } from './hook-manager'
 import {
   createColumnList,
@@ -51,12 +52,12 @@ export class DataManager {
 
     // Add timestamps if not provided
     const dataWithTimestamps = { ...data }
-    const now = new Date().toISOString()
+    const timestamps = createTimestamps()
     if (!dataWithTimestamps.created_at) {
-      dataWithTimestamps.created_at = now
+      dataWithTimestamps.created_at = timestamps.created_at
     }
     if (!dataWithTimestamps.updated_at) {
-      dataWithTimestamps.updated_at = now
+      dataWithTimestamps.updated_at = timestamps.updated_at
     }
 
     // Build INSERT statement
@@ -275,12 +276,12 @@ export class DataManager {
     const dataWithId = { ...data, id } as Record<string, unknown>
 
     // Add timestamps if not provided
-    const now = new Date().toISOString()
+    const timestamps = createTimestamps()
     if (!dataWithId.created_at) {
-      dataWithId.created_at = now
+      dataWithId.created_at = timestamps.created_at
     }
     if (!dataWithId.updated_at) {
-      dataWithId.updated_at = now
+      dataWithId.updated_at = timestamps.updated_at
     }
 
     // Build INSERT statement
@@ -328,12 +329,12 @@ export class DataManager {
     }
 
     // Add timestamps if not provided
-    const now = new Date().toISOString()
+    const timestamps = createTimestamps()
     if (!dataWithId.created_at) {
-      dataWithId.created_at = now
+      dataWithId.created_at = timestamps.created_at
     }
     if (!dataWithId.updated_at) {
-      dataWithId.updated_at = now
+      dataWithId.updated_at = timestamps.updated_at
     }
 
     // Build INSERT statement
@@ -372,7 +373,7 @@ export class DataManager {
     delete updateData.created_at
 
     // Add updated_at timestamp
-    updateData.updated_at = new Date().toISOString()
+    updateData.updated_at = getCurrentDateTimeISO()
 
     const columns = Object.keys(updateData)
     const values = Object.values(updateData)
@@ -431,7 +432,7 @@ export class DataManager {
     delete updateData.owner_id // Don't allow changing ownership
 
     // Add updated_at timestamp
-    updateData.updated_at = new Date().toISOString()
+    updateData.updated_at = getCurrentDateTimeISO()
 
     const columns = Object.keys(updateData)
     const values = Object.values(updateData)
