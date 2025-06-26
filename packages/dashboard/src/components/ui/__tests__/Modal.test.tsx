@@ -1,6 +1,6 @@
-import { render, screen, fireEvent } from '@testing-library/preact'
-import { expect, it, describe, vi, beforeEach, afterEach } from 'vitest'
-import { Modal, ConfirmModal } from '../Modal'
+import { fireEvent, render, screen } from '@testing-library/preact'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ConfirmModal, Modal } from '../Modal'
 
 describe('Modal', () => {
   const mockOnClose = vi.fn()

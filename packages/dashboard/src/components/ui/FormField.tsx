@@ -42,7 +42,11 @@ export function FormField({
         </p>
       )}
       {error && (
-        <p id={fieldId ? `${fieldId}-error` : undefined} className="text-sm text-red-600" role="alert">
+        <p
+          id={fieldId ? `${fieldId}-error` : undefined}
+          className="text-sm text-red-600"
+          role="alert"
+        >
           {error}
         </p>
       )}
@@ -103,7 +107,7 @@ export const InputField = forwardRef<HTMLInputElement, InputFieldProps>(
     ref
   ) => {
     const inputId = id || (label ? `input-${label.toLowerCase().replace(/\s+/g, '-')}` : undefined)
-    
+
     const baseInputClasses = `
       w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm
       focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
@@ -200,8 +204,9 @@ export const TextareaField = forwardRef<HTMLTextAreaElement, TextareaFieldProps>
     },
     ref
   ) => {
-    const textareaId = id || (label ? `textarea-${label.toLowerCase().replace(/\s+/g, '-')}` : undefined)
-    
+    const textareaId =
+      id || (label ? `textarea-${label.toLowerCase().replace(/\s+/g, '-')}` : undefined)
+
     const baseTextareaClasses = `
       w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm
       focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
@@ -302,8 +307,9 @@ export const SelectField = forwardRef<HTMLSelectElement, SelectFieldProps>(
     },
     ref
   ) => {
-    const selectId = id || (label ? `select-${label.toLowerCase().replace(/\s+/g, '-')}` : undefined)
-    
+    const selectId =
+      id || (label ? `select-${label.toLowerCase().replace(/\s+/g, '-')}` : undefined)
+
     const baseSelectClasses = `
       w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm
       focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500

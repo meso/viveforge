@@ -46,7 +46,8 @@
       "Bash(mv:*)",
       "Bash(pnpm -F @vibebase/dashboard lint --max-diagnostics=200)",
       "Bash(pnpm -F @vibebase/dashboard lint:fix)",
-      "Bash(pnpm -F @vibebase/dashboard lint --max-diagnostics=20)"
+      "Bash(pnpm -F @vibebase/dashboard lint --max-diagnostics=20)",
+      "Bash(rm:*)"
     ],
     "deny": []
   }

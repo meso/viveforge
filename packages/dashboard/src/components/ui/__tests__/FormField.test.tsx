@@ -1,6 +1,6 @@
-import { render, screen, fireEvent } from '@testing-library/preact'
-import { expect, it, describe, vi } from 'vitest'
-import { FormField, InputField, TextareaField, SelectField } from '../FormField'
+import { fireEvent, render, screen } from '@testing-library/preact'
+import { describe, expect, it, vi } from 'vitest'
+import { FormField, InputField, SelectField, TextareaField } from '../FormField'
 
 describe('FormField', () => {
   it('should render children', () => {
@@ -45,11 +45,7 @@ describe('FormField', () => {
 
   it('should render error message and not description when error exists', () => {
     render(
-      <FormField
-        label="Test Label"
-        description="This is a description"
-        error="This is an error"
-      >
+      <FormField label="Test Label" description="This is a description" error="This is an error">
         <input />
       </FormField>
     )
@@ -77,25 +73,13 @@ describe('InputField', () => {
   })
 
   it('should render input with label', () => {
-    render(
-      <InputField
-        label="Test Input"
-        value=""
-        onChange={mockOnChange}
-      />
-    )
+    render(<InputField label="Test Input" value="" onChange={mockOnChange} />)
 
     expect(screen.getByLabelText('Test Input')).toBeInTheDocument()
   })
 
   it('should call onChange when input value changes', () => {
-    render(
-      <InputField
-        label="Test Input"
-        value=""
-        onChange={mockOnChange}
-      />
-    )
+    render(<InputField label="Test Input" value="" onChange={mockOnChange} />)
 
     const input = screen.getByLabelText('Test Input')
     fireEvent.input(input, { target: { value: 'new value' } })
@@ -105,12 +89,7 @@ describe('InputField', () => {
 
   it('should apply error styles when error is provided', () => {
     render(
-      <InputField
-        label="Test Input"
-        value=""
-        onChange={mockOnChange}
-        error="This is an error"
-      />
+      <InputField label="Test Input" value="" onChange={mockOnChange} error="This is an error" />
     )
 
     const input = screen.getByLabelText('Test Input')
@@ -119,28 +98,14 @@ describe('InputField', () => {
   })
 
   it('should be disabled when disabled prop is true', () => {
-    render(
-      <InputField
-        label="Test Input"
-        value=""
-        onChange={mockOnChange}
-        disabled
-      />
-    )
+    render(<InputField label="Test Input" value="" onChange={mockOnChange} disabled />)
 
     const input = screen.getByLabelText('Test Input')
     expect(input).toBeDisabled()
   })
 
   it('should be read-only when readOnly prop is true', () => {
-    render(
-      <InputField
-        label="Test Input"
-        value=""
-        onChange={mockOnChange}
-        readOnly
-      />
-    )
+    render(<InputField label="Test Input" value="" onChange={mockOnChange} readOnly />)
 
     const input = screen.getByLabelText('Test Input')
     expect(input).toHaveAttribute('readonly')
@@ -161,50 +126,25 @@ describe('InputField', () => {
 
   it('should render with different input types', () => {
     const { rerender } = render(
-      <InputField
-        label="Email Input"
-        type="email"
-        value=""
-        onChange={mockOnChange}
-      />
+      <InputField label="Email Input" type="email" value="" onChange={mockOnChange} />
     )
 
     expect(screen.getByLabelText('Email Input')).toHaveAttribute('type', 'email')
 
-    rerender(
-      <InputField
-        label="Password Input"
-        type="password"
-        value=""
-        onChange={mockOnChange}
-      />
-    )
+    rerender(<InputField label="Password Input" type="password" value="" onChange={mockOnChange} />)
 
     expect(screen.getByLabelText('Password Input')).toHaveAttribute('type', 'password')
   })
 
   it('should generate id from label when id is not provided', () => {
-    render(
-      <InputField
-        label="Test Input Label"
-        value=""
-        onChange={mockOnChange}
-      />
-    )
+    render(<InputField label="Test Input Label" value="" onChange={mockOnChange} />)
 
     const input = screen.getByLabelText('Test Input Label')
     expect(input).toHaveAttribute('id', 'input-test-input-label')
   })
 
   it('should use provided id when given', () => {
-    render(
-      <InputField
-        label="Test Input"
-        value=""
-        onChange={mockOnChange}
-        id="custom-id"
-      />
-    )
+    render(<InputField label="Test Input" value="" onChange={mockOnChange} id="custom-id" />)
 
     const input = screen.getByLabelText('Test Input')
     expect(input).toHaveAttribute('id', 'custom-id')
@@ -219,25 +159,13 @@ describe('TextareaField', () => {
   })
 
   it('should render textarea with label', () => {
-    render(
-      <TextareaField
-        label="Test Textarea"
-        value=""
-        onChange={mockOnChange}
-      />
-    )
+    render(<TextareaField label="Test Textarea" value="" onChange={mockOnChange} />)
 
     expect(screen.getByLabelText('Test Textarea')).toBeInTheDocument()
   })
 
   it('should call onChange when textarea value changes', () => {
-    render(
-      <TextareaField
-        label="Test Textarea"
-        value=""
-        onChange={mockOnChange}
-      />
-    )
+    render(<TextareaField label="Test Textarea" value="" onChange={mockOnChange} />)
 
     const textarea = screen.getByLabelText('Test Textarea')
     fireEvent.input(textarea, { target: { value: 'new content' } })
@@ -261,28 +189,14 @@ describe('TextareaField', () => {
   })
 
   it('should set rows attribute', () => {
-    render(
-      <TextareaField
-        label="Test Textarea"
-        value=""
-        onChange={mockOnChange}
-        rows={5}
-      />
-    )
+    render(<TextareaField label="Test Textarea" value="" onChange={mockOnChange} rows={5} />)
 
     const textarea = screen.getByLabelText('Test Textarea')
     expect(textarea).toHaveAttribute('rows', '5')
   })
 
   it('should be disabled when disabled prop is true', () => {
-    render(
-      <TextareaField
-        label="Test Textarea"
-        value=""
-        onChange={mockOnChange}
-        disabled
-      />
-    )
+    render(<TextareaField label="Test Textarea" value="" onChange={mockOnChange} disabled />)
 
     const textarea = screen.getByLabelText('Test Textarea')
     expect(textarea).toBeDisabled()
@@ -302,14 +216,7 @@ describe('SelectField', () => {
   })
 
   it('should render select with label and options', () => {
-    render(
-      <SelectField
-        label="Test Select"
-        value=""
-        onChange={mockOnChange}
-        options={options}
-      />
-    )
+    render(<SelectField label="Test Select" value="" onChange={mockOnChange} options={options} />)
 
     expect(screen.getByLabelText('Test Select')).toBeInTheDocument()
     expect(screen.getByText('Option 1')).toBeInTheDocument()
@@ -321,17 +228,12 @@ describe('SelectField', () => {
     // This test might need to be adjusted based on how Preact handles select onChange
     // For now, let's skip this specific assertion and focus on the other functionality
     render(
-      <SelectField
-        label="Test Select"
-        value="option1"
-        onChange={mockOnChange}
-        options={options}
-      />
+      <SelectField label="Test Select" value="option1" onChange={mockOnChange} options={options} />
     )
 
     const select = screen.getByLabelText('Test Select') as HTMLSelectElement
     expect(select.value).toBe('option1')
-    
+
     // Test that the select has the right structure instead of testing onChange
     expect(select).toBeInTheDocument()
   })
@@ -351,14 +253,7 @@ describe('SelectField', () => {
   })
 
   it('should disable specific options when marked as disabled', () => {
-    render(
-      <SelectField
-        label="Test Select"
-        value=""
-        onChange={mockOnChange}
-        options={options}
-      />
-    )
+    render(<SelectField label="Test Select" value="" onChange={mockOnChange} options={options} />)
 
     const option3 = screen.getByText('Option 3')
     expect(option3).toBeDisabled()
@@ -397,12 +292,7 @@ describe('SelectField', () => {
 
   it('should show selected value', () => {
     render(
-      <SelectField
-        label="Test Select"
-        value="option2"
-        onChange={mockOnChange}
-        options={options}
-      />
+      <SelectField label="Test Select" value="option2" onChange={mockOnChange} options={options} />
     )
 
     const select = screen.getByLabelText('Test Select') as HTMLSelectElement

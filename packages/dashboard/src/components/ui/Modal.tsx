@@ -73,9 +73,11 @@ export function Modal({
   }
 
   return (
-    <div
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    <button
+      type="button"
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-0 border-0 cursor-default"
       onClick={handleOverlayClick}
+      aria-label="Close modal overlay"
     >
       <div
         className={`bg-white rounded-lg w-full ${sizeClasses[size]} max-h-[90vh] overflow-y-auto ${className}`}
@@ -105,7 +107,7 @@ export function Modal({
         )}
         <div className="p-6">{children}</div>
       </div>
-    </div>
+    </button>
   )
 }
 
