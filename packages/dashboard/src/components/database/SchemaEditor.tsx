@@ -2,7 +2,6 @@ import { useState } from 'preact/hooks'
 import { type NewTableColumn, useTableOperations } from '../../hooks/useTableOperations'
 import type { ColumnInfo, ForeignKeyInfo, IndexInfo, TableInfo } from '../../lib/api'
 import { generateIndexName, getSQLTypes, getUserTables } from '../../utils/database'
-import { SchemaHistory } from '../SchemaHistory'
 
 interface SchemaEditorProps {
   tableName: string | null
@@ -277,9 +276,6 @@ export function SchemaEditor({
           </div>
         )}
       </div>
-
-      {/* Schema History */}
-      <SchemaHistory onClose={() => {}} />
 
       {/* Add Column Modal */}
       {showSchemaEditor && (

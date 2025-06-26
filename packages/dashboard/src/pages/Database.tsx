@@ -1,9 +1,13 @@
+import { useState } from 'preact/hooks'
 import { DataViewer } from '../components/database/DataViewer'
 import { SchemaEditor } from '../components/database/SchemaEditor'
 import { TableList } from '../components/database/TableList'
+import { SchemaHistory } from '../components/SchemaHistory'
 import { useDatabase } from '../hooks/useDatabase'
 
 export function DatabasePage() {
+  const [showSchemaHistory, setShowSchemaHistory] = useState(false)
+
   const {
     tables,
     selectedTable,
@@ -39,8 +43,21 @@ export function DatabasePage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Database</h1>
-          <p className="mt-2 text-gray-600">Manage your application's database tables and data</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Database</h1>
+              <p className="mt-2 text-gray-600">
+                Manage your application's database tables and data
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowSchemaHistory(true)}
+              className="px-4 py-2 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 transition-colors"
+            >
+              Schema Snapshots
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -95,6 +112,18 @@ export function DatabasePage() {
             )}
           </div>
         </div>
+
+        {/* Schema History Modal */}
+        {showSchemaHistory && (
+          <SchemaHistory
+            onClose={() => setShowSchemaHistory(false)}
+            onRestore={() => {
+              setShowSchemaHistory(false)
+              loadTableSchema()
+              loadTables()
+            }}
+          />
+        )}
       </div>
     </div>
   )

@@ -47,7 +47,12 @@
       "Bash(pnpm -F @vibebase/dashboard lint --max-diagnostics=200)",
       "Bash(pnpm -F @vibebase/dashboard lint:fix)",
       "Bash(pnpm -F @vibebase/dashboard lint --max-diagnostics=20)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(pnpm dev:*)",
+      "Bash(sqlite3:*)",
+      "Bash(pnpm wrangler d1 migrations:*)",
+      "Bash(pnpm wrangler d1 execute:*)",
+      "Bash(pnpm:*)"
     ],
     "deny": []
   }

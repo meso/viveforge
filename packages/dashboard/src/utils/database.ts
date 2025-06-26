@@ -13,6 +13,15 @@ export const SYSTEM_TABLES = [
   'oauth_providers',
   'app_settings',
   'table_policies',
+  'hooks',
+  'event_queue',
+  'realtime_subscriptions',
+  'custom_queries',
+  'custom_query_logs',
+  'push_subscriptions',
+  'notification_rules',
+  'notification_templates',
+  'notification_logs',
 ] as const
 
 /**
@@ -66,22 +75,68 @@ export const copyToClipboard = async (text: string): Promise<boolean> => {
 }
 
 /**
- * Format datetime string for display
+ * Normalize datetime string to ISO 8601 format with UTC timezone
+ * If timezone info is missing, assumes UTC and adds 'Z' suffix
+ */
+const normalizeDateTimeToISO = (dateString: string): string => {
+  try {
+    // If it's already a proper ISO string with timezone, return as-is
+    if (dateString.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(dateString)) {
+      const date = new Date(dateString)
+      if (!Number.isNaN(date.getTime())) {
+        return date.toISOString()
+      }
+    }
+
+    // Handle SQLite datetime format without timezone (assume UTC)
+    // "2025-06-26 16:07:43" or "2025-06-26T16:07:43"
+    if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}$/.test(dateString)) {
+      // Replace space with T if needed and add Z suffix
+      const normalizedString = `${dateString.replace(' ', 'T')}Z`
+      const date = new Date(normalizedString)
+      if (!Number.isNaN(date.getTime())) {
+        return date.toISOString()
+      }
+    }
+
+    // If all else fails, try to parse as-is and convert to ISO
+    const date = new Date(dateString)
+    if (!Number.isNaN(date.getTime())) {
+      return date.toISOString()
+    }
+
+    // Return original if unable to parse
+    return dateString
+  } catch {
+    return dateString
+  }
+}
+
+/**
+ * Format datetime string for display in browser timezone with timezone abbreviation
  */
 export const formatDateTime = (dateString: string): string => {
   try {
-    const date = new Date(dateString)
+    // First normalize the datetime string to ensure proper timezone handling
+    const normalizedDateString = normalizeDateTimeToISO(dateString)
+    const date = new Date(normalizedDateString)
+
     if (Number.isNaN(date.getTime())) {
       return dateString // Return original if invalid date
     }
 
-    return date.toLocaleDateString('ja-JP', {
+    // Format date with timezone abbreviation
+    const formatter = new Intl.DateTimeFormat('ja-JP', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
+      second: '2-digit',
+      timeZoneName: 'short',
     })
+
+    return formatter.format(date)
   } catch (_err) {
     return dateString // Return original if formatting fails
   }

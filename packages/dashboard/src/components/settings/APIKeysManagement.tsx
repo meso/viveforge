@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { APIKey, CreateAPIKeyRequest, CreateAPIKeyResponse } from '../../types/settings'
+import { formatDateTime } from '../../utils/database'
 
 interface APIKeysManagementProps {
   onError: (error: string | null) => void
@@ -207,18 +208,18 @@ export function APIKeysManagement({ onError }: APIKeysManagementProps) {
                           </p>
                           <p>
                             <span className="font-medium">Created:</span>{' '}
-                            {new Date(key.created_at).toLocaleDateString()}
+                            {formatDateTime(key.created_at)}
                           </p>
                           {key.expires_at && (
                             <p>
                               <span className="font-medium">Expires:</span>{' '}
-                              {new Date(key.expires_at).toLocaleDateString()}
+                              {formatDateTime(key.expires_at)}
                             </p>
                           )}
                           {key.last_used_at && (
                             <p>
                               <span className="font-medium">Last used:</span>{' '}
-                              {new Date(key.last_used_at).toLocaleDateString()}
+                              {formatDateTime(key.last_used_at)}
                             </p>
                           )}
                         </div>
@@ -401,9 +402,7 @@ export function APIKeysManagement({ onError }: APIKeysManagementProps) {
                 {createdKey.expires_at && (
                   <div>
                     <div className="text-sm font-medium text-gray-700">Expires</div>
-                    <p className="text-sm text-gray-900">
-                      {new Date(createdKey.expires_at).toLocaleDateString()}
-                    </p>
+                    <p className="text-sm text-gray-900">{formatDateTime(createdKey.expires_at)}</p>
                   </div>
                 )}
               </div>

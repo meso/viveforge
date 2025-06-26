@@ -4,6 +4,7 @@
  */
 
 import type { NotificationLog } from '../../types/push'
+import { formatDateTime } from '../../utils/database'
 
 interface NotificationLogsProps {
   logs: NotificationLog[]
@@ -39,15 +40,7 @@ export function NotificationLogs({ logs }: NotificationLogsProps) {
                     <p className="text-sm text-red-600 mt-1">{log.errorMessage}</p>
                   )}
                   <div className="mt-2 text-xs text-gray-500">
-                    User: {log.userId} | Provider: {log.provider} |{' '}
-                    {new Date(log.createdAt).toLocaleString(undefined, {
-                      year: 'numeric',
-                      month: '2-digit',
-                      day: '2-digit',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      second: '2-digit',
-                    })}
+                    User: {log.userId} | Provider: {log.provider} | {formatDateTime(log.createdAt)}
                   </div>
                 </div>
               </div>

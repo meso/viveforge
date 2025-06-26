@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'preact/hooks'
 import { api, type SchemaSnapshot } from '../lib/api'
+import { formatDateTime } from '../utils/database'
 
 interface SchemaHistoryProps {
   onClose: () => void
@@ -134,22 +135,6 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
     } finally {
       setIsDeleting(false)
     }
-  }
-
-  const formatDate = (dateString: string) => {
-    // All dates are now in ISO format with timezone info
-    const date = new Date(dateString)
-
-    return date.toLocaleString(undefined, {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-      timeZoneName: 'short',
-    })
   }
 
   const getRelativeTime = (dateString: string) => {
@@ -389,7 +374,7 @@ export function SchemaHistory({ onClose, onRestore }: SchemaHistoryProps) {
                           )}
                           <div class="mt-2 flex items-center space-x-4 text-xs text-gray-500">
                             <span>Version {snapshot.version}</span>
-                            <span>{formatDate(snapshot.createdAt)}</span>
+                            <span>{formatDateTime(snapshot.createdAt)}</span>
                             <span>{getRelativeTime(snapshot.createdAt)}</span>
                           </div>
                         </div>
