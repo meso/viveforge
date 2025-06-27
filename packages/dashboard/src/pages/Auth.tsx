@@ -24,7 +24,9 @@ function CallbackUrlsSection() {
 
       const data = await response.json()
       // Find callback_urls setting from the settings array
-      const callbackUrlsSetting = data.settings.find((s: any) => s.key === 'callback_urls')
+      const callbackUrlsSetting = data.settings.find(
+        (s: { key: string; value: string }) => s.key === 'callback_urls'
+      )
       setCallbackUrls(callbackUrlsSetting ? JSON.parse(callbackUrlsSetting.value) : [])
     } catch (err) {
       console.error('Failed to load callback URLs:', err)

@@ -152,7 +152,7 @@ export class AppSettingsManager {
 
     // Check if app_name is being updated to auto-update oauth_user_agent
     const appNameUpdate = settings.find((s) => s.key === 'app_name')
-    let settingsToProcess = [...settings]
+    const settingsToProcess = [...settings]
 
     if (appNameUpdate) {
       console.log('App name is being updated to:', appNameUpdate.value)

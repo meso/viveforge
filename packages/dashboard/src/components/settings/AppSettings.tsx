@@ -49,8 +49,8 @@ export function AppSettings({ onError }: AppSettingsProps) {
       onError(null)
 
       // Don't send oauth_user_agent - let the backend auto-generate it
-      const { oauth_user_agent, ...formWithoutUserAgent } = form
-      
+      const { oauth_user_agent: _oauth_user_agent, ...formWithoutUserAgent } = form
+
       const response = await fetch('/api/app-settings', {
         method: 'PUT',
         headers: {

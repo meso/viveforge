@@ -381,15 +381,17 @@ export function createMockD1Database(): MockD1Database {
             const snapshot = {
               id: snapshotId,
               version: bindings[1] || snapshotCounter,
-              name: bindings[2] || `Snapshot ${snapshotCounter}`,
-              description: bindings[3] || null,
-              full_schema: bindings[4] || '',
-              tables_json: bindings[5] || '[]',
-              schema_hash: bindings[6] || 'hash',
-              created_at: new Date().toISOString(),
-              created_by: bindings[7] || null,
-              snapshot_type: bindings[8] || 'manual',
-              d1_bookmark_id: bindings[9] || null,
+              table_name: bindings[2] || 'all_tables',
+              schema_json: bindings[3] || '[]',
+              name: bindings[4] || `Snapshot ${snapshotCounter}`,
+              description: bindings[5] || null,
+              full_schema: bindings[6] || '',
+              tables_json: bindings[7] || '[]',
+              schema_hash: bindings[8] || 'hash',
+              created_at: bindings[9] || new Date().toISOString(),
+              created_by: bindings[10] || null,
+              snapshot_type: bindings[11] || 'manual',
+              d1_bookmark_id: bindings[12] || null,
             }
             snapshots.set(snapshotId, snapshot)
             const snapshotsTable = tables.get('schema_snapshots')
