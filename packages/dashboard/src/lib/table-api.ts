@@ -192,10 +192,7 @@ export const tableApi = {
     id: string,
     data: Record<string, unknown>
   ): Promise<{ success: boolean }> {
-    const response = await client.put<{ success: boolean }>(
-      `/api/tables/${tableName}/data/${id}`,
-      data
-    )
+    const response = await client.put<{ success: boolean }>(`/api/data/${tableName}/${id}`, data)
     if (!response.success) {
       throw new Error(response.error || 'Failed to update record')
     }

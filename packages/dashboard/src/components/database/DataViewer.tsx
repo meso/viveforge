@@ -38,6 +38,7 @@ export function DataViewer({
 
   const {
     createRecord,
+    updateRecord,
     deleteRecord,
     loading: operationsLoading,
     error: operationsError,
@@ -95,11 +96,14 @@ export function DataViewer({
 
   // Save inline cell edit
   const handleCellSave = async (rowId: string, columnName: string, newValue: unknown) => {
-    // This would need API integration - placeholder for now
     console.log('Cell save:', { rowId, columnName, newValue })
-    setEditingCell(null)
-    // TODO: Implement API call to update record
-    onDataChange()
+    clearError()
+
+    const success = await updateRecord(tableName, rowId, { [columnName]: newValue })
+    if (success) {
+      setEditingCell(null)
+      onDataChange()
+    }
   }
 
   // Cancel inline cell edit
@@ -111,11 +115,20 @@ export function DataViewer({
   const handleRecordSave = async () => {
     if (!editingRecord) return
 
-    // This would need API integration - placeholder for now
     console.log('Record save:', editingRecord)
-    setEditingRecord(null)
-    // TODO: Implement API call to update record
-    onDataChange()
+    clearError()
+
+    // Remove system fields from the update data
+    const updateData = { ...editingRecord.data }
+    delete updateData.id
+    delete updateData.created_at
+    delete updateData.updated_at
+
+    const success = await updateRecord(tableName, editingRecord.id, updateData)
+    if (success) {
+      setEditingRecord(null)
+      onDataChange()
+    }
   }
 
   // Handle copy ID to clipboard

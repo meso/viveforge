@@ -29,6 +29,7 @@ export interface TableOperationsActions {
   dropTable: (tableName: string) => Promise<boolean>
   changeAccessPolicy: (tableName: string, policy: 'public' | 'private') => Promise<boolean>
   createRecord: (tableName: string, data: Record<string, unknown>) => Promise<boolean>
+  updateRecord: (tableName: string, id: string, data: Record<string, unknown>) => Promise<boolean>
   deleteRecord: (tableName: string, id: string) => Promise<boolean>
   addColumn: (tableName: string, column: NewTableColumn) => Promise<boolean>
   validateTableName: (name: string) => string | null
@@ -247,6 +248,27 @@ export const useTableOperations = (): TableOperationsState & TableOperationsActi
     }
   }
 
+  // Update a record
+  const updateRecord = async (
+    tableName: string,
+    id: string,
+    data: Record<string, unknown>
+  ): Promise<boolean> => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      await api.updateRecord(tableName, id, data)
+      setLoading(false)
+      return true
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update record'
+      setError(errorMessage)
+      setLoading(false)
+      return false
+    }
+  }
+
   // Add a new column to an existing table
   const addColumn = async (tableName: string, column: NewTableColumn): Promise<boolean> => {
     setLoading(true)
@@ -287,6 +309,7 @@ export const useTableOperations = (): TableOperationsState & TableOperationsActi
     dropTable,
     changeAccessPolicy,
     createRecord,
+    updateRecord,
     deleteRecord,
     addColumn,
     validateTableName,
