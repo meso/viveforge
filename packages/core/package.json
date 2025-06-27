@@ -9,7 +9,7 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "deploy:button": "npm run db:init && wrangler deploy -c wrangler.deploy.toml",
-    "db:init": "wrangler d1 execute DB --file=./sql/init.sql",
+    "db:init": "wrangler d1 execute DB --file=./migrations/consolidated_schema.sql",
     "test": "vitest",
     "lint": "biome check src/",
     "lint:fix": "biome check --write src/",

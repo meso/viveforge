@@ -113,6 +113,18 @@ CREATE TABLE custom_queries (
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Custom query execution logs
+CREATE TABLE custom_query_logs (
+  id TEXT PRIMARY KEY,
+  query_id TEXT NOT NULL,
+  execution_time INTEGER NOT NULL,
+  row_count INTEGER DEFAULT 0,
+  parameters TEXT,
+  error TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (query_id) REFERENCES custom_queries(id) ON DELETE CASCADE
+);
+
 -- ============================
 -- Realtime & Notification Tables
 -- ============================
@@ -307,10 +319,11 @@ CREATE INDEX idx_notification_logs_created_at ON notification_logs(created_at);
 
 -- Schema management indexes
 CREATE INDEX idx_schema_snapshots_version ON schema_snapshots(version);
-CREATE INDEX idx_schema_snapshots_table ON schema_snapshots(table_name);
 
 -- Custom queries indexes
 CREATE INDEX idx_custom_queries_enabled ON custom_queries(is_enabled);
+CREATE INDEX idx_custom_query_logs_query_id ON custom_query_logs(query_id);
+CREATE INDEX idx_custom_query_logs_created_at ON custom_query_logs(created_at);
 
 -- ============================
 -- Initial Data

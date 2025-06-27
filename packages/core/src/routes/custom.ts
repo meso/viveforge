@@ -26,7 +26,7 @@ custom.all('/:slug', async (c) => {
     // Fetch the custom query by slug
     const query = await c.env.DB.prepare(`
       SELECT * FROM custom_queries 
-      WHERE slug = ? AND enabled = 1
+      WHERE slug = ? AND is_enabled = 1
     `)
       .bind(slug)
       .first()
