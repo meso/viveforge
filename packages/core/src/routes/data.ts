@@ -260,12 +260,19 @@ data.post('/:tableName', async (c) => {
 
 // PUT /api/data/:tableName/:id - Update record
 data.put('/:tableName/:id', async (c) => {
+  console.log('PUT data endpoint called:', {
+    tableName: c.req.param('tableName'),
+    id: c.req.param('id'),
+    url: c.req.url,
+  })
+
   const tm = c.get('tableManager') as TableManager
   const tableName = c.req.param('tableName')
   const id = c.req.param('id')
 
   try {
     const body = await c.req.json()
+    console.log('PUT request body:', body)
 
     // Validate request body is an object
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
