@@ -11,124 +11,222 @@ export interface AppSettings {
   app_name: string
   app_url?: string
   support_email?: string
-  app_description?: string
-  allowed_callback_urls?: string[]
+  oauth_user_agent?: string
+  callback_urls?: string[]
+}
+
+export interface AppSettingUpdate {
+  key: string
+  value: string
 }
 
 export class AppSettingsManager {
   constructor(private db: D1Database) {}
 
   /**
-   * Get a single setting value
-   */
-  async getSetting(key: string): Promise<string | null> {
-    const result = await this.db
-      .prepare(`
-      SELECT value FROM app_settings WHERE key = ?
-    `)
-      .bind(key)
-      .first<{ value: string }>()
-
-    return result?.value || null
-  }
-
-  /**
-   * Get all settings as a structured object
+   * Get all settings from the single row
    */
   async getAllSettings(): Promise<AppSettings> {
-    const results = await this.db
-      .prepare(`
-      SELECT key, value FROM app_settings
-    `)
-      .all<{ key: string; value: string }>()
+    try {
+      const result = await this.db
+        .prepare(
+          'SELECT app_name, app_url, support_email, oauth_user_agent, callback_urls FROM app_settings WHERE id = ?'
+        )
+        .bind('default')
+        .first<{
+          app_name: string
+          app_url: string | null
+          support_email: string | null
+          oauth_user_agent: string | null
+          callback_urls: string | null
+        }>()
 
-    const settings: Record<string, string> = {}
-    results.results.forEach((row) => {
-      settings[row.key] = row.value
-    })
+      if (!result) {
+        // Return default values if no settings exist
+        return {
+          app_name: 'My Vibebase App',
+          app_url: '',
+          support_email: '',
+          oauth_user_agent: '',
+          callback_urls: [],
+        }
+      }
 
-    return {
-      app_name: settings.app_name || 'My Vibebase App',
-      app_url: settings.app_url || undefined,
-      support_email: settings.support_email || undefined,
-      app_description: settings.app_description || undefined,
-      allowed_callback_urls: settings.allowed_callback_urls
-        ? JSON.parse(settings.allowed_callback_urls)
-        : [],
+      // Parse callback_urls JSON
+      let parsedCallbackUrls: string[] = []
+      if (result.callback_urls) {
+        try {
+          parsedCallbackUrls = JSON.parse(result.callback_urls)
+        } catch {
+          parsedCallbackUrls = []
+        }
+      }
+
+      return {
+        app_name: result.app_name || 'My Vibebase App',
+        app_url: result.app_url || '',
+        support_email: result.support_email || '',
+        oauth_user_agent: result.oauth_user_agent || '',
+        callback_urls: parsedCallbackUrls,
+      }
+    } catch (error) {
+      // If table doesn't exist, return default values
+      if (error instanceof Error && error.message.includes('no such table')) {
+        return {
+          app_name: 'My Vibebase App',
+          app_url: '',
+          support_email: '',
+          oauth_user_agent: '',
+          callback_urls: [],
+        }
+      }
+      throw error
     }
   }
 
   /**
-   * Update a single setting
+   * Get settings formatted for API response
    */
-  async updateSetting(key: string, value: string): Promise<void> {
-    const now = getCurrentDateTimeISO()
+  async getSettingsForAPI(): Promise<AppSetting[]> {
+    try {
+      const result = await this.db
+        .prepare(
+          'SELECT app_name, app_url, support_email, oauth_user_agent, callback_urls, updated_at FROM app_settings WHERE id = ?'
+        )
+        .bind('default')
+        .first<{
+          app_name: string | null
+          app_url: string | null
+          support_email: string | null
+          oauth_user_agent: string | null
+          callback_urls: string | null
+          updated_at: string
+        }>()
 
-    await this.db
-      .prepare(`
-      INSERT OR REPLACE INTO app_settings (key, value, updated_at)
-      VALUES (?, ?, ?)
-    `)
-      .bind(key, value, now)
-      .run()
+      if (!result) {
+        return []
+      }
+
+      const settings: AppSetting[] = []
+      const fields = [
+        'app_name',
+        'app_url',
+        'support_email',
+        'oauth_user_agent',
+        'callback_urls',
+      ] as const
+
+      for (const field of fields) {
+        const value = result[field]
+        if (value !== null) {
+          settings.push({
+            key: field,
+            value: value,
+            updated_at: result.updated_at,
+          })
+        }
+      }
+
+      return settings
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('no such table')) {
+        return []
+      }
+      throw error
+    }
   }
 
   /**
    * Update multiple settings at once
    */
-  async updateSettings(settings: Partial<AppSettings>): Promise<void> {
-    const now = getCurrentDateTimeISO()
+  async updateSettings(settings: AppSettingUpdate[]): Promise<void> {
+    const validColumns = [
+      'app_name',
+      'app_url',
+      'support_email',
+      'oauth_user_agent',
+      'callback_urls',
+    ]
+    const updates: string[] = []
+    const values: (string | null)[] = []
 
-    const batch: D1PreparedStatement[] = []
+    // Check if app_name is being updated to auto-update oauth_user_agent
+    const appNameUpdate = settings.find((s) => s.key === 'app_name')
+    let settingsToProcess = [...settings]
 
-    for (const [key, value] of Object.entries(settings)) {
-      if (value !== undefined) {
-        const serializedValue =
-          key === 'allowed_callback_urls' && Array.isArray(value)
-            ? JSON.stringify(value)
-            : (value as string)
+    if (appNameUpdate) {
+      console.log('App name is being updated to:', appNameUpdate.value)
+      // Generate new oauth_user_agent based on new app_name
+      const sanitizedAppName = appNameUpdate.value
+        .replace(/[^\p{L}\p{N}\s-]/gu, '') // Allow Unicode letters, numbers, spaces, and hyphens
+        .replace(/\s+/g, '-')
+      const newUserAgent = `${sanitizedAppName}/1.0 (Powered by Vibebase)`
+      console.log('Generated new user agent:', newUserAgent)
 
-        batch.push(
-          this.db
-            .prepare(`
-            INSERT OR REPLACE INTO app_settings (key, value, updated_at)
-            VALUES (?, ?, ?)
-          `)
-            .bind(key, serializedValue, now) as unknown as D1PreparedStatement
-        )
+      // Add oauth_user_agent update if not already specified
+      const hasUserAgentUpdate = settings.some((s) => s.key === 'oauth_user_agent')
+      if (!hasUserAgentUpdate) {
+        console.log('Adding oauth_user_agent to settings update')
+        settingsToProcess.push({ key: 'oauth_user_agent', value: newUserAgent })
+      } else {
+        console.log('oauth_user_agent is already being updated explicitly')
       }
     }
 
-    if (batch.length > 0) {
-      await this.db.batch(batch)
+    for (const setting of settingsToProcess) {
+      if (validColumns.includes(setting.key)) {
+        updates.push(`${setting.key} = ?`)
+        values.push(setting.value)
+      }
     }
-  }
 
-  /**
-   * Get settings for API response
-   */
-  async getSettingsForAPI(): Promise<AppSetting[]> {
-    const results = await this.db
-      .prepare(`
-      SELECT key, value, updated_at FROM app_settings
-      ORDER BY key
-    `)
-      .all<AppSetting>()
+    if (updates.length === 0) {
+      return
+    }
 
-    return results.results
+    // Add updated_at
+    updates.push('updated_at = ?')
+    values.push(getCurrentDateTimeISO())
+
+    try {
+      // Always update the default row (created by migration)
+      await this.db
+        .prepare(`UPDATE app_settings SET ${updates.join(', ')} WHERE id = ?`)
+        .bind(...values, 'default')
+        .run()
+    } catch (error) {
+      console.error('Failed to update settings:', error)
+      throw error
+    }
   }
 
   /**
    * Get allowed callback URLs for OAuth authentication
    */
   async getAllowedCallbackUrls(): Promise<string[]> {
-    const value = await this.getSetting('allowed_callback_urls')
-    if (!value) return []
-
     try {
-      return JSON.parse(value)
-    } catch {
-      return []
+      const result = await this.db
+        .prepare('SELECT callback_urls FROM app_settings WHERE id = ?')
+        .bind('default')
+        .first<{ callback_urls: string | null }>()
+
+      if (!result?.callback_urls) {
+        return []
+      }
+
+      try {
+        return JSON.parse(result.callback_urls)
+      } catch {
+        return []
+      }
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        (error.message.includes('no such table') || error.message.includes('no such column'))
+      ) {
+        return []
+      }
+      throw error
     }
   }
 
@@ -136,7 +234,7 @@ export class AppSettingsManager {
    * Update allowed callback URLs
    */
   async updateAllowedCallbackUrls(urls: string[]): Promise<void> {
-    await this.updateSetting('allowed_callback_urls', JSON.stringify(urls))
+    await this.updateSettings([{ key: 'callback_urls', value: JSON.stringify(urls) }])
   }
 
   /**

@@ -21,6 +21,12 @@ appSettings.get('/', async (c) => {
     return c.json({ settings })
   } catch (error) {
     console.error('Failed to get app settings:', error)
+
+    // Check if it's a table not found error (database not initialized)
+    if (error instanceof Error && error.message.includes('no such table')) {
+      return c.json({ settings: [] }) // Return empty array instead of error
+    }
+
     return c.json({ error: 'Failed to get app settings' }, 500)
   }
 })
@@ -29,15 +35,21 @@ appSettings.get('/', async (c) => {
 appSettings.get('/:key', async (c) => {
   try {
     const key = c.req.param('key')
+    const validKeys = ['app_name', 'app_url', 'support_email', 'oauth_user_agent', 'callback_urls']
+
+    if (!validKeys.includes(key)) {
+      return c.json({ error: `Invalid setting key: '${key}'` }, 400)
+    }
 
     if (!c.env.DB) {
       return c.json({ error: 'Database not available' }, 503)
     }
 
     const settingsManager = new AppSettingsManager(c.env.DB)
-    const value = await settingsManager.getSetting(key)
+    const allSettings = await settingsManager.getAllSettings()
+    const value = allSettings[key as keyof typeof allSettings]
 
-    if (value === null) {
+    if (value === undefined || value === null) {
       return c.json({ error: `Setting '${key}' not found` }, 404)
     }
 
@@ -58,16 +70,22 @@ appSettings.put('/', async (c) => {
     }
 
     // Validate input
-    const allowedKeys = ['app_name', 'app_url', 'support_email', 'app_description']
-    const settings: Record<string, string> = {}
+    const allowedKeys = [
+      'app_name',
+      'app_url',
+      'support_email',
+      'oauth_user_agent',
+      'callback_urls',
+    ]
+    const settings: { key: string; value: string }[] = []
 
     for (const [key, value] of Object.entries(body)) {
       if (allowedKeys.includes(key) && typeof value === 'string') {
-        settings[key] = value
+        settings.push({ key, value })
       }
     }
 
-    if (Object.keys(settings).length === 0) {
+    if (settings.length === 0) {
       return c.json(
         {
           error: 'No valid settings provided',

@@ -23,7 +23,9 @@ function CallbackUrlsSection() {
       }
 
       const data = await response.json()
-      setCallbackUrls(data.settings.allowed_callback_urls || [])
+      // Find callback_urls setting from the settings array
+      const callbackUrlsSetting = data.settings.find((s: any) => s.key === 'callback_urls')
+      setCallbackUrls(callbackUrlsSetting ? JSON.parse(callbackUrlsSetting.value) : [])
     } catch (err) {
       console.error('Failed to load callback URLs:', err)
       setError(err instanceof Error ? err.message : 'Failed to load callback URLs')
@@ -38,13 +40,13 @@ function CallbackUrlsSection() {
       setError(null)
 
       const response = await fetch('/api/app-settings', {
-        method: 'POST',
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
         body: JSON.stringify({
-          allowed_callback_urls: urls,
+          callback_urls: JSON.stringify(urls),
         }),
       })
 

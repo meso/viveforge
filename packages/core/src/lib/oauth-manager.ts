@@ -208,7 +208,8 @@ export class OAuthManager {
     }
 
     // Get app name for User-Agent
-    const appName = (await this.appSettingsManager.getSetting('app_name')) || 'My Vibebase App'
+    const settings = await this.appSettingsManager.getAllSettings()
+    const appName = settings.app_name || 'My Vibebase App'
     const userAgent = `${appName.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '-')}/1.0 (Powered by Vibebase)`
 
     const response = await fetch(userInfoUrl, {
