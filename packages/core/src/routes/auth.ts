@@ -1,5 +1,7 @@
 import { Hono } from 'hono'
 import type { VibebaseAuthClient } from '../lib/auth-client'
+import { getCurrentDateTimeISO } from '../lib/datetime-utils'
+import { generateId } from '../lib/utils'
 import { getCurrentUser } from '../middleware/auth'
 import { getAccessDeniedHTML, getAuthErrorHTML, getLogoutHTML } from '../templates/html'
 import type { Env, Variables } from '../types'
@@ -50,10 +52,24 @@ auth.get('/callback', async (c) => {
     if (!db) {
       return c.html(getAuthErrorHTML('認証エラー', 'データベースが利用できません'))
     }
-    const existingAdmin = await db
-      .prepare('SELECT id, is_root FROM admins WHERE github_username = ?')
-      .bind(((user as Record<string, unknown>).username as string) || user.email)
+    const githubUsername = (user as Record<string, unknown>).username as string
+    const githubId = (user as Record<string, unknown>).id as string
+
+    // First check by github_id (for existing authenticated admins)
+    let existingAdmin = await db
+      .prepare('SELECT id, is_root, github_username FROM admins WHERE github_id = ?')
+      .bind(githubId)
       .first()
+
+    // If not found by github_id, check by github_username (for initial registration)
+    if (!existingAdmin) {
+      existingAdmin = await db
+        .prepare(
+          'SELECT id, is_root, github_username FROM admins WHERE github_username = ? AND github_id IS NULL'
+        )
+        .bind(githubUsername)
+        .first()
+    }
 
     // 管理者チェック
     if (!existingAdmin) {
@@ -67,19 +83,25 @@ auth.get('/callback', async (c) => {
       if (adminCount.count === 0) {
         // 初回ログイン者をroot adminとして登録
         await db
-          .prepare('INSERT INTO admins (github_username, is_root) VALUES (?, ?)')
-          .bind(((user as Record<string, unknown>).username as string) || user.email, true)
+          .prepare(
+            'INSERT INTO admins (id, github_username, github_id, is_root) VALUES (?, ?, ?, ?)'
+          )
+          .bind(generateId(), githubUsername, githubId, true)
           .run()
 
-        console.log(
-          `First admin registered: GitHub username ${((user as Record<string, unknown>).username as string) || user.email}`
-        )
+        console.log(`First admin registered: GitHub username ${githubUsername}`)
       } else {
         // 管理者として登録されていない
-        return c.html(
-          getAccessDeniedHTML(((user as Record<string, unknown>).username as string) || user.email)
-        )
+        return c.html(getAccessDeniedHTML(githubUsername))
       }
+    } else if (existingAdmin && !existingAdmin.github_id) {
+      // github_usernameでマッチしたが、github_idが未設定の場合は更新
+      await db
+        .prepare('UPDATE admins SET github_id = ?, updated_at = ? WHERE id = ?')
+        .bind(githubId, getCurrentDateTimeISO(), existingAdmin.id)
+        .run()
+
+      console.log(`Updated github_id for admin: ${githubUsername}`)
     }
 
     // Cookieでセッション管理
