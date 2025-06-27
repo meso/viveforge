@@ -156,9 +156,9 @@ export class APIKeyManager {
     // Update last used timestamp
     await this.db
       .prepare(`
-      UPDATE api_keys SET last_used_at = ? WHERE id = ?
+      UPDATE api_keys SET last_used_at = ?, updated_at = ? WHERE id = ?
     `)
-      .bind(getCurrentDateTimeISO(), result.id)
+      .bind(getCurrentDateTimeISO(), getCurrentDateTimeISO(), result.id)
       .run()
 
     // Parse scopes (stored as JSON string in database)
@@ -174,21 +174,29 @@ export class APIKeyManager {
    * List API keys for a user (without sensitive data)
    */
   async listAPIKeys(createdBy: string): Promise<Omit<APIKey, 'key_hash'>[]> {
-    const results = await this.db
-      .prepare(`
-      SELECT id, name, key_prefix, scopes, created_by, created_at, last_used_at, expires_at, is_active
-      FROM api_keys 
-      WHERE created_by = ?
-      ORDER BY created_at DESC
-    `)
-      .bind(createdBy)
-      .all<Omit<APIKey, 'key_hash'>>()
+    try {
+      const results = await this.db
+        .prepare(`
+        SELECT id, name, key_prefix, scopes, created_by, created_at, last_used_at, expires_at, is_active
+        FROM api_keys 
+        WHERE created_by = ?
+        ORDER BY created_at DESC
+      `)
+        .bind(createdBy)
+        .all<Omit<APIKey, 'key_hash'>>()
 
-    return results.results.map((key) => ({
-      ...key,
-      scopes: JSON.parse(key.scopes as unknown as string),
-      is_active: Boolean(key.is_active),
-    }))
+      return (results.results || []).map((key) => ({
+        ...key,
+        scopes: JSON.parse(key.scopes as unknown as string),
+        is_active: Boolean(key.is_active),
+      }))
+    } catch (error) {
+      // If table doesn't exist, return empty array instead of throwing
+      if (error instanceof Error && error.message.includes('no such table')) {
+        return []
+      }
+      throw error
+    }
   }
 
   /**

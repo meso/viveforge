@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { generateId } from '../lib/utils'
 import { getCurrentUser } from '../middleware/auth'
 import type { Env, Variables } from '../types'
 
@@ -64,8 +65,8 @@ admin.post('/', async (c) => {
 
     // Add new admin
     await db
-      .prepare('INSERT INTO admins (github_username, is_root) VALUES (?, ?)')
-      .bind(github_username, false)
+      .prepare('INSERT INTO admins (id, github_username, is_root) VALUES (?, ?, ?)')
+      .bind(generateId(), github_username, false)
       .run()
 
     return c.json({

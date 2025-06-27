@@ -2,6 +2,7 @@ import { sign, verify } from 'hono/jwt'
 import type { User, UserSession, UserToken } from '../types/auth'
 import type { D1Database } from '../types/cloudflare'
 import { getCurrentDateTimeISO } from './datetime-utils'
+import { generateId } from './utils'
 
 export class UserAuthManager {
   constructor(
@@ -320,7 +321,7 @@ export class UserAuthManager {
   }
 
   private generateId(): string {
-    return crypto.randomUUID().replace(/-/g, '')
+    return generateId()
   }
 
   private async hashToken(token: string): Promise<string> {

@@ -65,6 +65,13 @@ apiKeys.get('/', async (c) => {
 
     return c.json({ data: apiKeys })
   } catch (error) {
+    console.error('Error listing API keys:', error)
+
+    // Check if it's a table not found error (database not initialized)
+    if (error instanceof Error && error.message.includes('no such table')) {
+      return c.json({ data: [] }) // Return empty array instead of error
+    }
+
     return c.json(
       {
         error: 'Failed to list API keys',
