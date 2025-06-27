@@ -52,7 +52,11 @@
       "Bash(sqlite3:*)",
       "Bash(pnpm wrangler d1 migrations:*)",
       "Bash(pnpm wrangler d1 execute:*)",
-      "Bash(pnpm:*)"
+      "Bash(pnpm:*)",
+      "Bash(wrangler deploy:*)",
+      "Bash(wrangler tail:*)",
+      "Bash(npx wrangler d1 execute:*)",
+      "Bash(npx wrangler tail:*)"
     ],
     "deny": []
   }
