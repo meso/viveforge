@@ -75,15 +75,19 @@ const testQuerySchema = z.object({
 // Get all custom queries
 customQueries.get('/', async (c) => {
   try {
+    console.log('Custom queries GET: starting')
     if (!c.env.DB) {
+      console.error('Custom queries GET: Database not configured')
       return c.json({ error: 'Database not configured' }, 500)
     }
 
+    console.log('Custom queries GET: executing query')
     const result = await c.env.DB.prepare(`
-      SELECT id, slug, name, description, sql_query, parameters, method, is_readonly, cache_ttl, enabled, created_at, updated_at
+      SELECT id, slug, name, description, sql_query, parameters, method, is_readonly, cache_ttl, is_enabled as enabled, created_at, updated_at
       FROM custom_queries
       ORDER BY name ASC
     `).all()
+    console.log('Custom queries GET: query result', result)
 
     // Parse parameters JSON for each query
     const queries = (result.results || []).map((query) => ({
@@ -94,7 +98,19 @@ customQueries.get('/', async (c) => {
     return c.json({ queries })
   } catch (error) {
     console.error('Error fetching custom queries:', error)
-    return c.json({ error: 'Failed to fetch custom queries' }, 500)
+
+    // Check if it's a table not found error (database not initialized)
+    if (error instanceof Error && error.message.includes('no such table')) {
+      return c.json({ queries: [] }) // Return empty array instead of error
+    }
+
+    return c.json(
+      {
+        error: 'Failed to fetch custom queries',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      },
+      500
+    )
   }
 })
 

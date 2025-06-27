@@ -361,6 +361,7 @@ export class DataManager {
 
   // Update record
   async updateRecord(tableName: string, id: string, data: Record<string, unknown>): Promise<void> {
+    console.log('updateRecord called:', { tableName, id, data })
     await this.enableForeignKeys()
 
     // Validate table name and check if it's a system table
@@ -374,6 +375,7 @@ export class DataManager {
 
     // Add updated_at timestamp
     updateData.updated_at = getCurrentDateTimeISO()
+    console.log('updateData after processing:', updateData)
 
     const columns = Object.keys(updateData)
     const values = Object.values(updateData)
@@ -381,11 +383,15 @@ export class DataManager {
     const setClause = safeColumns.map((col) => `${col} = ?`).join(', ')
 
     const sql = `UPDATE ${safeTableName} SET ${setClause} WHERE id = ?`
+    console.log('UPDATE SQL:', sql)
+    console.log('UPDATE values:', [...values, id])
 
-    await this.db
+    const result = await this.db
       .prepare(sql)
       .bind(...(values as (string | number | boolean | null)[]), id)
       .run()
+
+    console.log('UPDATE result:', result)
 
     // Process hooks after successful update
     await this.hookManager.processDataEvent(tableName, id, 'update', updateData, {

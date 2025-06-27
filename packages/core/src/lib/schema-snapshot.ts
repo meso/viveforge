@@ -15,6 +15,7 @@ import type {
 } from '../types/database'
 import { getCurrentDateTimeISO } from './datetime-utils'
 import type { IndexInfo } from './index-manager'
+import { generateId } from './utils'
 
 interface ColumnInfo {
   cid: number
@@ -179,13 +180,15 @@ export class SchemaSnapshotManager {
   async getNextVersion(): Promise<number> {
     // Try to get current version
     const counter = await this.db
-      .prepare('SELECT current_version FROM schema_snapshot_counter WHERE id = 1')
+      .prepare('SELECT current_version FROM schema_snapshot_counter WHERE id = ?')
+      .bind('default')
       .first()
 
     if (!counter) {
       // Initialize counter
       await this.db
-        .prepare('INSERT INTO schema_snapshot_counter (id, current_version) VALUES (1, 0)')
+        .prepare('INSERT INTO schema_snapshot_counter (id, current_version) VALUES (?, 0)')
+        .bind('default')
         .run()
       return 1
     }
@@ -194,8 +197,10 @@ export class SchemaSnapshotManager {
 
     // Update counter
     await this.db
-      .prepare('UPDATE schema_snapshot_counter SET current_version = ? WHERE id = 1')
-      .bind(nextVersion)
+      .prepare(
+        'UPDATE schema_snapshot_counter SET current_version = ?, updated_at = ? WHERE id = ?'
+      )
+      .bind(nextVersion, getCurrentDateTimeISO(), 'default')
       .run()
 
     return nextVersion
@@ -248,7 +253,7 @@ export class SchemaSnapshotManager {
     const fullSchema = schemas.map((s) => s.sql).join(';\n')
     const schemaHash = await this.calculateSchemaHash(schemas)
     const version = await this.getNextVersion()
-    const id = crypto.randomUUID()
+    const id = generateId()
 
     // Save schema and data to R2 if available
     if (this.systemStorage) {
@@ -271,13 +276,15 @@ export class SchemaSnapshotManager {
     await this.db
       .prepare(`
         INSERT INTO schema_snapshots (
-          id, version, name, description, full_schema, tables_json, 
+          id, version, table_name, schema_json, name, description, full_schema, tables_json, 
           schema_hash, created_at, created_by, snapshot_type, d1_bookmark_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .bind(
         id,
         version,
+        'all_tables', // ダミー値
+        JSON.stringify(schemas), // schema_jsonとtables_jsonは同じ値
         options.name || `Snapshot v${version}`,
         options.description || null,
         fullSchema,
@@ -295,39 +302,64 @@ export class SchemaSnapshotManager {
 
   // Get all snapshots
   async getSnapshots(limit = 20, offset = 0): Promise<SnapshotListResult> {
-    const countResult = await this.db
-      .prepare('SELECT COUNT(*) as total FROM schema_snapshots')
-      .first()
+    try {
+      console.log('Getting snapshots with limit:', limit, 'offset:', offset)
 
-    const result = await this.db
-      .prepare(`
-        SELECT 
-          id, version, name, description, full_schema, tables_json,
-          schema_hash, created_at, created_by, snapshot_type, d1_bookmark_id
-        FROM schema_snapshots 
-        ORDER BY version DESC 
-        LIMIT ? OFFSET ?
-      `)
-      .bind(limit, offset)
-      .all()
+      const countResult = await this.db
+        .prepare('SELECT COUNT(*) as total FROM schema_snapshots')
+        .first()
 
-    const snapshots: SchemaSnapshot[] = result.results.map((row: Record<string, unknown>) => ({
-      id: row.id as string,
-      version: row.version as number,
-      name: row.name as string,
-      description: row.description === null ? undefined : (row.description as string),
-      fullSchema: row.full_schema as string,
-      tablesJson: row.tables_json as string,
-      schemaHash: row.schema_hash as string,
-      createdAt: row.created_at as string,
-      createdBy: row.created_by === null ? undefined : (row.created_by as string),
-      snapshotType: row.snapshot_type as 'manual' | 'auto' | 'pre_change',
-      d1BookmarkId: row.d1_bookmark_id === null ? undefined : (row.d1_bookmark_id as string),
-    }))
+      console.log('Count result:', countResult)
 
-    return {
-      snapshots,
-      total: (countResult as CountResult)?.total || 0,
+      const result = await this.db
+        .prepare(`
+          SELECT 
+            id, version, name, description, full_schema, tables_json,
+            schema_hash, created_at, created_by, snapshot_type, d1_bookmark_id
+          FROM schema_snapshots 
+          ORDER BY version DESC 
+          LIMIT ? OFFSET ?
+        `)
+        .bind(limit, offset)
+        .all()
+
+      console.log('Query result:', result)
+
+      const snapshots: SchemaSnapshot[] = (result.results || []).map(
+        (row: Record<string, unknown>) => ({
+          id: row.id as string,
+          version: row.version as number,
+          name: row.name as string,
+          description: row.description === null ? undefined : (row.description as string),
+          fullSchema: row.full_schema as string,
+          tablesJson: row.tables_json as string,
+          schemaHash: row.schema_hash as string,
+          createdAt: row.created_at as string,
+          createdBy: row.created_by === null ? undefined : (row.created_by as string),
+          snapshotType: row.snapshot_type as 'manual' | 'auto' | 'pre_change',
+          d1BookmarkId: row.d1_bookmark_id === null ? undefined : (row.d1_bookmark_id as string),
+        })
+      )
+
+      const finalResult = {
+        snapshots,
+        total: (countResult as CountResult)?.total || 0,
+      }
+
+      console.log('Final result:', finalResult)
+      return finalResult
+    } catch (error) {
+      console.error('Error in getSnapshots:', error)
+      // If table doesn't exist, return empty result instead of throwing
+      if (error instanceof Error && error.message.includes('no such table')) {
+        console.log('Table does not exist, returning empty result')
+        return {
+          snapshots: [],
+          total: 0,
+        }
+      }
+      console.error('Rethrowing error:', error)
+      throw error
     }
   }
 
