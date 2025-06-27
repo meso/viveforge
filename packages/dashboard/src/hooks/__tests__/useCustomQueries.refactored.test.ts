@@ -18,7 +18,7 @@ const mockQueries: CustomQuery[] = [
     method: 'GET',
     is_readonly: true,
     cache_ttl: 0,
-    enabled: true,
+    is_enabled: true,
     created_at: '2024-01-01T00:00:00Z',
     updated_at: '2024-01-01T00:00:00Z',
   },
@@ -32,7 +32,7 @@ const mockQueries: CustomQuery[] = [
     method: 'POST',
     is_readonly: false,
     cache_ttl: 300,
-    enabled: false,
+    is_enabled: false,
     created_at: '2024-01-02T00:00:00Z',
     updated_at: '2024-01-02T00:00:00Z',
   },
@@ -97,7 +97,7 @@ describe('useCustomQueries (refactored)', () => {
         sql_query: 'SELECT 1',
         parameters: [],
         cache_ttl: 100,
-        enabled: false,
+        is_enabled: false,
       })
 
       // Reset form
@@ -111,7 +111,7 @@ describe('useCustomQueries (refactored)', () => {
           sql_query: '',
           parameters: [],
           cache_ttl: 0,
-          enabled: true,
+          is_enabled: false,
         })
       })
     })
@@ -132,7 +132,7 @@ describe('useCustomQueries (refactored)', () => {
           sql_query: 'SELECT * FROM users',
           parameters: [],
           cache_ttl: 0,
-          enabled: true,
+          is_enabled: true,
         })
       })
     })
@@ -150,7 +150,7 @@ describe('useCustomQueries (refactored)', () => {
         method: 'GET',
         is_readonly: true,
         cache_ttl: 0,
-        enabled: true,
+        is_enabled: true,
         created_at: '2024-01-03T00:00:00Z',
         updated_at: '2024-01-03T00:00:00Z',
       }
@@ -180,7 +180,7 @@ describe('useCustomQueries (refactored)', () => {
           sql_query: 'SELECT * FROM posts',
           parameters: [],
           cache_ttl: 0,
-          enabled: true,
+          is_enabled: true,
         })
         result.current.setIsCreating(true)
       })
@@ -345,7 +345,7 @@ describe('useCustomQueries (refactored)', () => {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ enabled: false }),
+          body: JSON.stringify({ is_enabled: false }),
         })
       })
     })

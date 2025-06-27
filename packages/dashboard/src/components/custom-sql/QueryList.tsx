@@ -78,7 +78,9 @@ export function QueryList({
                     </span>
                     <span
                       className={`text-xs px-2 py-1 rounded ${
-                        query.is_enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        query.is_enabled
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-800'
                       }`}
                     >
                       {query.is_enabled ? 'Enabled' : 'Disabled'}

@@ -102,9 +102,8 @@ export const validateForm = (formData: QueryFormData): ValidationErrors => {
       errors.sql_query = `SQLに未定義のパラメーターが含まれています: ${undefinedParams.join(', ')}`
     }
   }
-
   // Parameter validation
-  (formData.parameters || []).forEach((param, index) => {
+  ;(formData.parameters || []).forEach((param, index) => {
     if (!param.name.trim()) {
       errors[`parameter_${index}_name`] = 'パラメーター名は必須です'
     } else if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(param.name)) {

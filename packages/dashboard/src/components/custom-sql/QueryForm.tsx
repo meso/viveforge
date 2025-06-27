@@ -349,7 +349,10 @@ export function QueryForm({
                 type="checkbox"
                 checked={formData.is_enabled}
                 onChange={(e) =>
-                  onFormDataChange({ ...formData, is_enabled: (e.target as HTMLInputElement).checked })
+                  onFormDataChange({
+                    ...formData,
+                    is_enabled: (e.target as HTMLInputElement).checked,
+                  })
                 }
                 className="mr-2"
               />

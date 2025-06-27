@@ -5,7 +5,7 @@
 
 import { useState } from 'preact/hooks'
 import type { ApiConfig } from '../types/common'
-import type { CustomQuery, QueryFormData, TestResult } from '../types/custom-sql'
+import type { CustomQuery, Parameter, QueryFormData, TestResult } from '../types/custom-sql'
 import { validateForm } from '../utils/sql-utils'
 import { useCRUD } from './useCRUD'
 
@@ -167,7 +167,7 @@ export function useCustomQueries() {
 
   const loadQueryToForm = (query: CustomQuery): void => {
     // Safely parse parameters - handle both string and array formats
-    let parameters: any[] = []
+    let parameters: Parameter[] = []
     if (query.parameters) {
       if (typeof query.parameters === 'string') {
         try {
