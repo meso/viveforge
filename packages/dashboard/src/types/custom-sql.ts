@@ -22,7 +22,7 @@ export interface CustomQuery extends BaseResource {
   method: 'GET' | 'POST'
   is_readonly: boolean
   cache_ttl: number
-  enabled: boolean
+  is_enabled: boolean
 }
 
 export interface QueryFormData {
@@ -32,7 +32,7 @@ export interface QueryFormData {
   sql_query: string
   parameters: Parameter[]
   cache_ttl: number
-  enabled: boolean
+  is_enabled: boolean
 }
 
 export interface TestResult {

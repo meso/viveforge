@@ -95,7 +95,7 @@ export const validateForm = (formData: QueryFormData): ValidationErrors => {
       match = paramRegex.exec(formData.sql_query)
     }
 
-    const definedParams = new Set(formData.parameters.map((p) => p.name))
+    const definedParams = new Set((formData.parameters || []).map((p) => p.name))
     const undefinedParams = Array.from(sqlParams).filter((p) => !definedParams.has(p))
 
     if (undefinedParams.length > 0) {
@@ -104,7 +104,7 @@ export const validateForm = (formData: QueryFormData): ValidationErrors => {
   }
 
   // Parameter validation
-  formData.parameters.forEach((param, index) => {
+  (formData.parameters || []).forEach((param, index) => {
     if (!param.name.trim()) {
       errors[`parameter_${index}_name`] = 'パラメーター名は必須です'
     } else if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(param.name)) {

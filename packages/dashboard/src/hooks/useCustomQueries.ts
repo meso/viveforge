@@ -32,12 +32,19 @@ export function useCustomQueries() {
         sql_query: (data as Partial<QueryFormData>).sql_query || '',
         parameters: (data as Partial<QueryFormData>).parameters || [],
         cache_ttl: (data as Partial<QueryFormData>).cache_ttl || 0,
-        enabled: (data as Partial<QueryFormData>).enabled ?? true,
+        is_enabled: (data as Partial<QueryFormData>).is_enabled ?? false,
       }
       return validateForm(formData)
     },
     transformResponse: (response: unknown) =>
       (response as { queries?: CustomQuery[] }).queries || [],
+    transformItem: (response: unknown) => {
+      // Handle both { query: CustomQuery } and CustomQuery formats
+      if (response && typeof response === 'object' && 'query' in response) {
+        return (response as { query: CustomQuery }).query
+      }
+      return response as CustomQuery
+    },
   })
 
   // Additional state specific to custom queries
@@ -50,7 +57,7 @@ export function useCustomQueries() {
     sql_query: '',
     parameters: [],
     cache_ttl: 0,
-    enabled: true,
+    is_enabled: false,
   })
 
   // Test execution state
@@ -133,7 +140,7 @@ export function useCustomQueries() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ enabled }),
+        body: JSON.stringify({ is_enabled: enabled }),
       })
 
       if (!response.ok) throw new Error('Failed to toggle query')
@@ -153,20 +160,34 @@ export function useCustomQueries() {
       sql_query: '',
       parameters: [],
       cache_ttl: 0,
-      enabled: true,
+      is_enabled: false,
     })
     crud.clearValidationErrors()
   }
 
   const loadQueryToForm = (query: CustomQuery): void => {
+    // Safely parse parameters - handle both string and array formats
+    let parameters: any[] = []
+    if (query.parameters) {
+      if (typeof query.parameters === 'string') {
+        try {
+          parameters = JSON.parse(query.parameters)
+        } catch {
+          parameters = []
+        }
+      } else if (Array.isArray(query.parameters)) {
+        parameters = query.parameters
+      }
+    }
+
     setFormData({
       slug: query.slug,
       name: query.name,
       description: query.description || '',
       sql_query: query.sql_query,
-      parameters: query.parameters,
+      parameters,
       cache_ttl: query.cache_ttl,
-      enabled: query.enabled,
+      is_enabled: query.is_enabled,
     })
     crud.clearValidationErrors()
   }

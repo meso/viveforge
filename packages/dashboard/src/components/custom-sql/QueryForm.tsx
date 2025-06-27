@@ -239,9 +239,9 @@ export function QueryForm({
             <div className="flex justify-between items-center mb-2">
               <div className="block text-sm font-medium text-gray-700">
                 Parameters
-                {formData.parameters.length > 0 && (
+                {(formData.parameters || []).length > 0 && (
                   <span className="text-xs text-gray-500 ml-1">
-                    ({formData.parameters.length} detected)
+                    ({(formData.parameters || []).length} detected)
                   </span>
                 )}
               </div>
@@ -254,13 +254,13 @@ export function QueryForm({
               </button>
             </div>
 
-            {formData.parameters.length === 0 ? (
+            {(formData.parameters || []).length === 0 ? (
               <div className="text-sm text-gray-500 bg-gray-50 p-3 rounded border-2 border-dashed border-gray-200">
                 No parameters detected. Use :param_name in your SQL query to automatically add
                 parameters here.
               </div>
             ) : (
-              formData.parameters.map((param, index) => (
+              (formData.parameters || []).map((param, index) => (
                 <div key={`param-${param.name}-${index}`} className="mb-3">
                   <div className="flex gap-2 mb-1">
                     <input
@@ -347,9 +347,9 @@ export function QueryForm({
               <input
                 id="query-enabled"
                 type="checkbox"
-                checked={formData.enabled}
+                checked={formData.is_enabled}
                 onChange={(e) =>
-                  onFormDataChange({ ...formData, enabled: (e.target as HTMLInputElement).checked })
+                  onFormDataChange({ ...formData, is_enabled: (e.target as HTMLInputElement).checked })
                 }
                 className="mr-2"
               />

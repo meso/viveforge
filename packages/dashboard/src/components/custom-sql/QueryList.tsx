@@ -78,10 +78,10 @@ export function QueryList({
                     </span>
                     <span
                       className={`text-xs px-2 py-1 rounded ${
-                        query.enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        query.is_enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                       }`}
                     >
-                      {query.enabled ? 'Enabled' : 'Disabled'}
+                      {query.is_enabled ? 'Enabled' : 'Disabled'}
                     </span>
                     {query.is_readonly && (
                       <span className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-800">
@@ -95,15 +95,15 @@ export function QueryList({
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation()
-                      onToggleEnabled(query.id, !query.enabled)
+                      onToggleEnabled(query.id, !query.is_enabled)
                     }}
                     className={
-                      query.enabled
+                      query.is_enabled
                         ? 'text-orange-600 hover:text-orange-800'
                         : 'text-green-600 hover:text-green-800'
                     }
                   >
-                    {query.enabled ? 'Disable' : 'Enable'}
+                    {query.is_enabled ? 'Disable' : 'Enable'}
                   </button>
                   <button
                     type="button"

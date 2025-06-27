@@ -56,7 +56,8 @@
       "Bash(wrangler deploy:*)",
       "Bash(wrangler tail:*)",
       "Bash(npx wrangler d1 execute:*)",
-      "Bash(npx wrangler tail:*)"
+      "Bash(npx wrangler tail:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": []
   }

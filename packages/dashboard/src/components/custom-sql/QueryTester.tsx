@@ -76,11 +76,11 @@ export function QueryTester({
         </div>
 
         {/* Parameters */}
-        {selectedQuery.parameters && selectedQuery.parameters.length > 0 && (
+        {(selectedQuery.parameters || []).length > 0 && (
           <div>
             <h4 className="text-sm font-medium text-gray-700 mb-2">Test Parameters</h4>
             <div className="space-y-3">
-              {selectedQuery.parameters.map((param) => (
+              {(selectedQuery.parameters || []).map((param) => (
                 <div key={param.name}>
                   <label
                     htmlFor={`param-${param.name}`}
