@@ -136,8 +136,10 @@ export class HookManager {
     const now = getCurrentDateTimeISO()
 
     await this.db
-      .prepare('UPDATE event_queue SET processed = true, processed_at = ? WHERE id = ?')
-      .bind(now, id)
+      .prepare(
+        'UPDATE event_queue SET processed = true, processed_at = ?, updated_at = ? WHERE id = ?'
+      )
+      .bind(now, now, id)
       .run()
   }
 

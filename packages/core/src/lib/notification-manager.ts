@@ -6,6 +6,7 @@ import {
   type PushService,
   type PushSubscription,
 } from './push-service'
+import { generateId } from './utils'
 
 export interface NotificationRule {
   id: string
@@ -57,7 +58,7 @@ export class NotificationManager {
     },
     deviceInfo?: Record<string, unknown>
   ): Promise<string> {
-    const id = crypto.randomUUID()
+    const id = generateId()
     const provider = subscription.endpoint ? 'webpush' : 'fcm'
 
     await this.db
@@ -134,7 +135,7 @@ export class NotificationManager {
 
   // Create or update a notification rule
   async createRule(rule: Omit<NotificationRule, 'id'>): Promise<string> {
-    const id = crypto.randomUUID()
+    const id = generateId()
 
     await this.db
       .prepare(`

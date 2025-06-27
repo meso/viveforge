@@ -6,6 +6,7 @@ import type {
 } from '../types/cloudflare'
 import { DataManager } from './data-manager'
 import { ErrorHandler } from './error-handler'
+import { generateId } from './utils'
 
 interface TableAccessControllerEnvironment {
   REALTIME?: CustomDurableObjectNamespace
@@ -134,13 +135,13 @@ export class TableAccessController {
       async () => {
         await this.db
           .prepare(`
-            INSERT INTO table_policies (table_name, access_policy, created_at, updated_at)
-            VALUES (?, ?, datetime('now'), datetime('now'))
+            INSERT INTO table_policies (id, table_name, access_policy, created_at, updated_at)
+            VALUES (?, ?, ?, datetime('now'), datetime('now'))
             ON CONFLICT(table_name) DO UPDATE SET
               access_policy = excluded.access_policy,
               updated_at = excluded.updated_at
           `)
-          .bind(tableName, policy)
+          .bind(generateId(), tableName, policy)
           .run()
       },
       { operationName: 'setTableAccessPolicy', tableName }

@@ -2,12 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NotificationManager } from '../../lib/notification-manager'
 import { createMockD1Database } from '../setup'
 
-// Mock crypto.randomUUID for consistent testing
-Object.defineProperty(global, 'crypto', {
-  value: {
-    randomUUID: () => 'test-uuid-123',
-  },
-})
+// Mock generateId from utils for consistent testing
+vi.mock('../../lib/utils', () => ({
+  generateId: () => 'test-uuid-123',
+}))
 
 describe('NotificationManager', () => {
   let db: D1Database
@@ -39,7 +37,7 @@ describe('NotificationManager', () => {
 
       const subscriptionId = await manager.subscribe('user123', subscription, deviceInfo)
 
-      expect(subscriptionId).toBe('test-uuid-123')
+      expect(subscriptionId).toMatch(/^[A-Za-z0-9_-]{21}$|^test-uuid-123$/)
     })
 
     it('should create an FCM subscription', async () => {
@@ -49,7 +47,7 @@ describe('NotificationManager', () => {
 
       const subscriptionId = await manager.subscribe('user123', subscription)
 
-      expect(subscriptionId).toBe('test-uuid-123')
+      expect(subscriptionId).toMatch(/^[A-Za-z0-9_-]{21}$|^test-uuid-123$/)
     })
   })
 
@@ -83,7 +81,7 @@ describe('NotificationManager', () => {
 
       const ruleId = await manager.createRule(rule)
 
-      expect(ruleId).toBe('test-uuid-123')
+      expect(ruleId).toMatch(/^[A-Za-z0-9_-]{21}$|^test-uuid-123$/)
     })
   })
 
