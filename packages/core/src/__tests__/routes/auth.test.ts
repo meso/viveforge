@@ -92,13 +92,12 @@ describe('Auth Routes', () => {
   })
 
   describe('GET /auth/login', () => {
-    it('should redirect to vibebase-auth login', async () => {
+    it('should show login page', async () => {
       const res = await app.request('/auth/login', {}, env)
 
-      expect(res.status).toBe(302)
-      expect(res.headers.get('Location')).toBe(
-        'https://auth.vibebase.workers.dev/auth/login?origin=https%3A%2F%2Ftest.example.com&redirect_to=%2F'
-      )
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Type')).toContain('text/html')
+      expect(mockAuthClient.getLoginUrl).toHaveBeenCalledWith('/')
     })
 
     it('should handle custom redirect parameter', async () => {
@@ -108,7 +107,8 @@ describe('Auth Routes', () => {
 
       const res = await app.request('/auth/login?redirect=/dashboard', {}, env)
 
-      expect(res.status).toBe(302)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Type')).toContain('text/html')
       expect(mockAuthClient.getLoginUrl).toHaveBeenCalledWith('/dashboard')
     })
 

@@ -14,8 +14,8 @@ export function useAuthMonitor() {
         if (response.status === 401) {
           // Prevent redirect loop
           if (window.location.pathname !== '/auth/login') {
-            console.warn('Session expired, redirecting to login...')
-            window.location.href = '/auth/login'
+            console.warn('Session expired, reloading to show login...')
+            window.location.reload()
           }
         }
       } catch (error) {

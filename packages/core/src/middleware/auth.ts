@@ -169,8 +169,8 @@ async function handleAdminAuth(c: Context<{ Bindings: Env; Variables: Variables 
         )
       }
 
-      // For browser requests, redirect to login
-      return c.redirect(loginUrl)
+      // For browser requests, redirect to login page
+      return c.redirect('/auth/login')
     }
 
     // Set auth context

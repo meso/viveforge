@@ -116,6 +116,7 @@ app.use('*', async (c, next) => {
 app.get('/', async (c) => {
   const user = c.get('user')
   if (!user) {
+    // Redirect to login page
     return c.redirect('/auth/login')
   }
   return c.html(
@@ -199,6 +200,7 @@ app.get('*', async (c) => {
   // For SPA routes, user is already authenticated via middleware
   const user = c.get('user')
   if (!user) {
+    // Redirect to login page
     return c.redirect('/auth/login')
   }
 

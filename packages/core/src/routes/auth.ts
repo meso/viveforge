@@ -3,13 +3,18 @@ import type { VibebaseAuthClient } from '../lib/auth-client'
 import { getCurrentDateTimeISO } from '../lib/datetime-utils'
 import { generateId } from '../lib/utils'
 import { getCurrentUser } from '../middleware/auth'
-import { getAccessDeniedHTML, getAuthErrorHTML, getLogoutHTML } from '../templates/html'
+import {
+  getAccessDeniedHTML,
+  getAuthErrorHTML,
+  getLoginHTML,
+  getLogoutHTML,
+} from '../templates/html'
 import type { Env, Variables } from '../types'
 
 const auth = new Hono<{ Bindings: Env; Variables: Variables }>()
 
 /**
- * ログイン開始
+ * ログイン画面表示
  */
 auth.get('/login', async (c) => {
   try {
@@ -21,10 +26,10 @@ auth.get('/login', async (c) => {
     const redirectTo = c.req.query('redirect') || '/'
     const loginUrl = authClient.getLoginUrl(redirectTo)
 
-    return c.redirect(loginUrl)
+    return c.html(getLoginHTML(loginUrl))
   } catch (error) {
-    console.error('Login initiation failed:', error)
-    return c.json({ error: 'Login failed' }, 500)
+    console.error('Login page failed:', error)
+    return c.json({ error: 'Login page failed' }, 500)
   }
 })
 

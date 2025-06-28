@@ -95,9 +95,7 @@ describe('Auth Middleware', () => {
       )
 
       expect(res.status).toBe(302)
-      expect(res.headers.get('Location')).toBe(
-        'https://auth.vibebase.workers.dev/auth/login?origin=https%3A%2F%2Ftest.example.com&redirect_to=%2F'
-      )
+      expect(res.headers.get('Location')).toBe('/auth/login')
     })
 
     it('should return JSON error for unauthenticated API requests', async () => {
