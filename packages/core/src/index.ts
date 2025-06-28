@@ -115,10 +115,11 @@ app.use('*', async (c, next) => {
 // Root route - Dashboard
 app.get('/', async (c) => {
   const user = c.get('user')
+  // User should be available after middleware authentication
   if (!user) {
-    // Redirect to login page
-    return c.redirect('/auth/login')
+    throw new Error('User not found after authentication')
   }
+
   return c.html(
     getDashboardHTML(
       {
@@ -199,9 +200,9 @@ app.get('*', async (c) => {
 
   // For SPA routes, user is already authenticated via middleware
   const user = c.get('user')
+  // User should be available after middleware authentication
   if (!user) {
-    // Redirect to login page
-    return c.redirect('/auth/login')
+    throw new Error('User not found after authentication')
   }
 
   // Return the SPA HTML with auth state

@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { getCurrentUser, optionalAuth, requireAuth } from '../../middleware/auth'
+import { getCurrentUser, multiAuth } from '../../middleware/auth'
 import type { Env, Variables } from '../../types'
 
 // Mock VibebaseAuthClient
@@ -46,7 +46,7 @@ describe('Auth Middleware', () => {
     })
   })
 
-  describe('requireAuth', () => {
+  describe('multiAuth', () => {
     it('should allow authenticated requests', async () => {
       const mockUser = {
         id: '12345',
@@ -64,7 +64,7 @@ describe('Auth Middleware', () => {
 
       mockAuthClient.verifyRequest.mockResolvedValue(mockUser)
 
-      app.get('/protected', requireAuth, (c) => {
+      app.get('/protected', multiAuth, (c) => {
         const user = getCurrentUser(c)
         return c.json({ message: 'success', user })
       })
@@ -80,7 +80,7 @@ describe('Auth Middleware', () => {
     it('should redirect unauthenticated browser requests to login', async () => {
       mockAuthClient.verifyRequest.mockResolvedValue(null)
 
-      app.get('/protected', requireAuth, (c) => {
+      app.get('/protected', multiAuth, (c) => {
         return c.json({ message: 'should not reach here' })
       })
 
@@ -101,7 +101,7 @@ describe('Auth Middleware', () => {
     it('should return JSON error for unauthenticated API requests', async () => {
       mockAuthClient.verifyRequest.mockResolvedValue(null)
 
-      app.get('/api/protected', requireAuth, (c) => {
+      app.get('/api/protected', multiAuth, (c) => {
         return c.json({ message: 'should not reach here' })
       })
 
@@ -129,7 +129,7 @@ describe('Auth Middleware', () => {
         await next()
       })
 
-      app.get('/protected', requireAuth, (c) => {
+      app.get('/protected', multiAuth, (c) => {
         return c.json({ message: 'should not reach here' })
       })
 
@@ -143,7 +143,7 @@ describe('Auth Middleware', () => {
     it('should handle auth service errors', async () => {
       mockAuthClient.verifyRequest.mockRejectedValue(new Error('Service error'))
 
-      app.get('/protected', requireAuth, (c) => {
+      app.get('/protected', multiAuth, (c) => {
         return c.json({ message: 'should not reach here' })
       })
 
@@ -152,85 +152,6 @@ describe('Auth Middleware', () => {
       expect(res.status).toBe(503)
       const body = (await res.json()) as any
       expect(body.error).toBe('Authentication service error')
-    })
-  })
-
-  describe('optionalAuth', () => {
-    it('should set user for authenticated requests', async () => {
-      const mockUser = {
-        id: '12345',
-        username: 'testuser',
-        email: 'test@example.com',
-        name: 'Test User',
-        scope: ['admin'],
-        provider: 'github',
-        provider_id: '12345',
-        role: 'admin',
-        is_active: true,
-        created_at: '2023-01-01T00:00:00.000Z',
-        updated_at: '2023-01-01T00:00:00.000Z',
-      }
-
-      mockAuthClient.verifyRequest.mockResolvedValue(mockUser)
-
-      app.get('/optional', optionalAuth, (c) => {
-        const user = getCurrentUser(c)
-        return c.json({ user })
-      })
-
-      const res = await app.request('/optional', {}, { env })
-
-      expect(res.status).toBe(200)
-      const body = (await res.json()) as any
-      expect(body.user).toEqual(mockUser)
-    })
-
-    it('should continue without user for unauthenticated requests', async () => {
-      mockAuthClient.verifyRequest.mockResolvedValue(null)
-
-      app.get('/optional', optionalAuth, (c) => {
-        const user = getCurrentUser(c)
-        return c.json({ user })
-      })
-
-      const res = await app.request('/optional', {}, { env })
-
-      expect(res.status).toBe(200)
-      const body = (await res.json()) as any
-      expect(body.user).toBeNull()
-    })
-
-    it('should continue when auth client is unavailable', async () => {
-      app.use('*', async (c, next) => {
-        c.set('authClient', undefined)
-        await next()
-      })
-
-      app.get('/optional', optionalAuth, (c) => {
-        const user = getCurrentUser(c)
-        return c.json({ user })
-      })
-
-      const res = await app.request('/optional', {}, { env })
-
-      expect(res.status).toBe(200)
-      const body = (await res.json()) as any
-      expect(body.user).toBeNull()
-    })
-
-    it('should continue when auth service throws error', async () => {
-      mockAuthClient.verifyRequest.mockRejectedValue(new Error('Service error'))
-
-      app.get('/optional', optionalAuth, (c) => {
-        const user = getCurrentUser(c)
-        return c.json({ user })
-      })
-
-      const res = await app.request('/optional', {}, { env })
-
-      expect(res.status).toBe(200)
-      const body = (await res.json()) as any
-      expect(body.user).toBeNull()
     })
   })
 

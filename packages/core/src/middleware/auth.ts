@@ -185,37 +185,6 @@ async function handleAdminAuth(c: Context<{ Bindings: Env; Variables: Variables 
 }
 
 /**
- * Legacy requireAuth function for backward compatibility
- */
-export async function requireAuth(c: Context<{ Bindings: Env; Variables: Variables }>, next: Next) {
-  return await multiAuth(c, next)
-}
-
-/**
- * 認証情報を取得するミドルウェア（オプショナル）
- */
-export async function optionalAuth(
-  c: Context<{ Bindings: Env; Variables: Variables }>,
-  next: Next
-) {
-  const authClient = c.get('authClient') as VibebaseAuthClient
-
-  if (authClient) {
-    try {
-      const user = await authClient.verifyRequest(c)
-      if (user) {
-        c.set('user', user)
-      }
-    } catch (error) {
-      // オプショナル認証なので、エラーは無視
-      console.warn('Optional auth failed:', error)
-    }
-  }
-
-  await next()
-}
-
-/**
  * Get current authentication context
  */
 export function getAuthContext(

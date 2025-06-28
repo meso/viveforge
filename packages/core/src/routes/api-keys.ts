@@ -1,12 +1,12 @@
 import { Hono } from 'hono'
 import { API_SCOPES, APIKeyManager, type CreateAPIKeyRequest } from '../lib/api-key-manager'
-import { getCurrentUser, requireAuth } from '../middleware/auth'
+import { getCurrentUser, multiAuth } from '../middleware/auth'
 import type { Env, Variables } from '../types'
 
 export const apiKeys = new Hono<{ Bindings: Env; Variables: Variables }>()
 
 // Apply authentication to all routes
-apiKeys.use('*', requireAuth)
+apiKeys.use('*', multiAuth)
 
 // Initialize API key manager middleware
 apiKeys.use('*', async (c, next) => {

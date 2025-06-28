@@ -3,6 +3,8 @@
  * Provides standardized API communication with error handling, authentication, and type safety
  */
 
+import { handleAuthenticationError } from './auth-error-handler'
+
 export interface ApiClientConfig {
   baseUrl: string
   defaultHeaders?: Record<string, string>
@@ -223,10 +225,8 @@ export function createApiClient(config: Partial<ApiClientConfig> = {}): ApiClien
     },
     timeout: 30000,
     onAuthError: () => {
-      // Only redirect if not already on login page
-      if (window.location.pathname !== '/auth/login') {
-        window.location.href = '/auth/login'
-      }
+      // Use centralized auth error handler
+      handleAuthenticationError()
     },
   }
 
@@ -237,29 +237,3 @@ export function createApiClient(config: Partial<ApiClientConfig> = {}): ApiClien
  * Default API client instance
  */
 export const defaultApiClient = createApiClient()
-
-/**
- * Legacy compatibility wrapper - maintains existing fetchWithAuth interface
- */
-export async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
-  const response = await defaultApiClient.request(url, options)
-
-  // Convert ApiResponse back to Response for legacy compatibility
-  const mockResponse = new Response(
-    response.success ? JSON.stringify(response.data) : response.error,
-    {
-      status: response.status,
-      statusText: response.success ? 'OK' : response.error || 'Error',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    }
-  )
-
-  // For legacy compatibility, throw on non-success responses
-  if (!response.success) {
-    throw new Error(response.error || 'Request failed')
-  }
-
-  return mockResponse
-}

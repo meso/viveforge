@@ -1,4 +1,5 @@
 import { useEffect } from 'preact/hooks'
+import { handleAuthenticationError } from '../lib/auth-error-handler'
 
 /**
  * Monitor authentication status on window focus
@@ -12,11 +13,7 @@ export function useAuthMonitor() {
         const response = await fetch(`${window.location.origin}/auth/status`)
 
         if (response.status === 401) {
-          // Prevent redirect loop
-          if (window.location.pathname !== '/auth/login') {
-            console.warn('Session expired, reloading to show login...')
-            window.location.reload()
-          }
+          handleAuthenticationError()
         }
       } catch (error) {
         // Ignore network errors on focus check
