@@ -144,15 +144,13 @@ export const formatDateTime = (dateString: string): string => {
 
 /**
  * Check if a value appears to be an ID (for copy/jump functionality)
+ * Matches nanoid format: 21 characters using A-Za-z0-9_-
  */
 export const isIdValue = (value: unknown): boolean => {
   if (typeof value !== 'string') return false
-  // Check if it's a UUID-like format or other ID patterns
-  return (
-    /^[a-f0-9]{8}[a-f0-9]{4}[a-f0-9]{4}[a-f0-9]{4}[a-f0-9]{12}$/i.test(value) ||
-    /^[a-f0-9]{8,}$/i.test(value) ||
-    (value.length >= 6 && /^[a-zA-Z0-9_-]+$/.test(value))
-  )
+  // Check if it matches nanoid format (21 chars by default with URL-safe chars)
+  // Also accept 32-char format used for API keys
+  return /^[A-Za-z0-9_-]{21}$/.test(value) || /^[A-Za-z0-9_-]{32}$/.test(value)
 }
 
 /**

@@ -329,27 +329,27 @@ CREATE INDEX idx_custom_query_logs_created_at ON custom_query_logs(created_at);
 -- Initial Data
 -- ============================
 
--- Sample users (5 records) - Note: In production, IDs should be generated using nanoid()
+-- Sample users (5 records) - Using nanoid format for IDs
 INSERT INTO users (id, email, name, avatar_url, provider, provider_id, role, is_active, owner_id) VALUES
-  ('alice-001-sample', 'alice@example.com', 'Alice Johnson', 'https://avatars.githubusercontent.com/u/1?v=4', 'github', 'gh-1001', 'user', true, 'alice-001-sample'),
-  ('bob-002-sample', 'bob@example.com', 'Bob Smith', 'https://avatars.githubusercontent.com/u/2?v=4', 'github', 'gh-1002', 'user', true, 'bob-002-sample'),
-  ('charlie-003-sample', 'charlie@example.com', 'Charlie Brown', 'https://avatars.githubusercontent.com/u/3?v=4', 'google', 'g-2001', 'user', true, 'charlie-003-sample'),
-  ('diana-004-sample', 'diana@example.com', 'Diana Prince', 'https://avatars.githubusercontent.com/u/4?v=4', 'github', 'gh-1003', 'user', true, 'diana-004-sample'),
-  ('edward-005-sample', 'edward@example.com', 'Edward Norton', 'https://avatars.githubusercontent.com/u/5?v=4', 'google', 'g-2002', 'user', true, 'edward-005-sample');
+  ('V1StGXR8_Z5jdHi6B-myT', 'alice@example.com', 'Alice Johnson', 'https://avatars.githubusercontent.com/u/1?v=4', 'github', 'gh-1001', 'user', true, 'V1StGXR8_Z5jdHi6B-myT'),
+  ('3ZjkQ2mN8pX9vC7bA-wEr', 'bob@example.com', 'Bob Smith', 'https://avatars.githubusercontent.com/u/2?v=4', 'github', 'gh-1002', 'user', true, '3ZjkQ2mN8pX9vC7bA-wEr'),
+  ('LpH9mKj2nQ4vX8cD-zFgR', 'charlie@example.com', 'Charlie Brown', 'https://avatars.githubusercontent.com/u/3?v=4', 'google', 'g-2001', 'user', true, 'LpH9mKj2nQ4vX8cD-zFgR'),
+  ('9RdY3kW7pM5sT2nJ-qBvX', 'diana@example.com', 'Diana Prince', 'https://avatars.githubusercontent.com/u/4?v=4', 'github', 'gh-1003', 'user', true, '9RdY3kW7pM5sT2nJ-qBvX'),
+  ('K4fN6zP1mR8hL3sW-tCvB', 'edward@example.com', 'Edward Norton', 'https://avatars.githubusercontent.com/u/5?v=4', 'google', 'g-2002', 'user', true, 'K4fN6zP1mR8hL3sW-tCvB');
 
--- Sample items (5 records) - Note: In production, IDs should be generated using nanoid()
+-- Sample items (5 records) - Using nanoid format for IDs and user references
 INSERT INTO items (id, name, description, user_id) VALUES
-  ('todo-app-sample', 'Todo List App', 'A simple todo list application with React', 'alice-001-sample'),
-  ('weather-widget-sample', 'Weather Widget', 'Real-time weather display widget', 'alice-001-sample'),
-  ('blog-platform-sample', 'Blog Platform', 'Personal blogging platform with markdown support', 'bob-002-sample'),
-  ('photo-gallery-sample', 'Photo Gallery', 'Responsive photo gallery with lightbox', 'charlie-003-sample'),
-  ('chat-app-sample', 'Chat Application', 'Real-time chat app using WebSocket', 'diana-004-sample');
+  ('A2kF8mR9vN4pX7sD-qBwZ', 'Todo List App', 'A simple todo list application with React', 'V1StGXR8_Z5jdHi6B-myT'),
+  ('G6hM3nP2kQ8vC5bL-zFrY', 'Weather Widget', 'Real-time weather display widget', 'V1StGXR8_Z5jdHi6B-myT'),
+  ('T7jK9mN1pR4vX2sD-wCfB', 'Blog Platform', 'Personal blogging platform with markdown support', '3ZjkQ2mN8pX9vC7bA-wEr'),
+  ('S4gL8kP6mQ9vN3cF-tBzX', 'Photo Gallery', 'Responsive photo gallery with lightbox', 'LpH9mKj2nQ4vX8cD-zFgR'),
+  ('H1dW5nM3kR7pL2sQ-vCfG', 'Chat Application', 'Real-time chat app using WebSocket', '9RdY3kW7pM5sT2nJ-qBvX');
 
 -- Initialize table policies for user tables
 INSERT INTO table_policies (id, table_name, access_policy) VALUES
-  ('policy-users-sample', 'users', 'private'),
-  ('policy-items-sample', 'items', 'public');
+  ('P8mQ2nK5vR9pL4sD-wCfT', 'users', 'private'),
+  ('B7jM1kN4pQ8vC3sL-zFrG', 'items', 'public');
 
 -- Initialize app settings
 INSERT INTO app_settings (id, app_name, oauth_user_agent) 
-VALUES ('default', 'MyApp', 'MyApp/1.0 (Powered by Vibebase)');
+VALUES ('F5gK9mN2pR6vX1sD-qBwY', 'MyApp', 'MyApp/1.0 (Powered by Vibebase)');

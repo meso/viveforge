@@ -79,7 +79,7 @@ export function DataViewer({
 
     // Check if this field has foreign key references
     const column = tableColumns.find((col) => col.name === columnName)
-    const hasFK = column && isIdValue(currentValue)
+    const hasFK = column && columnName.endsWith('_id') && isIdValue(currentValue)
 
     if (hasFK || !column) {
       // Open modal for FK references or complex fields
@@ -275,7 +275,8 @@ export function DataViewer({
                                       : String(value)}
                             </span>
 
-                            {(column.name === 'id' || isIdValue(value)) && (
+                            {(column.name === 'id' ||
+                              (column.name.endsWith('_id') && isIdValue(value))) && (
                               <div className="flex gap-1">
                                 <button
                                   type="button"
