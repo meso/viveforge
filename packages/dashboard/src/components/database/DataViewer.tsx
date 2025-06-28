@@ -1,13 +1,16 @@
 import { useRef, useState } from 'preact/hooks'
 import { useTableOperations } from '../../hooks/useTableOperations'
-import type { ColumnInfo } from '../../lib/api'
+import type { ColumnInfo, ForeignKeyInfo } from '../../lib/api'
 import { copyToClipboard, formatDateTime, isIdValue, truncateId } from '../../utils/database'
 
 interface DataViewerProps {
   tableName: string
   tableData: Record<string, unknown>[]
   tableColumns: ColumnInfo[]
+  tableForeignKeys: ForeignKeyInfo[]
   onDataChange: () => void // Callback when data is modified
+  onTableSelect: (tableName: string | null, highlightRecordId?: string) => void // Callback to switch tables
+  highlightRecordId?: string // ID of record to highlight
   loading: boolean
 }
 
@@ -26,7 +29,10 @@ export function DataViewer({
   tableName,
   tableData,
   tableColumns,
+  tableForeignKeys,
   onDataChange,
+  onTableSelect,
+  highlightRecordId,
   loading,
 }: DataViewerProps) {
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -44,6 +50,11 @@ export function DataViewer({
     error: operationsError,
     clearError,
   } = useTableOperations()
+
+  // Helper function to check if a column has foreign key constraint
+  const hasForeignKey = (columnName: string): boolean => {
+    return tableForeignKeys.some((fk) => fk.from === columnName)
+  }
 
   // Handle create record form submission
   const handleCreateRecord = async (e: Event) => {
@@ -140,11 +151,18 @@ export function DataViewer({
     }
   }
 
-  // Jump to record with specific ID
+  // Jump to record with specific ID using FK constraint information
   const jumpToRecord = async (id: string, columnName: string) => {
-    // This would need to find the table that contains this ID
-    console.log('Jump to record:', { id, columnName })
-    // TODO: Implement table lookup and navigation
+    // Find the foreign key constraint for this column
+    const foreignKey = tableForeignKeys.find((fk) => fk.from === columnName)
+
+    if (!foreignKey) {
+      console.warn(`No foreign key constraint found for column: ${columnName}`)
+      return
+    }
+
+    // Switch to the target table with highlighting
+    onTableSelect(foreignKey.table, id)
   }
 
   if (!tableName) {
@@ -213,119 +231,130 @@ export function DataViewer({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {tableData.map((row, rowIndex) => (
-                <tr key={row.id as string} className="hover:bg-gray-50">
-                  {tableColumns.map((column) => {
-                    const value = row[column.name]
-                    const cellKey = `${rowIndex}-${column.name}`
-                    const isEditing =
-                      editingCell?.rowId === row.id && editingCell?.columnName === column.name
-                    const isCopied = copiedCell === cellKey
-                    const isSystemColumn = ['id', 'created_at', 'updated_at'].includes(column.name)
+              {tableData.map((row, rowIndex) => {
+                const isHighlighted = highlightRecordId === row.id
+                return (
+                  <tr
+                    key={row.id as string}
+                    className={`${isHighlighted ? 'bg-yellow-100 border-yellow-300' : 'hover:bg-gray-50'} ${isHighlighted ? 'transition-colors duration-1000' : ''}`}
+                  >
+                    {tableColumns.map((column) => {
+                      const value = row[column.name]
+                      const cellKey = `${rowIndex}-${column.name}`
+                      const isEditing =
+                        editingCell?.rowId === row.id && editingCell?.columnName === column.name
+                      const isCopied = copiedCell === cellKey
+                      const isSystemColumn = ['id', 'created_at', 'updated_at'].includes(
+                        column.name
+                      )
 
-                    return (
-                      <td
-                        key={column.name}
-                        className={`px-4 py-3 text-sm relative ${
-                          isSystemColumn ? 'text-gray-500' : 'text-gray-900'
-                        } ${!isSystemColumn ? 'cursor-pointer hover:bg-blue-50' : ''}`}
-                        onClick={() =>
-                          !isEditing && handleCellClick(row.id as string, column.name, value)
-                        }
-                        onKeyDown={(e) => {
-                          if ((e.key === 'Enter' || e.key === ' ') && !isEditing) {
-                            handleCellClick(row.id as string, column.name, value)
+                      return (
+                        <td
+                          key={column.name}
+                          className={`px-4 py-3 text-sm relative ${
+                            isSystemColumn ? 'text-gray-500' : 'text-gray-900'
+                          } ${!isSystemColumn ? 'cursor-pointer hover:bg-blue-50' : ''}`}
+                          onClick={() =>
+                            !isEditing && handleCellClick(row.id as string, column.name, value)
                           }
-                        }}
-                        tabIndex={!isSystemColumn ? 0 : -1}
-                        role={!isSystemColumn ? 'button' : undefined}
-                      >
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            value={editingCell.value as string}
-                            onChange={(e) =>
-                              setEditingCell((prev) =>
-                                prev ? { ...prev, value: e.currentTarget.value } : null
-                              )
+                          onKeyDown={(e) => {
+                            if ((e.key === 'Enter' || e.key === ' ') && !isEditing) {
+                              handleCellClick(row.id as string, column.name, value)
                             }
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                handleCellSave(row.id as string, column.name, editingCell.value)
-                              } else if (e.key === 'Escape') {
-                                handleCellCancel()
+                          }}
+                          tabIndex={!isSystemColumn ? 0 : -1}
+                          role={!isSystemColumn ? 'button' : undefined}
+                        >
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={editingCell.value as string}
+                              onChange={(e) =>
+                                setEditingCell((prev) =>
+                                  prev ? { ...prev, value: e.currentTarget.value } : null
+                                )
                               }
-                            }}
-                            onBlur={() =>
-                              handleCellSave(row.id as string, column.name, editingCell.value)
-                            }
-                            className="w-full px-2 py-1 border border-blue-500 rounded focus:outline-none"
-                          />
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <span>
-                              {column.name === 'id'
-                                ? truncateId(value as string)
-                                : ['created_at', 'updated_at'].includes(column.name)
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  handleCellSave(row.id as string, column.name, editingCell.value)
+                                } else if (e.key === 'Escape') {
+                                  handleCellCancel()
+                                }
+                              }}
+                              onBlur={() =>
+                                handleCellSave(row.id as string, column.name, editingCell.value)
+                              }
+                              className="w-full px-2 py-1 border border-blue-500 rounded focus:outline-none"
+                            />
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <span>
+                                {['created_at', 'updated_at'].includes(column.name)
                                   ? formatDateTime(value as string)
-                                  : value === null
-                                    ? 'NULL'
-                                    : value === ''
-                                      ? '(empty)'
-                                      : String(value)}
-                            </span>
+                                  : isIdValue(value)
+                                    ? truncateId(value as string)
+                                    : value === null
+                                      ? 'NULL'
+                                      : value === ''
+                                        ? '(empty)'
+                                        : String(value)}
+                              </span>
 
-                            {(column.name === 'id' ||
-                              (column.name.endsWith('_id') && isIdValue(value))) && (
-                              <div className="flex gap-1">
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleCopyId(value as string, rowIndex, column.name)
-                                  }}
-                                  className={`p-1 rounded text-xs ${
-                                    isCopied
-                                      ? 'bg-green-100 text-green-600'
-                                      : 'hover:bg-gray-100 text-gray-400'
-                                  }`}
-                                  title="Copy to clipboard"
-                                >
-                                  {isCopied ? '✓' : '📋'}
-                                </button>
+                              {(isIdValue(value) || hasForeignKey(column.name)) && (
+                                <div className="flex gap-1">
+                                  {/* Copy button: show for nanoid values */}
+                                  {isIdValue(value) && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleCopyId(value as string, rowIndex, column.name)
+                                      }}
+                                      className={`p-1 rounded text-xs ${
+                                        isCopied
+                                          ? 'bg-green-100 text-green-600'
+                                          : 'hover:bg-gray-100 text-gray-400'
+                                      }`}
+                                      title="Copy to clipboard"
+                                    >
+                                      {isCopied ? '✓' : '📋'}
+                                    </button>
+                                  )}
 
-                                {column.name !== 'id' && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      jumpToRecord(value as string, column.name)
-                                    }}
-                                    className="p-1 hover:bg-gray-100 text-gray-400 rounded text-xs"
-                                    title="Jump to related record"
-                                  >
-                                    🔗
-                                  </button>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </td>
-                    )
-                  })}
-                  <td className="px-4 py-3 text-sm">
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteRecord(row.id as string)}
-                      className="text-red-600 hover:text-red-800 text-sm"
-                      disabled={operationsLoading}
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                                  {/* Link button: show for FK constraints */}
+                                  {hasForeignKey(column.name) && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        jumpToRecord(value as string, column.name)
+                                      }}
+                                      className="p-1 hover:bg-gray-100 text-gray-400 rounded text-xs"
+                                      title="Jump to related record"
+                                    >
+                                      🔗
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                      )
+                    })}
+                    <td className="px-4 py-3 text-sm">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteRecord(row.id as string)}
+                        className="text-red-600 hover:text-red-800 text-sm"
+                        disabled={operationsLoading}
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

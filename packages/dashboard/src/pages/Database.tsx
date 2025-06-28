@@ -7,6 +7,7 @@ import { useDatabase } from '../hooks/useDatabase'
 
 export function DatabasePage() {
   const [showSchemaHistory, setShowSchemaHistory] = useState(false)
+  const [highlightRecordId, setHighlightRecordId] = useState<string | undefined>(undefined)
 
   const {
     tables,
@@ -22,8 +23,22 @@ export function DatabasePage() {
     loadTableSchema,
   } = useDatabase()
 
-  const handleTableSelect = (tableName: string | null) => {
+  const handleTableSelect = async (tableName: string | null, highlightRecordId?: string) => {
+    // First switch the table
     setSelectedTable(tableName)
+
+    // If we need to highlight a record, wait a bit for data to load
+    if (highlightRecordId && tableName) {
+      // Wait for the table data to be loaded before highlighting
+      setTimeout(() => {
+        setHighlightRecordId(highlightRecordId)
+
+        // Clear highlight after 3 seconds
+        setTimeout(() => {
+          setHighlightRecordId(undefined)
+        }, 3000)
+      }, 500) // Give time for table data to load
+    }
   }
 
   const handleTablesChange = () => {
@@ -87,7 +102,10 @@ export function DatabasePage() {
                   tableName={selectedTable}
                   tableData={tableData}
                   tableColumns={tableColumns}
+                  tableForeignKeys={tableForeignKeys}
                   onDataChange={handleDataChange}
+                  onTableSelect={handleTableSelect}
+                  highlightRecordId={highlightRecordId}
                   loading={loading}
                 />
 
