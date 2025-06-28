@@ -115,12 +115,16 @@ adminOAuth.put('/providers/:provider', async (c) => {
     // Get default scopes if not provided
     const scopes = body.scopes || oauthManager.getDefaultScopes(provider)
 
+    // Generate default redirect_uri if not provided
+    const baseUrl = new URL(c.req.url).origin
+    const redirect_uri = body.redirect_uri || `${baseUrl}/api/auth/callback/${provider}`
+
     await oauthManager.upsertProvider(provider, {
       client_id: body.client_id,
       client_secret: body.client_secret,
       is_enabled: body.is_enabled !== undefined ? body.is_enabled : true,
       scopes: scopes,
-      redirect_uri: body.redirect_uri,
+      redirect_uri: redirect_uri,
     })
 
     return c.json({
@@ -131,7 +135,7 @@ adminOAuth.put('/providers/:provider', async (c) => {
         client_id: body.client_id,
         is_enabled: body.is_enabled !== undefined ? body.is_enabled : true,
         scopes: scopes,
-        redirect_uri: body.redirect_uri,
+        redirect_uri: redirect_uri,
       },
     })
   } catch (error) {
