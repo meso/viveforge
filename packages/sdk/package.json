@@ -1,0 +1,61 @@
+{
+  "name": "@vibebase/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for Vibebase - Personal BaaS on Cloudflare",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check src",
+    "lint:fix": "biome check src --write"
+  },
+  "keywords": [
+    "vibebase",
+    "baas",
+    "backend-as-a-service",
+    "cloudflare",
+    "typescript",
+    "sdk"
+  ],
+  "author": "Vibebase Team",
+  "license": "Elastic-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vibebase/vibebase.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://github.com/vibebase/vibebase",
+  "bugs": {
+    "url": "https://github.com/vibebase/vibebase/issues"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.6.3",
+    "vitest": "^1.6.1"
+  },
+  "dependencies": {
+    "cross-fetch": "^4.0.0"
+  },
+  "peerDependencies": {
+    "typescript": ">=4.0.0"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}
