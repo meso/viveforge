@@ -1,6 +1,7 @@
 import type { Context, Next } from 'hono'
 import type { Env, Variables } from '../types'
-import { serviceUnavailableResponse } from '../utils/responses'
+import { errorResponse, serviceUnavailableResponse } from '../utils/responses'
+import { getCurrentUser } from './auth'
 
 /**
  * Database availability check middleware
@@ -27,6 +28,23 @@ export async function requireStorage(
 ) {
   if (!c.env.USER_STORAGE || !c.env.SYSTEM_STORAGE) {
     return serviceUnavailableResponse(c, 'Storage')
+  }
+
+  await next()
+}
+
+/**
+ * Admin authentication check middleware
+ * Ensures that a valid admin user is authenticated
+ * Use this after multiAuth middleware
+ */
+export async function requireAdminUser(
+  c: Context<{ Bindings: Env; Variables: Variables }>,
+  next: Next
+) {
+  const user = getCurrentUser(c)
+  if (!user) {
+    return errorResponse(c, 'Authentication required', 401)
   }
 
   await next()

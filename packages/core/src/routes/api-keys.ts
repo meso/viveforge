@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { API_SCOPES, APIKeyManager, type CreateAPIKeyRequest } from '../lib/api-key-manager'
 import { getCurrentUser, multiAuth } from '../middleware/auth'
-import { requireDatabase } from '../middleware/database'
+import { requireDatabase } from '../middleware/common'
 import type { Env, Variables } from '../types'
 import { errorResponse, notFoundResponse, successResponse } from '../utils/responses'
 

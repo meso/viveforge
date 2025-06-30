@@ -1,23 +1,29 @@
 import { Hono } from 'hono'
 import { generateId } from '../lib/utils'
-import { getCurrentUser } from '../middleware/auth'
+import { multiAuth } from '../middleware/auth'
+import { requireAdminUser, requireDatabase } from '../middleware/common'
 import type { Env, Variables } from '../types'
+import {
+  errorResponse,
+  notFoundResponse,
+  validationErrorResponse,
+} from '../utils/responses'
 
 const admin = new Hono<{ Bindings: Env; Variables: Variables }>()
 
+// Apply authentication and database middleware to all routes
+admin.use('*', multiAuth)
+admin.use('*', requireAdminUser)
+admin.use('*', requireDatabase)
+
+// Note: All c.env.DB! usages below are safe because requireDatabase middleware
+// ensures the database is available before any route handlers are called
+
 // Get all admins
 admin.get('/', async (c) => {
-  const user = getCurrentUser(c)
-  if (!user) {
-    return c.json({ error: 'Authentication required' }, 401)
-  }
-
   try {
-    const db = c.env.DB
-    if (!db) {
-      return c.json({ error: 'Database not available' }, 500)
-    }
-    const result = await db.prepare('SELECT * FROM admins ORDER BY created_at DESC').all()
+    // Database is guaranteed to be available by requireDatabase middleware
+    const result = await c.env.DB!.prepare('SELECT * FROM admins ORDER BY created_at DESC').all()
 
     // Convert is_root from SQLite integer to boolean
     const admins = result.results.map((admin: Record<string, unknown>) => ({
@@ -30,42 +36,32 @@ admin.get('/', async (c) => {
     })
   } catch (error) {
     console.error('Failed to get admins:', error)
-    return c.json({ error: 'Failed to get admins' }, 500)
+    return errorResponse(c, 'Failed to get admins')
   }
 })
 
 // Add new admin
 admin.post('/', async (c) => {
-  const user = getCurrentUser(c)
-  if (!user) {
-    return c.json({ error: 'Authentication required' }, 401)
-  }
-
   try {
     const { github_username } = await c.req.json()
 
     if (!github_username || typeof github_username !== 'string') {
-      return c.json({ error: 'GitHub username is required' }, 400)
-    }
-
-    const db = c.env.DB
-    if (!db) {
-      return c.json({ error: 'Database not available' }, 500)
+      return validationErrorResponse(c, 'GitHub username is required')
     }
 
     // Check if admin already exists
-    const existing = await db
-      .prepare('SELECT id FROM admins WHERE github_username = ?')
+    const existing = await c.env
+      .DB!.prepare('SELECT id FROM admins WHERE github_username = ?')
       .bind(github_username)
       .first()
 
     if (existing) {
-      return c.json({ error: 'Admin already exists' }, 409)
+      return errorResponse(c, 'Admin already exists', 409)
     }
 
     // Add new admin
-    await db
-      .prepare('INSERT INTO admins (id, github_username, is_root) VALUES (?, ?, ?)')
+    await c.env
+      .DB!.prepare('INSERT INTO admins (id, github_username, is_root) VALUES (?, ?, ?)')
       .bind(generateId(), github_username, false)
       .run()
 
@@ -75,40 +71,31 @@ admin.post('/', async (c) => {
     })
   } catch (error) {
     console.error('Failed to add admin:', error)
-    return c.json({ error: 'Failed to add admin' }, 500)
+    return errorResponse(c, 'Failed to add admin')
   }
 })
 
 // Remove admin
 admin.delete('/:id', async (c) => {
-  const user = getCurrentUser(c)
-  if (!user) {
-    return c.json({ error: 'Authentication required' }, 401)
-  }
-
   try {
     const id = c.req.param('id')
-    const db = c.env.DB
-    if (!db) {
-      return c.json({ error: 'Database not available' }, 500)
-    }
 
     // Check if admin exists and is not root
-    const admin = (await db
-      .prepare('SELECT id, github_username, is_root FROM admins WHERE id = ?')
+    const admin = (await c.env
+      .DB!.prepare('SELECT id, github_username, is_root FROM admins WHERE id = ?')
       .bind(id)
       .first()) as Record<string, unknown>
 
     if (!admin) {
-      return c.json({ error: 'Admin not found' }, 404)
+      return notFoundResponse(c, 'Admin')
     }
 
     if (admin.is_root) {
-      return c.json({ error: 'Cannot remove root admin' }, 403)
+      return errorResponse(c, 'Cannot remove root admin', 403)
     }
 
     // Remove admin
-    await db.prepare('DELETE FROM admins WHERE id = ?').bind(id).run()
+    await c.env.DB!.prepare('DELETE FROM admins WHERE id = ?').bind(id).run()
 
     return c.json({
       message: 'Admin removed successfully',
@@ -116,7 +103,7 @@ admin.delete('/:id', async (c) => {
     })
   } catch (error) {
     console.error('Failed to remove admin:', error)
-    return c.json({ error: 'Failed to remove admin' }, 500)
+    return errorResponse(c, 'Failed to remove admin')
   }
 })
 
