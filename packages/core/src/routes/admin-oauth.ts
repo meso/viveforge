@@ -2,6 +2,13 @@ import { Hono } from 'hono'
 import { OAuthManager } from '../lib/oauth-manager'
 import { multiAuth, requireAdmin } from '../middleware/auth'
 import type { Env, Variables } from '../types'
+import {
+  errorResponse,
+  notFoundResponse,
+  serviceUnavailableResponse,
+  successResponse,
+  validationErrorResponse,
+} from '../utils/responses'
 
 const adminOAuth = new Hono<{ Bindings: Env; Variables: Variables }>()
 
@@ -12,7 +19,7 @@ adminOAuth.use('*', multiAuth, requireAdmin)
 adminOAuth.get('/providers', async (c) => {
   try {
     if (!c.env.DB) {
-      return c.json({ error: 'Database not available' }, 503)
+      return serviceUnavailableResponse(c, 'Database')
     }
 
     const result = await c.env.DB.prepare(`
@@ -29,7 +36,7 @@ adminOAuth.get('/providers', async (c) => {
     return c.json({ providers })
   } catch (error) {
     console.error('Failed to get OAuth providers:', error)
-    return c.json({ error: 'Failed to get OAuth providers' }, 500)
+    return errorResponse(c, 'Failed to get OAuth providers')
   }
 })
 
@@ -39,7 +46,7 @@ adminOAuth.get('/providers/:provider', async (c) => {
     const provider = c.req.param('provider')
 
     if (!c.env.DB) {
-      return c.json({ error: 'Database not available' }, 503)
+      return serviceUnavailableResponse(c, 'Database')
     }
 
     const result = await c.env.DB.prepare(`
@@ -51,7 +58,7 @@ adminOAuth.get('/providers/:provider', async (c) => {
       .first()
 
     if (!result) {
-      return c.json({ error: `OAuth provider '${provider}' not found` }, 404)
+      return notFoundResponse(c, `OAuth provider '${provider}'`)
     }
 
     const providerData = result as Record<string, unknown>
@@ -63,7 +70,7 @@ adminOAuth.get('/providers/:provider', async (c) => {
     })
   } catch (error) {
     console.error('Failed to get OAuth provider:', error)
-    return c.json({ error: 'Failed to get OAuth provider' }, 500)
+    return errorResponse(c, 'Failed to get OAuth provider')
   }
 })
 
@@ -75,13 +82,9 @@ adminOAuth.put('/providers/:provider', async (c) => {
 
     // Validate input
     if (!body.client_id || !body.client_secret) {
-      return c.json(
-        {
-          error: 'Validation failed',
-          details: ['client_id and client_secret are required'],
-        },
-        400
-      )
+      return validationErrorResponse(c, 'Validation failed', [
+        'client_id and client_secret are required',
+      ])
     }
 
     // Validate provider
@@ -107,7 +110,7 @@ adminOAuth.put('/providers/:provider', async (c) => {
     }
 
     if (!c.env.DB) {
-      return c.json({ error: 'Database not available' }, 503)
+      return serviceUnavailableResponse(c, 'Database')
     }
 
     const oauthManager = new OAuthManager(c.env.DB)
@@ -127,20 +130,22 @@ adminOAuth.put('/providers/:provider', async (c) => {
       redirect_uri: redirect_uri,
     })
 
-    return c.json({
-      success: true,
-      message: `OAuth provider '${provider}' configured successfully`,
-      provider: {
-        provider,
-        client_id: body.client_id,
-        is_enabled: body.is_enabled !== undefined ? body.is_enabled : true,
-        scopes: scopes,
-        redirect_uri: redirect_uri,
+    return successResponse(
+      c,
+      {
+        provider: {
+          provider,
+          client_id: body.client_id,
+          is_enabled: body.is_enabled !== undefined ? body.is_enabled : true,
+          scopes: scopes,
+          redirect_uri: redirect_uri,
+        },
       },
-    })
+      `OAuth provider '${provider}' configured successfully`
+    )
   } catch (error) {
     console.error('Failed to configure OAuth provider:', error)
-    return c.json({ error: 'Failed to configure OAuth provider' }, 500)
+    return errorResponse(c, 'Failed to configure OAuth provider')
   }
 })
 
@@ -151,11 +156,11 @@ adminOAuth.patch('/providers/:provider/toggle', async (c) => {
     const body = await c.req.json()
 
     if (typeof body.is_enabled !== 'boolean') {
-      return c.json({ error: 'is_enabled must be a boolean' }, 400)
+      return validationErrorResponse(c, 'is_enabled must be a boolean')
     }
 
     if (!c.env.DB) {
-      return c.json({ error: 'Database not available' }, 503)
+      return serviceUnavailableResponse(c, 'Database')
     }
 
     const result = await c.env.DB.prepare(`
@@ -167,16 +172,17 @@ adminOAuth.patch('/providers/:provider/toggle', async (c) => {
       .run()
 
     if (result.meta.changes === 0) {
-      return c.json({ error: `OAuth provider '${provider}' not found` }, 404)
+      return notFoundResponse(c, `OAuth provider '${provider}'`)
     }
 
-    return c.json({
-      success: true,
-      message: `OAuth provider '${provider}' ${body.is_enabled ? 'enabled' : 'disabled'}`,
-    })
+    return successResponse(
+      c,
+      undefined,
+      `OAuth provider '${provider}' ${body.is_enabled ? 'enabled' : 'disabled'}`
+    )
   } catch (error) {
     console.error('Failed to toggle OAuth provider:', error)
-    return c.json({ error: 'Failed to toggle OAuth provider' }, 500)
+    return errorResponse(c, 'Failed to toggle OAuth provider')
   }
 })
 
@@ -186,7 +192,7 @@ adminOAuth.delete('/providers/:provider', async (c) => {
     const provider = c.req.param('provider')
 
     if (!c.env.DB) {
-      return c.json({ error: 'Database not available' }, 503)
+      return serviceUnavailableResponse(c, 'Database')
     }
 
     const result = await c.env.DB.prepare(`
@@ -196,16 +202,13 @@ adminOAuth.delete('/providers/:provider', async (c) => {
       .run()
 
     if (result.meta.changes === 0) {
-      return c.json({ error: `OAuth provider '${provider}' not found` }, 404)
+      return notFoundResponse(c, `OAuth provider '${provider}'`)
     }
 
-    return c.json({
-      success: true,
-      message: `OAuth provider '${provider}' deleted successfully`,
-    })
+    return successResponse(c, undefined, `OAuth provider '${provider}' deleted successfully`)
   } catch (error) {
     console.error('Failed to delete OAuth provider:', error)
-    return c.json({ error: 'Failed to delete OAuth provider' }, 500)
+    return errorResponse(c, 'Failed to delete OAuth provider')
   }
 })
 
@@ -213,7 +216,7 @@ adminOAuth.delete('/providers/:provider', async (c) => {
 adminOAuth.get('/supported-providers', async (c) => {
   try {
     if (!c.env.DB) {
-      return c.json({ error: 'Database not available' }, 503)
+      return serviceUnavailableResponse(c, 'Database')
     }
 
     const oauthManager = new OAuthManager(c.env.DB)
@@ -274,7 +277,7 @@ adminOAuth.get('/supported-providers', async (c) => {
     return c.json({ supported_providers: supportedProviders })
   } catch (error) {
     console.error('Failed to get supported providers:', error)
-    return c.json({ error: 'Failed to get supported providers' }, 500)
+    return errorResponse(c, 'Failed to get supported providers')
   }
 })
 
