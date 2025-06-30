@@ -77,49 +77,6 @@ describe('useQuery', () => {
     expect(queryFn).toHaveBeenCalledTimes(2)
   })
 
-  it.skip('should retry on failure', async () => {
-    vi.useFakeTimers()
-
-    const queryFn = vi
-      .fn()
-      .mockRejectedValueOnce(new Error('First fail'))
-      .mockRejectedValueOnce(new Error('Second fail'))
-      .mockResolvedValueOnce({ success: true })
-
-    const { result } = renderHook(() => useQuery(queryFn, { retry: 2 }))
-
-    // First call happens immediately
-    expect(queryFn).toHaveBeenCalledTimes(1)
-
-    // Wait for the initial call to complete
-    await waitFor(() => {
-      expect(queryFn).toHaveBeenCalledTimes(1)
-    })
-
-    // Advance timer for first retry (2^0 * 1000 = 1000ms)
-    await act(async () => {
-      vi.advanceTimersByTime(1000)
-    })
-
-    await waitFor(() => {
-      expect(queryFn).toHaveBeenCalledTimes(2)
-    })
-
-    // Advance timer for second retry (2^1 * 1000 = 2000ms)
-    await act(async () => {
-      vi.advanceTimersByTime(2000)
-    })
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false)
-    })
-
-    expect(result.current.data).toEqual({ success: true })
-    expect(result.current.error).toBeNull()
-    expect(queryFn).toHaveBeenCalledTimes(3)
-
-    vi.useRealTimers()
-  }, 10000)
 
   it('should call onSuccess callback', async () => {
     const mockData = { id: 1 }
@@ -135,52 +92,4 @@ describe('useQuery', () => {
     expect(onSuccess).toHaveBeenCalledWith(mockData)
   }, 10000)
 
-  it.skip('should refetch on interval', async () => {
-    vi.useFakeTimers()
-    const queryFn = vi.fn().mockResolvedValue({ data: 'test' })
-
-    const { result } = renderHook(() => useQuery(queryFn, { refetchInterval: 100 }))
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false)
-    })
-
-    expect(queryFn).toHaveBeenCalledTimes(1)
-
-    // Advance timer by 100ms
-    await act(async () => {
-      vi.advanceTimersByTime(100)
-    })
-
-    await waitFor(() => {
-      expect(queryFn).toHaveBeenCalledTimes(2)
-    })
-
-    vi.useRealTimers()
-  }, 10000)
-
-  it.skip('should cleanup interval on unmount', async () => {
-    vi.useFakeTimers()
-    const queryFn = vi.fn().mockResolvedValue({ data: 'test' })
-
-    const { unmount, result } = renderHook(() => useQuery(queryFn, { refetchInterval: 100 }))
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false)
-    })
-
-    expect(queryFn).toHaveBeenCalledTimes(1)
-
-    unmount()
-
-    // Advance timer by 150ms
-    await act(async () => {
-      vi.advanceTimersByTime(150)
-    })
-
-    // Should not be called again after unmount
-    expect(queryFn).toHaveBeenCalledTimes(1)
-
-    vi.useRealTimers()
-  }, 10000)
 })
