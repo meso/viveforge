@@ -177,7 +177,7 @@ describe('API Keys Routes', () => {
 
       expect(response.status).toBe(404)
       const data = (await response.json()) as any
-      expect(data.error).toBe('Admin not found in database')
+      expect(data.error).toBe('Admin not found')
     })
 
     it('should handle list API keys errors', async () => {

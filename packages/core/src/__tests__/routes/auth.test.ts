@@ -125,7 +125,7 @@ describe('Auth Routes', () => {
 
       expect(res.status).toBe(503)
       const body = (await res.json()) as any
-      expect(body.error).toBe('Authentication service unavailable')
+      expect(body.error).toBe('Authentication service not available')
     })
   })
 

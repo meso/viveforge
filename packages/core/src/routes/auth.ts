@@ -10,6 +10,7 @@ import {
   getLogoutHTML,
 } from '../templates/html'
 import type { Env, Variables } from '../types'
+import { errorResponse, serviceUnavailableResponse } from '../utils/responses'
 
 const auth = new Hono<{ Bindings: Env; Variables: Variables }>()
 
@@ -20,7 +21,7 @@ auth.get('/login', async (c) => {
   try {
     const authClient = c.get('authClient') as VibebaseAuthClient
     if (!authClient) {
-      return c.json({ error: 'Authentication service unavailable' }, 503)
+      return serviceUnavailableResponse(c, 'Authentication service')
     }
 
     const redirectTo = c.req.query('redirect') || '/'
@@ -29,7 +30,7 @@ auth.get('/login', async (c) => {
     return c.html(getLoginHTML(loginUrl))
   } catch (error) {
     console.error('Login page failed:', error)
-    return c.json({ error: 'Login page failed' }, 500)
+    return errorResponse(c, 'Login page failed')
   }
 })
 
@@ -191,11 +192,11 @@ auth.post('/refresh', async (c) => {
     const refreshToken = c.req.raw.headers.get('Cookie')?.match(/refresh_token=([^;]+)/)?.[1]
 
     if (!refreshToken) {
-      return c.json({ error: 'No refresh token' }, 401)
+      return errorResponse(c, 'No refresh token', 401)
     }
 
     if (!authClient) {
-      return c.json({ error: 'Authentication service unavailable' }, 503)
+      return serviceUnavailableResponse(c, 'Authentication service')
     }
 
     const tokens = await authClient.refreshToken(refreshToken)
@@ -216,7 +217,7 @@ auth.post('/refresh', async (c) => {
     })
   } catch (error) {
     console.error('Token refresh error:', error)
-    return c.json({ error: 'Token refresh failed' }, 401)
+    return errorResponse(c, 'Token refresh failed', 401)
   }
 })
 
@@ -227,7 +228,7 @@ auth.get('/me', async (c) => {
   const user = getCurrentUser(c)
 
   if (!user) {
-    return c.json({ error: 'Not authenticated' }, 401)
+    return errorResponse(c, 'Not authenticated', 401)
   }
 
   return c.json({

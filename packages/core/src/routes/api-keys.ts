@@ -1,20 +1,25 @@
 import { Hono } from 'hono'
 import { API_SCOPES, APIKeyManager, type CreateAPIKeyRequest } from '../lib/api-key-manager'
 import { getCurrentUser, multiAuth } from '../middleware/auth'
+import { requireDatabase } from '../middleware/database'
 import type { Env, Variables } from '../types'
+import { errorResponse, notFoundResponse, successResponse } from '../utils/responses'
 
 export const apiKeys = new Hono<{ Bindings: Env; Variables: Variables }>()
 
 // Apply authentication to all routes
 apiKeys.use('*', multiAuth)
 
+// Apply database check to all routes
+apiKeys.use('*', requireDatabase)
+
 // Initialize API key manager middleware
 apiKeys.use('*', async (c, next) => {
-  if (!c.env.DB) {
-    return c.json({ error: 'Database not available' }, 503)
+  const db = c.env.DB
+  if (!db) {
+    return errorResponse(c, 'Database not available', 500)
   }
-
-  const apiKeyManager = new APIKeyManager(c.env.DB)
+  const apiKeyManager = new APIKeyManager(db)
   c.set('apiKeyManager', apiKeyManager)
   await next()
 })
@@ -24,7 +29,7 @@ apiKeys.post('/init', async (c) => {
   try {
     const apiKeyManager = c.get('apiKeyManager') as APIKeyManager
     await apiKeyManager.initializeTable()
-    return c.json({ success: true, message: 'API keys table initialized' })
+    return successResponse(c, undefined, 'API keys table initialized')
   } catch (error) {
     return c.json(
       {
@@ -46,7 +51,7 @@ apiKeys.get('/', async (c) => {
   try {
     const user = getCurrentUser(c)
     if (!user) {
-      return c.json({ error: 'Admin access required' }, 403)
+      return errorResponse(c, 'Admin access required', 403)
     }
 
     // Get admin ID from database using GitHub username
@@ -57,7 +62,7 @@ apiKeys.get('/', async (c) => {
       .first()
 
     if (!adminResult) {
-      return c.json({ error: 'Admin not found in database' }, 404)
+      return notFoundResponse(c, 'Admin')
     }
 
     const apiKeyManager = c.get('apiKeyManager') as APIKeyManager
@@ -87,7 +92,7 @@ apiKeys.post('/', async (c) => {
   try {
     const user = getCurrentUser(c)
     if (!user) {
-      return c.json({ error: 'Admin access required' }, 403)
+      return errorResponse(c, 'Admin access required', 403)
     }
 
     // Get admin ID from database using GitHub username
@@ -98,7 +103,7 @@ apiKeys.post('/', async (c) => {
       .first()
 
     if (!adminResult) {
-      return c.json({ error: 'Admin not found in database' }, 404)
+      return notFoundResponse(c, 'Admin')
     }
 
     const body = (await c.req.json()) as CreateAPIKeyRequest
@@ -160,7 +165,7 @@ apiKeys.patch('/:id/revoke', async (c) => {
   try {
     const user = getCurrentUser(c)
     if (!user) {
-      return c.json({ error: 'Admin access required' }, 403)
+      return errorResponse(c, 'Admin access required', 403)
     }
 
     // Get admin ID from database using GitHub username
@@ -171,7 +176,7 @@ apiKeys.patch('/:id/revoke', async (c) => {
       .first()
 
     if (!adminResult) {
-      return c.json({ error: 'Admin not found in database' }, 404)
+      return notFoundResponse(c, 'Admin')
     }
 
     adminId = adminResult.id as string
@@ -224,7 +229,7 @@ apiKeys.delete('/:id', async (c) => {
   try {
     const user = getCurrentUser(c)
     if (!user) {
-      return c.json({ error: 'Admin access required' }, 403)
+      return errorResponse(c, 'Admin access required', 403)
     }
 
     // Get admin ID from database using GitHub username
@@ -235,7 +240,7 @@ apiKeys.delete('/:id', async (c) => {
       .first()
 
     if (!adminResult) {
-      return c.json({ error: 'Admin not found in database' }, 404)
+      return notFoundResponse(c, 'Admin')
     }
 
     const id = c.req.param('id')
