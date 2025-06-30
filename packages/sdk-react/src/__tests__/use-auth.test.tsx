@@ -81,13 +81,13 @@ describe('useAuth', () => {
     expect(result.current.isAuthenticated).toBe(false)
   })
 
-  it('should handle login', () => {
-    mockAuth.loginWithProvider.mockReturnValue('https://auth.example.com/login')
+  it('should handle login', async () => {
+    mockAuth.loginWithProvider.mockResolvedValue('https://auth.example.com/login')
 
     const { result } = renderHook(() => useAuth(), { wrapper })
 
-    act(() => {
-      result.current.login('github')
+    await act(async () => {
+      await result.current.login('github')
     })
 
     expect(mockAuth.loginWithProvider).toHaveBeenCalledWith('github', undefined)

@@ -46,13 +46,15 @@ export function useQuery<T = unknown>(
 
             if (mountedRef.current) {
               setData(result)
-              onSuccess?.(result)
+              if (onSuccess) {
+                onSuccess(result)
+              }
             }
             return
           } catch (err) {
             lastError = err instanceof Error ? err : new Error('Query failed')
 
-            if (attempt < maxRetries) {
+            if (attempt < maxRetries && mountedRef.current) {
               // Wait before retry with exponential backoff
               await new Promise((resolve) => setTimeout(resolve, 2 ** attempt * 1000))
             }
@@ -62,7 +64,9 @@ export function useQuery<T = unknown>(
         // All retries failed
         if (mountedRef.current && lastError) {
           setError(lastError)
-          onError?.(lastError)
+          if (onError) {
+            onError(lastError)
+          }
         }
       } finally {
         if (mountedRef.current) {
@@ -71,7 +75,8 @@ export function useQuery<T = unknown>(
         }
       }
     },
-    [queryFn, retry, onSuccess, onError]
+    // Remove onSuccess and onError from dependencies to prevent infinite loops
+    [queryFn, retry]
   )
 
   const refetch = useCallback(async () => {
@@ -83,7 +88,8 @@ export function useQuery<T = unknown>(
     if (enabled) {
       fetchData()
     }
-  }, [enabled, fetchData])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled])
 
   // Refetch interval
   useEffect(() => {
@@ -98,7 +104,8 @@ export function useQuery<T = unknown>(
         }
       }
     }
-  }, [refetchInterval, enabled, fetchData])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refetchInterval, enabled])
 
   // Refetch on window focus
   useEffect(() => {
@@ -110,7 +117,8 @@ export function useQuery<T = unknown>(
 
     window.addEventListener('focus', handleFocus)
     return () => window.removeEventListener('focus', handleFocus)
-  }, [refetchOnWindowFocus, enabled, fetchData])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refetchOnWindowFocus, enabled])
 
   // Cleanup on unmount
   useEffect(() => {
