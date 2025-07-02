@@ -105,16 +105,24 @@ jobs:
           OUTPUT_FILE=$(mktemp)
           
           # コンテキスト付きでClaude Codeを実行
-          echo "GitHub Issue Context:" > /tmp/claude-prompt.txt
+          cat > /tmp/claude-prompt.txt << 'EOF'
+GitHub Issue Context:
+EOF
           echo "Title: $ISSUE_TITLE" >> /tmp/claude-prompt.txt
           echo "Issue Number: #$ISSUE_NUMBER" >> /tmp/claude-prompt.txt
-          echo "" >> /tmp/claude-prompt.txt
-          echo "Full Context (JSON):" >> /tmp/claude-prompt.txt
+          cat >> /tmp/claude-prompt.txt << 'EOF'
+
+Full Context (JSON):
+EOF
           cat "$CONTEXT_FILE" >> /tmp/claude-prompt.txt
-          echo "" >> /tmp/claude-prompt.txt
+          cat >> /tmp/claude-prompt.txt << 'EOF'
+
+EOF
           echo "User Request: $CLAUDE_COMMAND" >> /tmp/claude-prompt.txt
-          echo "" >> /tmp/claude-prompt.txt
-          echo "Please execute the user's request with full understanding of the issue context above." >> /tmp/claude-prompt.txt
+          cat >> /tmp/claude-prompt.txt << 'EOF'
+
+Please execute the user's request with full understanding of the issue context above.
+EOF
           
           # Claude Codeを実行（プロンプトファイルを使用）
           /usr/local/bin/claude --file /tmp/claude-prompt.txt > "$OUTPUT_FILE" 2>&1 || true
