@@ -106,16 +106,16 @@ jobs:
           
           # コンテキスト付きでClaude Codeを実行
           {
-            echo "GitHub Issue Context:"
-            echo "Title: $ISSUE_TITLE"
-            echo "Issue Number: #$ISSUE_NUMBER"
-            echo ""
-            echo "Full Context (JSON):"
+            printf "GitHub Issue Context:\n"
+            printf "Title: %s\n" "$ISSUE_TITLE"
+            printf "Issue Number: #%s\n" "$ISSUE_NUMBER"
+            printf "\n"
+            printf "Full Context (JSON):\n"
             cat "$CONTEXT_FILE"
-            echo ""
-            echo "User Request: $CLAUDE_COMMAND"
-            echo ""
-            echo "Please execute the user's request with full understanding of the issue context above."
+            printf "\n"
+            printf "User Request: %s\n" "$CLAUDE_COMMAND"
+            printf "\n"
+            printf "Please execute the user's request with full understanding of the issue context above.\n"
           } > /tmp/claude-prompt.txt
           
           # Claude Codeを実行（プロンプトファイルを使用）
