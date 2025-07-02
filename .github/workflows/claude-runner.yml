@@ -54,8 +54,8 @@ jobs:
           # 一時ファイルに結果を保存
           OUTPUT_FILE=$(mktemp)
           
-          # claude-runnerユーザーで実行（エラーも含めて記録）
-          sudo -u claude-runner /usr/local/bin/claude "$COMMAND" > "$OUTPUT_FILE" 2>&1 || true
+          # 現在のユーザーで実行（エラーも含めて記録）
+          /usr/local/bin/claude "$COMMAND" > "$OUTPUT_FILE" 2>&1 || true
           
           # 結果を読み込み（GitHubの制限を考慮して最初の1000行のみ）
           RESULT=$(head -n 1000 "$OUTPUT_FILE")
