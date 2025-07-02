@@ -58,7 +58,8 @@
       "Bash(npx wrangler d1 execute:*)",
       "Bash(npx wrangler tail:*)",
       "Bash(git checkout:*)",
-      "Bash(npx vitest run:*)"
+      "Bash(npx vitest run:*)",
+      "Bash(/usr/local/bin/claude:*)"
     ],
     "deny": []
   }
