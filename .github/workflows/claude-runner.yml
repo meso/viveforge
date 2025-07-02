@@ -127,8 +127,8 @@ jobs:
           cat "$COMMAND_FILE" >> /tmp/claude-prompt.txt
           printf '\n\nPlease execute the user'\''s request with full understanding of the issue context above.\n' >> /tmp/claude-prompt.txt
           
-          # Claude Codeを実行（プロンプトファイルを使用）
-          /usr/local/bin/claude --file /tmp/claude-prompt.txt > "$OUTPUT_FILE" 2>&1 || true
+          # Claude Codeを実行（標準入力でプロンプトを渡す）
+          /usr/local/bin/claude --print < /tmp/claude-prompt.txt > "$OUTPUT_FILE" 2>&1 || true
           
           # 結果を読み込み（GitHubの制限を考慮して最初の1000行のみ）
           RESULT=$(head -n 1000 "$OUTPUT_FILE")
@@ -150,9 +150,10 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            const result = `${{ steps.claude.outputs.result }}`;
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '✅ 実行結果:\n```\n${{ steps.claude.outputs.result }}\n```'
+              body: `✅ 実行結果:\n\`\`\`\n${result}\n\`\`\``
             })
