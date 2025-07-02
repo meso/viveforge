@@ -127,7 +127,8 @@ jobs:
           cat "$COMMAND_FILE" >> /tmp/claude-prompt.txt
           printf '\n\nPlease execute the user'\''s request with full understanding of the issue context above.\n' >> /tmp/claude-prompt.txt
           
-          # Claude Codeを実行（標準入力でプロンプトを渡す）
+          # Claude Codeを実行（継続セッションを試行）
+          /usr/local/bin/claude --continue --print < /tmp/claude-prompt.txt > "$OUTPUT_FILE" 2>&1 || \
           /usr/local/bin/claude --print < /tmp/claude-prompt.txt > "$OUTPUT_FILE" 2>&1 || true
           
           # 結果を読み込み（GitHubの制限を考慮して最初の1000行のみ）
