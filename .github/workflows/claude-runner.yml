@@ -66,8 +66,12 @@ jobs:
             const contextFile = '/tmp/issue-context.json';
             fs.writeFileSync(contextFile, JSON.stringify(issueContext, null, 2));
             
+            // コマンドも一時ファイルに保存（引用符問題を回避）
+            const commandFile = '/tmp/claude-command.txt';
+            fs.writeFileSync(commandFile, command);
+            
             // 出力設定
-            core.setOutput('command', command);
+            core.setOutput('command_file', commandFile);
             core.setOutput('context_file', contextFile);
             core.setOutput('issue_title', context.payload.issue.title);
             core.setOutput('issue_number', context.payload.issue.number);
@@ -86,13 +90,16 @@ jobs:
       - name: Run Claude Code
         id: claude
         env:
+          COMMAND_FILE: ${{ steps.extract.outputs.command_file }}
           CONTEXT_FILE: ${{ steps.extract.outputs.context_file }}
           ISSUE_TITLE: ${{ steps.extract.outputs.issue_title }}
           ISSUE_NUMBER: ${{ steps.extract.outputs.issue_number }}
         run: |
-          # 環境変数からコマンドと情報を取得
+          # ファイルからコマンドを読み取り
+          CLAUDE_COMMAND=$(cat "$COMMAND_FILE")
+          
           echo "Issue #$ISSUE_NUMBER: $ISSUE_TITLE"
-          echo "Executing command from context file..."
+          echo "Executing: $CLAUDE_COMMAND"
           
           # 一時ファイルに結果を保存
           OUTPUT_FILE=$(mktemp)
@@ -105,7 +112,7 @@ jobs:
           echo "Full Context (JSON):" >> /tmp/claude-prompt.txt
           cat "$CONTEXT_FILE" >> /tmp/claude-prompt.txt
           echo "" >> /tmp/claude-prompt.txt
-          echo "User Request: ${{ steps.extract.outputs.command }}" >> /tmp/claude-prompt.txt
+          echo "User Request: $CLAUDE_COMMAND" >> /tmp/claude-prompt.txt
           echo "" >> /tmp/claude-prompt.txt
           echo "Please execute the user's request with full understanding of the issue context above." >> /tmp/claude-prompt.txt
           
