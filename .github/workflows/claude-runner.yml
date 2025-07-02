@@ -10,8 +10,11 @@ jobs:
     # mesoユーザーのみ実行可能
     if: |
       github.event.issue.pull_request == null &&
-      contains(github.event.issue.body || github.event.comment.body, '@claude') &&
-      (github.event.issue.user.login == 'meso' || github.event.comment.user.login == 'meso')
+      (github.event.issue.user.login == 'meso' || github.event.comment.user.login == 'meso') &&
+      (
+        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'issues' && contains(github.event.issue.body, '@claude'))
+      )
     runs-on: self-hosted
     permissions:
       issues: write
