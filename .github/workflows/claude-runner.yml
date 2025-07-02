@@ -100,6 +100,11 @@ jobs:
           TITLE_FILE: ${{ steps.extract.outputs.title_file }}
           NUMBER_FILE: ${{ steps.extract.outputs.number_file }}
         run: |
+          # デバッグ: 現在のシェルスクリプトを表示
+          echo "=== GENERATED SHELL SCRIPT ==="
+          cat "$0"
+          echo "=== END OF SCRIPT ==="
+          
           # ファイルからすべての値を読み取り
           CLAUDE_COMMAND=$(cat "$COMMAND_FILE")
           ISSUE_TITLE=$(cat "$TITLE_FILE")
