@@ -22,14 +22,6 @@ jobs:
       pull-requests: write
     
     steps:
-      - name: Debug event context
-        run: |
-          echo "Event: ${{ github.event_name }}"
-          echo "User: ${{ github.event.issue.user.login || github.event.comment.user.login }}"
-          echo "Author Association (comment): ${{ github.event.comment.author_association }}"
-          echo "Author Association (issue): ${{ github.event.issue.author_association }}"
-          echo "Issue User: ${{ github.event.issue.user.login }}"
-      
       - name: Checkout repository
         uses: actions/checkout@v4
       
@@ -59,9 +51,32 @@ jobs:
       - name: Run Claude Code
         id: claude
         run: |
-          # ここは後で実装
-          echo "Claude Code would run: ${{ steps.extract.outputs.command }}"
-          echo "result=テスト実行完了" >> $GITHUB_OUTPUT
+          # Claude Codeを専用ユーザーで実行
+          COMMAND="${{ steps.extract.outputs.command }}"
+          
+          # 一時ファイルに結果を保存
+          OUTPUT_FILE=$(mktemp)
+          
+          # claude-runnerユーザーで実行（エラーも含めて記録）
+          sudo -u claude-runner /usr/local/bin/claude "$COMMAND" > "$OUTPUT_FILE" 2>&1 || true
+          
+          # 結果を読み込み（GitHubの制限を考慮して最初の1000行のみ）
+          RESULT=$(head -n 1000 "$OUTPUT_FILE")
+          
+          # 結果が長すぎる場合は警告を追加
+          if [ $(wc -l < "$OUTPUT_FILE") -gt 1000 ]; then
+            RESULT="${RESULT}
+...
+(出力が長すぎるため、最初の1000行のみ表示)"
+          fi
+          
+          # クリーンアップ
+          rm -f "$OUTPUT_FILE"
+          
+          # GitHub Outputに設定（改行を適切にエスケープ）
+          echo "result<<EOF" >> $GITHUB_OUTPUT
+          echo "$RESULT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
       
       - name: Post result
         uses: actions/github-script@v7
