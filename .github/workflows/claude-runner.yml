@@ -47,15 +47,17 @@ jobs:
       
       - name: Run Claude Code
         id: claude
+        env:
+          CLAUDE_COMMAND: ${{ steps.extract.outputs.command }}
         run: |
-          # Claude Codeを専用ユーザーで実行
-          COMMAND="${{ steps.extract.outputs.command }}"
+          # 環境変数からコマンドを取得（引用符の問題を回避）
+          echo "Executing: $CLAUDE_COMMAND"
           
           # 一時ファイルに結果を保存
           OUTPUT_FILE=$(mktemp)
           
           # 現在のユーザーで実行（エラーも含めて記録）
-          /usr/local/bin/claude "$COMMAND" > "$OUTPUT_FILE" 2>&1 || true
+          /usr/local/bin/claude "$CLAUDE_COMMAND" > "$OUTPUT_FILE" 2>&1 || true
           
           # 結果を読み込み（GitHubの制限を考慮して最初の1000行のみ）
           RESULT=$(head -n 1000 "$OUTPUT_FILE")
