@@ -17,7 +17,8 @@ jobs:
     runs-on: self-hosted
     permissions:
       issues: write
-      contents: read
+      contents: write
+      pull-requests: write
     
     steps:
       - name: Checkout repository
