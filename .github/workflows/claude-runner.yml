@@ -2,14 +2,18 @@ name: Claude Code Runner
 on:
   issue_comment:
     types: [created]
+  issues:
+    types: [opened]
 
 jobs:
   claude-runner:
-    # Organization Ownerのみ実行可能
+    # Organization OwnerまたはMemberのみ実行可能
     if: |
       github.event.issue.pull_request == null &&
-      contains(github.event.comment.body, '@claude') &&
-      github.event.comment.author_association == 'OWNER'
+      (
+        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && (github.event.comment.author_association == 'OWNER' || github.event.comment.author_association == 'MEMBER')) ||
+        (github.event_name == 'issues' && contains(github.event.issue.body, '@claude') && (github.event.issue.author_association == 'OWNER' || github.event.issue.author_association == 'MEMBER'))
+      )
     runs-on: self-hosted
     
     steps:
@@ -20,8 +24,12 @@ jobs:
         id: extract
         run: |
           # @claude の後のコマンドを抽出
-          COMMENT='${{ github.event.comment.body }}'
-          COMMAND=$(echo "$COMMENT" | sed -n 's/.*@claude \(.*\)/\1/p')
+          if [ "${{ github.event_name }}" = "issue_comment" ]; then
+            BODY='${{ github.event.comment.body }}'
+          else
+            BODY='${{ github.event.issue.body }}'
+          fi
+          COMMAND=$(echo "$BODY" | sed -n 's/.*@claude \(.*\)/\1/p')
           echo "command=$COMMAND" >> $GITHUB_OUTPUT
       
       - name: Post acknowledgment
