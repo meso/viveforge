@@ -22,17 +22,52 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      - name: Extract command from comment
+      - name: Extract command and context
         id: extract
-        run: |
-          # @claude の後のコマンドを抽出
-          if [ "${{ github.event_name }}" = "issue_comment" ]; then
-            BODY='${{ github.event.comment.body }}'
-          else
-            BODY='${{ github.event.issue.body }}'
-          fi
-          COMMAND=$(echo "$BODY" | sed -n 's/.*@claude \(.*\)/\1/p')
-          echo "command=$COMMAND" >> $GITHUB_OUTPUT
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // @claude の後のコマンドを抽出
+            let body, command;
+            if (context.eventName === 'issue_comment') {
+              body = context.payload.comment.body;
+            } else {
+              body = context.payload.issue.body;
+            }
+            
+            const match = body.match(/@claude\s+(.+)/);
+            command = match ? match[1].trim() : '';
+            
+            // issueの全コメントを取得
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number
+            });
+            
+            // コンテキストを構築
+            const issueContext = {
+              title: context.payload.issue.title,
+              body: context.payload.issue.body,
+              number: context.payload.issue.number,
+              url: context.payload.issue.html_url,
+              comments: comments.data.map(comment => ({
+                author: comment.user.login,
+                body: comment.body,
+                created_at: comment.created_at
+              }))
+            };
+            
+            // 一時ファイルにコンテキストを保存
+            const fs = require('fs');
+            const contextFile = '/tmp/issue-context.json';
+            fs.writeFileSync(contextFile, JSON.stringify(issueContext, null, 2));
+            
+            // 出力設定
+            core.setOutput('command', command);
+            core.setOutput('context_file', contextFile);
+            core.setOutput('issue_title', context.payload.issue.title);
+            core.setOutput('issue_number', context.payload.issue.number);
       
       - name: Post acknowledgment
         uses: actions/github-script@v7
@@ -49,15 +84,31 @@ jobs:
         id: claude
         env:
           CLAUDE_COMMAND: ${{ steps.extract.outputs.command }}
+          CONTEXT_FILE: ${{ steps.extract.outputs.context_file }}
+          ISSUE_TITLE: ${{ steps.extract.outputs.issue_title }}
+          ISSUE_NUMBER: ${{ steps.extract.outputs.issue_number }}
         run: |
-          # 環境変数からコマンドを取得（引用符の問題を回避）
+          # 環境変数からコマンドと情報を取得
+          echo "Issue #$ISSUE_NUMBER: $ISSUE_TITLE"
           echo "Executing: $CLAUDE_COMMAND"
           
           # 一時ファイルに結果を保存
           OUTPUT_FILE=$(mktemp)
           
-          # 現在のユーザーで実行（エラーも含めて記録）
-          /usr/local/bin/claude "$CLAUDE_COMMAND" > "$OUTPUT_FILE" 2>&1 || true
+          # コンテキスト付きでClaude Codeを実行
+          echo "GitHub Issue Context:" > /tmp/claude-prompt.txt
+          echo "Title: $ISSUE_TITLE" >> /tmp/claude-prompt.txt
+          echo "Issue Number: #$ISSUE_NUMBER" >> /tmp/claude-prompt.txt
+          echo "" >> /tmp/claude-prompt.txt
+          echo "Full Context (JSON):" >> /tmp/claude-prompt.txt
+          cat "$CONTEXT_FILE" >> /tmp/claude-prompt.txt
+          echo "" >> /tmp/claude-prompt.txt
+          echo "User Request: $CLAUDE_COMMAND" >> /tmp/claude-prompt.txt
+          echo "" >> /tmp/claude-prompt.txt
+          echo "Please execute the user's request with full understanding of the issue context above." >> /tmp/claude-prompt.txt
+          
+          # Claude Codeを実行（プロンプトファイルを使用）
+          /usr/local/bin/claude --file /tmp/claude-prompt.txt > "$OUTPUT_FILE" 2>&1 || true
           
           # 結果を読み込み（GitHubの制限を考慮して最初の1000行のみ）
           RESULT=$(head -n 1000 "$OUTPUT_FILE")
