@@ -1,0 +1,13 @@
+name: Test Runner
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: self-hosted
+    steps:
+      - name: Test
+        run: echo "Runner is working!"
