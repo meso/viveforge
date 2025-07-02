@@ -98,6 +98,14 @@ jobs:
           # ファイルからコマンドを読み取り
           CLAUDE_COMMAND=$(cat "$COMMAND_FILE")
           
+          echo "=== DEBUG INFO ==="
+          echo "ISSUE_NUMBER: $ISSUE_NUMBER"
+          echo "ISSUE_TITLE length: ${#ISSUE_TITLE}"
+          echo "CLAUDE_COMMAND length: ${#CLAUDE_COMMAND}"
+          echo "COMMAND_FILE content:"
+          cat "$COMMAND_FILE" | hexdump -C
+          echo "==================="
+          
           echo "Issue #$ISSUE_NUMBER: $ISSUE_TITLE"
           echo "Executing: $CLAUDE_COMMAND"
           
