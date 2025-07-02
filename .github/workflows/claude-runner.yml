@@ -1,0 +1,54 @@
+name: Claude Code Runner
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  claude-runner:
+    # Organization Ownerのみ実行可能
+    if: |
+      github.event.issue.pull_request == null &&
+      contains(github.event.comment.body, '@claude') &&
+      github.event.comment.author_association == 'OWNER'
+    runs-on: self-hosted
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Extract command from comment
+        id: extract
+        run: |
+          # @claude の後のコマンドを抽出
+          COMMENT='${{ github.event.comment.body }}'
+          COMMAND=$(echo "$COMMENT" | sed -n 's/.*@claude \(.*\)/\1/p')
+          echo "command=$COMMAND" >> $GITHUB_OUTPUT
+      
+      - name: Post acknowledgment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '🤖 Claude Code実行中...'
+            })
+      
+      - name: Run Claude Code
+        id: claude
+        run: |
+          # ここは後で実装
+          echo "Claude Code would run: ${{ steps.extract.outputs.command }}"
+          echo "result=テスト実行完了" >> $GITHUB_OUTPUT
+      
+      - name: Post result
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ 実行結果:\n```\n${{ steps.claude.outputs.result }}\n```'
+            })
