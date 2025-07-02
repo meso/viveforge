@@ -112,29 +112,21 @@ jobs:
           OUTPUT_FILE=$(mktemp)
           
           # コンテキスト付きでClaude Codeを実行（完全にファイルベース）
-          cat > /tmp/claude-prompt.txt << 'ENDPROMPT'
-GitHub Issue Context:
-ENDPROMPT
+          echo "GitHub Issue Context:" > /tmp/claude-prompt.txt
           echo "Title: " >> /tmp/claude-prompt.txt
           cat "$TITLE_FILE" >> /tmp/claude-prompt.txt
           echo "" >> /tmp/claude-prompt.txt
           echo "Issue Number: #" >> /tmp/claude-prompt.txt
           cat "$NUMBER_FILE" >> /tmp/claude-prompt.txt
           echo "" >> /tmp/claude-prompt.txt
-          cat >> /tmp/claude-prompt.txt << 'ENDPROMPT'
-
-Full Context (JSON):
-ENDPROMPT
+          echo "" >> /tmp/claude-prompt.txt
+          echo "Full Context (JSON):" >> /tmp/claude-prompt.txt
           cat "$CONTEXT_FILE" >> /tmp/claude-prompt.txt
-          cat >> /tmp/claude-prompt.txt << 'ENDPROMPT'
-
-User Request: 
-ENDPROMPT
+          echo "" >> /tmp/claude-prompt.txt
+          echo "User Request: " >> /tmp/claude-prompt.txt
           cat "$COMMAND_FILE" >> /tmp/claude-prompt.txt
-          cat >> /tmp/claude-prompt.txt << 'ENDPROMPT'
-
-Please execute the user's request with full understanding of the issue context above.
-ENDPROMPT
+          echo "" >> /tmp/claude-prompt.txt
+          echo "Please execute the user's request with full understanding of the issue context above." >> /tmp/claude-prompt.txt
           
           # Claude Codeを実行（プロンプトファイルを使用）
           /usr/local/bin/claude --file /tmp/claude-prompt.txt > "$OUTPUT_FILE" 2>&1 || true
