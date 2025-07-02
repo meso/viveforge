@@ -95,6 +95,7 @@ jobs:
       - name: Run Claude Code
         id: claude
         env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           COMMAND_FILE: ${{ steps.extract.outputs.command_file }}
           CONTEXT_FILE: ${{ steps.extract.outputs.context_file }}
           TITLE_FILE: ${{ steps.extract.outputs.title_file }}
@@ -127,9 +128,8 @@ jobs:
           cat "$COMMAND_FILE" >> /tmp/claude-prompt.txt
           printf '\n\nPlease execute the user'\''s request with full understanding of the issue context above.\n' >> /tmp/claude-prompt.txt
           
-          # Claude Codeを実行（継続セッションを試行）
-          /usr/local/bin/claude --continue --print < /tmp/claude-prompt.txt > "$OUTPUT_FILE" 2>&1 || \
-          /usr/local/bin/claude --print < /tmp/claude-prompt.txt > "$OUTPUT_FILE" 2>&1 || true
+          # Claude Codeを実行（OAuth認証を試行）
+          USE_OAUTH=true /usr/local/bin/claude --print < /tmp/claude-prompt.txt > "$OUTPUT_FILE" 2>&1 || true
           
           # 結果を読み込み（GitHubの制限を考慮して最初の1000行のみ）
           RESULT=$(head -n 1000 "$OUTPUT_FILE")
