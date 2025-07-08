@@ -13,6 +13,7 @@ export interface AppSettings {
   support_email?: string
   oauth_user_agent?: string
   callback_urls?: string[]
+  worker_domain?: string
 }
 
 export interface AppSettingUpdate {
@@ -30,15 +31,15 @@ export class AppSettingsManager {
     try {
       const result = await this.db
         .prepare(
-          'SELECT app_name, app_url, support_email, oauth_user_agent, callback_urls FROM app_settings WHERE id = ?'
+          'SELECT app_name, app_url, support_email, oauth_user_agent, callback_urls, worker_domain FROM app_settings LIMIT 1'
         )
-        .bind('default')
         .first<{
           app_name: string
           app_url: string | null
           support_email: string | null
           oauth_user_agent: string | null
           callback_urls: string | null
+          worker_domain: string | null
         }>()
 
       if (!result) {
@@ -49,6 +50,7 @@ export class AppSettingsManager {
           support_email: '',
           oauth_user_agent: '',
           callback_urls: [],
+          worker_domain: '',
         }
       }
 
@@ -68,6 +70,7 @@ export class AppSettingsManager {
         support_email: result.support_email || '',
         oauth_user_agent: result.oauth_user_agent || '',
         callback_urls: parsedCallbackUrls,
+        worker_domain: result.worker_domain || '',
       }
     } catch (error) {
       // If table doesn't exist, return default values
@@ -78,6 +81,7 @@ export class AppSettingsManager {
           support_email: '',
           oauth_user_agent: '',
           callback_urls: [],
+          worker_domain: '',
         }
       }
       throw error
@@ -91,19 +95,22 @@ export class AppSettingsManager {
     try {
       const result = await this.db
         .prepare(
-          'SELECT app_name, app_url, support_email, oauth_user_agent, callback_urls, updated_at FROM app_settings WHERE id = ?'
+          'SELECT app_name, app_url, support_email, oauth_user_agent, callback_urls, worker_domain, updated_at FROM app_settings LIMIT 1'
         )
-        .bind('default')
         .first<{
           app_name: string | null
           app_url: string | null
           support_email: string | null
           oauth_user_agent: string | null
           callback_urls: string | null
+          worker_domain: string | null
           updated_at: string
         }>()
 
+      console.log('getSettingsForAPI result:', result)
+
       if (!result) {
+        console.log('No app_settings record found')
         return []
       }
 
@@ -114,6 +121,7 @@ export class AppSettingsManager {
         'support_email',
         'oauth_user_agent',
         'callback_urls',
+        'worker_domain',
       ] as const
 
       for (const field of fields) {
@@ -127,6 +135,7 @@ export class AppSettingsManager {
         }
       }
 
+      console.log('getSettingsForAPI returning settings:', settings)
       return settings
     } catch (error) {
       if (error instanceof Error && error.message.includes('no such table')) {
@@ -146,6 +155,7 @@ export class AppSettingsManager {
       'support_email',
       'oauth_user_agent',
       'callback_urls',
+      'worker_domain',
     ]
     const updates: string[] = []
     const values: (string | null)[] = []
@@ -189,10 +199,10 @@ export class AppSettingsManager {
     values.push(getCurrentDateTimeISO())
 
     try {
-      // Always update the default row (created by migration)
+      // Always update the first row (there should only be one)
       await this.db
-        .prepare(`UPDATE app_settings SET ${updates.join(', ')} WHERE id = ?`)
-        .bind(...values, 'default')
+        .prepare(`UPDATE app_settings SET ${updates.join(', ')}`)
+        .bind(...values)
         .run()
     } catch (error) {
       console.error('Failed to update settings:', error)
@@ -206,8 +216,7 @@ export class AppSettingsManager {
   async getAllowedCallbackUrls(): Promise<string[]> {
     try {
       const result = await this.db
-        .prepare('SELECT callback_urls FROM app_settings WHERE id = ?')
-        .bind('default')
+        .prepare('SELECT callback_urls FROM app_settings LIMIT 1')
         .first<{ callback_urls: string | null }>()
 
       if (!result?.callback_urls) {
@@ -260,6 +269,34 @@ export class AppSettingsManager {
     }
 
     return false
+  }
+
+  /**
+   * Get worker domain
+   */
+  async getWorkerDomain(): Promise<string | null> {
+    try {
+      const result = await this.db
+        .prepare('SELECT worker_domain FROM app_settings LIMIT 1')
+        .first<{ worker_domain: string | null }>()
+
+      return result?.worker_domain || null
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        (error.message.includes('no such table') || error.message.includes('no such column'))
+      ) {
+        return null
+      }
+      throw error
+    }
+  }
+
+  /**
+   * Set worker domain
+   */
+  async setWorkerDomain(domain: string): Promise<void> {
+    await this.updateSettings([{ key: 'worker_domain', value: domain }])
   }
 
   /**

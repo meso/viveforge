@@ -3,6 +3,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { VibebaseAuthClient } from './lib/auth-client'
+import { AppSettingsManager } from './lib/app-settings-manager'
 import { getOrGenerateJWTSecret, logSecurityWarnings } from './lib/security-utils'
 import { multiAuth } from './middleware/auth'
 import { securityHeaders } from './middleware/security-headers'
@@ -65,11 +66,21 @@ app.use('*', async (c, next) => {
   // Update environment with the validated/generated secret
   c.env.JWT_SECRET = jwtSecretResult.secret
 
-  // Set WORKER_DOMAIN from request if not already set
+  // Set WORKER_DOMAIN: DB > リクエストhost の優先順位
   if (!c.env.WORKER_DOMAIN) {
-    const host = c.req.header('host')
-    if (host) {
-      c.env.WORKER_DOMAIN = host
+    const appSettings = new AppSettingsManager(c.env.DB!)
+    const storedDomain = await appSettings.getWorkerDomain()
+    
+    if (storedDomain) {
+      // DBに保存済みの値を使用
+      c.env.WORKER_DOMAIN = storedDomain
+    } else {
+      // DBにもない場合、hostから取得して保存
+      const host = c.req.header('host')
+      if (host) {
+        c.env.WORKER_DOMAIN = host
+        await appSettings.setWorkerDomain(host)
+      }
     }
   }
 
@@ -234,8 +245,21 @@ export default {
     console.log('Cron trigger executed:', event.cron)
 
     try {
+      // Get WORKER_DOMAIN from environment or DB
+      let workerDomain = env.WORKER_DOMAIN
+      
+      if (!workerDomain) {
+        const appSettings = new AppSettingsManager(env.DB!)
+        workerDomain = await appSettings.getWorkerDomain() || undefined
+      }
+
+      if (!workerDomain) {
+        console.warn('WORKER_DOMAIN not found, skipping cron processing')
+        return
+      }
+
       // Call the process-events endpoint internally
-      const url = `https://${env.WORKER_DOMAIN}/api/realtime/process-events`
+      const url = `https://${workerDomain}/api/realtime/process-events`
       const response = await fetch(url, {
         method: 'POST',
         headers: {

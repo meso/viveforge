@@ -61,6 +61,7 @@ CREATE TABLE app_settings (
   support_email TEXT,
   oauth_user_agent TEXT,
   callback_urls TEXT,
+  worker_domain TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );

@@ -35,12 +35,10 @@ id = "63a32a4e4bdf4699a1447d7f5e56c74f"
 [vars]
 ENVIRONMENT = "production"
 VIBEBASE_AUTH_URL = "https://auth.vibebase.workers.dev"
-WORKER_DOMAIN = "vibebase.mesongo.workers.dev"
 
 [env.development.vars]
 ENVIRONMENT = "development"
 VIBEBASE_AUTH_URL = "https://auth.vibebase.workers.dev"
-WORKER_DOMAIN = "localhost:8787"
 
 # Durable Objects for realtime functionality
 [[durable_objects.bindings]]
