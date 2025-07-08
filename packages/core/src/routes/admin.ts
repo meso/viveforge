@@ -3,11 +3,7 @@ import { generateId } from '../lib/utils'
 import { multiAuth } from '../middleware/auth'
 import { requireAdminUser, requireDatabase } from '../middleware/common'
 import type { Env, Variables } from '../types'
-import {
-  errorResponse,
-  notFoundResponse,
-  validationErrorResponse,
-} from '../utils/responses'
+import { errorResponse, notFoundResponse, validationErrorResponse } from '../utils/responses'
 
 const admin = new Hono<{ Bindings: Env; Variables: Variables }>()
 
@@ -23,7 +19,11 @@ admin.use('*', requireDatabase)
 admin.get('/', async (c) => {
   try {
     // Database is guaranteed to be available by requireDatabase middleware
-    const result = await c.env.DB!.prepare('SELECT * FROM admins ORDER BY created_at DESC').all()
+    const db = c.env.DB
+    if (!db) {
+      return errorResponse(c, 'Database not available')
+    }
+    const result = await db.prepare('SELECT * FROM admins ORDER BY created_at DESC').all()
 
     // Convert is_root from SQLite integer to boolean
     const admins = result.results.map((admin: Record<string, unknown>) => ({
@@ -49,9 +49,14 @@ admin.post('/', async (c) => {
       return validationErrorResponse(c, 'GitHub username is required')
     }
 
+    const db = c.env.DB
+    if (!db) {
+      return errorResponse(c, 'Database not available')
+    }
+
     // Check if admin already exists
-    const existing = await c.env
-      .DB!.prepare('SELECT id FROM admins WHERE github_username = ?')
+    const existing = await db
+      .prepare('SELECT id FROM admins WHERE github_username = ?')
       .bind(github_username)
       .first()
 
@@ -60,8 +65,8 @@ admin.post('/', async (c) => {
     }
 
     // Add new admin
-    await c.env
-      .DB!.prepare('INSERT INTO admins (id, github_username, is_root) VALUES (?, ?, ?)')
+    await db
+      .prepare('INSERT INTO admins (id, github_username, is_root) VALUES (?, ?, ?)')
       .bind(generateId(), github_username, false)
       .run()
 
@@ -79,10 +84,14 @@ admin.post('/', async (c) => {
 admin.delete('/:id', async (c) => {
   try {
     const id = c.req.param('id')
+    const db = c.env.DB
+    if (!db) {
+      return errorResponse(c, 'Database not available')
+    }
 
     // Check if admin exists and is not root
-    const admin = (await c.env
-      .DB!.prepare('SELECT id, github_username, is_root FROM admins WHERE id = ?')
+    const admin = (await db
+      .prepare('SELECT id, github_username, is_root FROM admins WHERE id = ?')
       .bind(id)
       .first()) as Record<string, unknown>
 
@@ -95,7 +104,7 @@ admin.delete('/:id', async (c) => {
     }
 
     // Remove admin
-    await c.env.DB!.prepare('DELETE FROM admins WHERE id = ?').bind(id).run()
+    await db.prepare('DELETE FROM admins WHERE id = ?').bind(id).run()
 
     return c.json({
       message: 'Admin removed successfully',

@@ -30,6 +30,13 @@ export const SYSTEM_TABLES = [
 
 type SystemTable = (typeof SYSTEM_TABLES)[number]
 
+/**
+ * Check if a table name is a system table
+ */
+export function isSystemTable(tableName: string): boolean {
+  return SYSTEM_TABLES.includes(tableName as SystemTable)
+}
+
 export interface LocalTableInfo {
   name: string
   type: 'system' | 'user'
@@ -85,11 +92,11 @@ export class TableOperations {
           }
 
           // Check if it's a system table
-          const isSystemTable = SYSTEM_TABLES.includes(table.name as SystemTable)
+          const isSystemTableCheck = isSystemTable(table.name)
 
           // Get access policy for user tables
           let accessPolicy: 'public' | 'private' | undefined
-          if (!isSystemTable) {
+          if (!isSystemTableCheck) {
             try {
               accessPolicy = await this.getTableAccessPolicy(table.name)
             } catch {
@@ -100,7 +107,7 @@ export class TableOperations {
 
           tables.push({
             name: table.name,
-            type: isSystemTable ? 'system' : 'user',
+            type: isSystemTableCheck ? 'system' : 'user',
             sql: table.sql,
             rowCount,
             access_policy: accessPolicy,
@@ -163,19 +170,12 @@ export class TableOperations {
   }
 
   /**
-   * Validate if a table name is a system table
-   */
-  isSystemTable(tableName: string): boolean {
-    return SYSTEM_TABLES.includes(tableName as SystemTable)
-  }
-
-  /**
    * Validate table name and check if it's a system table
    */
   validateTableName(tableName: string): void {
     validateAndEscapeTableName(tableName)
 
-    if (this.isSystemTable(tableName)) {
+    if (isSystemTable(tableName)) {
       throw new Error('Cannot modify system table')
     }
   }

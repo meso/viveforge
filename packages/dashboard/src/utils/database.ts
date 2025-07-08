@@ -43,7 +43,7 @@ export const isSystemTable = (tableName: string): boolean => {
 /**
  * Check if a table allows editing (no system tables are editable in the database UI)
  */
-export const isEditableSystemTable = (tableName: string): boolean => {
+export const isEditableSystemTable = (_tableName: string): boolean => {
   return false // All system tables are read-only in database UI
 }
 

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Env } from '../../types'
+import type { D1Database, KVNamespace, R2Bucket } from '../../types/cloudflare'
 
 // Simple implementation test for authentication logic patterns
 describe('Authentication Logic Patterns', () => {
@@ -13,10 +14,10 @@ describe('Authentication Logic Patterns', () => {
       DEPLOYMENT_DOMAIN: 'test.example.com',
       WORKER_NAME: 'test-worker',
       ENVIRONMENT: 'development',
-      DB: {} as any,
-      SESSIONS: {} as any,
-      SYSTEM_STORAGE: {} as any,
-      USER_STORAGE: {} as any,
+      DB: {} as unknown as D1Database,
+      SESSIONS: {} as unknown as KVNamespace,
+      SYSTEM_STORAGE: {} as unknown as R2Bucket,
+      USER_STORAGE: {} as unknown as R2Bucket,
       ASSETS: {
         fetch: vi.fn(() => Promise.resolve(new Response('mock asset'))),
       },

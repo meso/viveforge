@@ -1,8 +1,11 @@
+import type { D1Database } from '@cloudflare/workers-types'
 import { Hono } from 'hono'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { APIKeyManager } from '../../lib/api-key-manager'
+import type { User, VibebaseAuthClient } from '../../lib/auth-client'
 import { multiAuth } from '../../middleware/auth'
 import type { Env, Variables } from '../../types'
+import type { R2Bucket as CustomR2Bucket, KVNamespace } from '../../types/cloudflare'
 
 // Mock APIKeyManager
 vi.mock('../../lib/api-key-manager', () => ({
@@ -13,8 +16,8 @@ vi.mock('../../lib/api-key-manager', () => ({
 describe('Multi-Auth Middleware', () => {
   let app: Hono<{ Bindings: Env; Variables: Variables }>
   let mockEnv: Env
-  let mockAPIKeyManager: any
-  let mockAuthClient: any
+  let mockAPIKeyManager: APIKeyManager
+  let mockAuthClient: VibebaseAuthClient
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -23,23 +26,23 @@ describe('Multi-Auth Middleware', () => {
 
     mockAPIKeyManager = {
       verifyAPIKey: vi.fn(),
-    }
+    } as unknown as APIKeyManager
 
     // Mock the APIKeyManager constructor to return our mock
-    vi.mocked(APIKeyManager).mockImplementation(() => mockAPIKeyManager)
+    vi.mocked(APIKeyManager).mockImplementation(() => mockAPIKeyManager as APIKeyManager)
 
     mockAuthClient = {
       verifyRequest: vi.fn(),
       verifyJWT: vi.fn(),
       getLoginUrl: vi.fn().mockReturnValue('/auth/login'),
-    }
+    } as unknown as VibebaseAuthClient
 
     mockEnv = {
-      DB: {} as any,
-      SESSIONS: {} as any,
-      SYSTEM_STORAGE: {} as any,
-      USER_STORAGE: {} as any,
-      ASSETS: { fetch: vi.fn() } as any,
+      DB: {} as unknown as D1Database,
+      SESSIONS: {} as unknown as KVNamespace,
+      SYSTEM_STORAGE: {} as unknown as CustomR2Bucket,
+      USER_STORAGE: {} as unknown as CustomR2Bucket,
+      ASSETS: { fetch: vi.fn(() => Promise.resolve(new Response('mock asset'))) },
       VIBEBASE_AUTH_URL: 'https://auth.example.com',
       DEPLOYMENT_DOMAIN: 'example.com',
       WORKER_NAME: 'test-worker',
@@ -69,12 +72,17 @@ describe('Multi-Auth Middleware', () => {
       const mockAPIKey = {
         id: 'key-123',
         name: 'Test Key',
+        key_hash: 'hash123',
+        key_prefix: 'vb_live_',
         scopes: ['data:read'],
         created_by: 'admin-123',
+        created_at: '2023-01-01T00:00:00.000Z',
+        last_used_at: null,
+        expires_at: null,
         is_active: true,
       }
 
-      mockAPIKeyManager.verifyAPIKey.mockResolvedValue(mockAPIKey)
+      vi.mocked(mockAPIKeyManager.verifyAPIKey).mockResolvedValue(mockAPIKey)
 
       const response = await app.request('/test', {
         headers: {
@@ -83,14 +91,20 @@ describe('Multi-Auth Middleware', () => {
       })
 
       expect(response.status).toBe(200)
-      const data = (await response.json()) as any
+      const data = (await response.json()) as {
+        user?: unknown
+        apiKey?: unknown
+        authContext?: unknown
+        success?: boolean
+        error?: string
+      }
       expect(data.authContext).toEqual({ type: 'api_key', apiKey: mockAPIKey })
       expect(data.user).toBeUndefined()
       expect(mockAPIKeyManager.verifyAPIKey).toHaveBeenCalledWith('vb_live_test-key')
     })
 
     it('should reject invalid API key', async () => {
-      mockAPIKeyManager.verifyAPIKey.mockResolvedValue(null)
+      vi.mocked(mockAPIKeyManager.verifyAPIKey).mockResolvedValue(null)
 
       const response = await app.request('/test', {
         headers: {
@@ -99,12 +113,18 @@ describe('Multi-Auth Middleware', () => {
       })
 
       expect(response.status).toBe(401)
-      const data = (await response.json()) as any
+      const data = (await response.json()) as {
+        user?: unknown
+        apiKey?: unknown
+        authContext?: unknown
+        success?: boolean
+        error?: string
+      }
       expect(data.error).toBe('Invalid API key')
     })
 
     it('should handle API key verification errors', async () => {
-      mockAPIKeyManager.verifyAPIKey.mockRejectedValue(new Error('Database error'))
+      vi.mocked(mockAPIKeyManager.verifyAPIKey).mockRejectedValue(new Error('Database error'))
 
       const response = await app.request('/test', {
         headers: {
@@ -113,7 +133,13 @@ describe('Multi-Auth Middleware', () => {
       })
 
       expect(response.status).toBe(401)
-      const data = (await response.json()) as any
+      const data = (await response.json()) as {
+        user?: unknown
+        apiKey?: unknown
+        authContext?: unknown
+        success?: boolean
+        error?: string
+      }
       expect(data.error).toBe('API key authentication failed')
     })
   })
@@ -121,13 +147,23 @@ describe('Multi-Auth Middleware', () => {
   describe('Admin JWT Authentication', () => {
     it('should authenticate with valid JWT token', async () => {
       const mockUser = {
-        id: 123,
-        username: 'testuser',
+        id: 'user-123',
         email: 'test@example.com',
+        name: 'Test User',
+        avatar_url: 'https://example.com/avatar.jpg',
+        provider: 'github',
+        provider_id: '123456',
+        role: 'admin',
+        metadata: undefined,
+        last_login_at: '2023-01-01T00:00:00.000Z',
+        is_active: true,
+        created_at: '2023-01-01T00:00:00.000Z',
+        updated_at: '2023-01-01T00:00:00.000Z',
+        username: 'testuser',
         scope: ['admin'],
       }
 
-      mockAuthClient.verifyJWT.mockResolvedValue(mockUser)
+      vi.mocked(mockAuthClient.verifyJWT).mockResolvedValue(mockUser as User)
 
       const response = await app.request('/test', {
         headers: {
@@ -136,14 +172,20 @@ describe('Multi-Auth Middleware', () => {
       })
 
       expect(response.status).toBe(200)
-      const data = (await response.json()) as any
+      const data = (await response.json()) as {
+        user?: unknown
+        apiKey?: unknown
+        authContext?: unknown
+        success?: boolean
+        error?: string
+      }
       expect(data.user).toEqual(mockUser)
       expect(data.authContext).toEqual({ type: 'admin', user: mockUser })
       expect(data.apiKey).toBeUndefined()
     })
 
     it('should reject invalid JWT token', async () => {
-      mockAuthClient.verifyJWT.mockResolvedValue(null)
+      vi.mocked(mockAuthClient.verifyJWT).mockResolvedValue(null)
 
       const response = await app.request('/test', {
         headers: {
@@ -152,12 +194,18 @@ describe('Multi-Auth Middleware', () => {
       })
 
       expect(response.status).toBe(401)
-      const data = (await response.json()) as any
+      const data = (await response.json()) as {
+        user?: unknown
+        apiKey?: unknown
+        authContext?: unknown
+        success?: boolean
+        error?: string
+      }
       expect(data.error).toBe('Invalid JWT token')
     })
 
     it('should handle JWT verification errors', async () => {
-      mockAuthClient.verifyJWT.mockRejectedValue(new Error('Auth service error'))
+      vi.mocked(mockAuthClient.verifyJWT).mockRejectedValue(new Error('Auth service error'))
 
       const response = await app.request('/test', {
         headers: {
@@ -166,7 +214,13 @@ describe('Multi-Auth Middleware', () => {
       })
 
       expect(response.status).toBe(401)
-      const data = (await response.json()) as any
+      const data = (await response.json()) as {
+        user?: unknown
+        apiKey?: unknown
+        authContext?: unknown
+        success?: boolean
+        error?: string
+      }
       expect(data.error).toBe('JWT authentication failed')
     })
   })
@@ -174,13 +228,23 @@ describe('Multi-Auth Middleware', () => {
   describe('Cookie Authentication Fallback', () => {
     it('should authenticate with valid session cookie', async () => {
       const mockUser = {
-        id: 123,
-        username: 'testuser',
+        id: 'user-123',
         email: 'test@example.com',
+        name: 'Test User',
+        avatar_url: 'https://example.com/avatar.jpg',
+        provider: 'github',
+        provider_id: '123456',
+        role: 'admin',
+        metadata: undefined,
+        last_login_at: '2023-01-01T00:00:00.000Z',
+        is_active: true,
+        created_at: '2023-01-01T00:00:00.000Z',
+        updated_at: '2023-01-01T00:00:00.000Z',
+        username: 'testuser',
         scope: ['admin'],
       }
 
-      mockAuthClient.verifyRequest.mockResolvedValue(mockUser)
+      vi.mocked(mockAuthClient.verifyRequest).mockResolvedValue(mockUser as User)
 
       const response = await app.request('/test', {
         headers: {
@@ -189,12 +253,18 @@ describe('Multi-Auth Middleware', () => {
       })
 
       expect(response.status).toBe(200)
-      const data = (await response.json()) as any
+      const data = (await response.json()) as {
+        user?: unknown
+        apiKey?: unknown
+        authContext?: unknown
+        success?: boolean
+        error?: string
+      }
       expect(data.user).toEqual(mockUser)
     })
 
     it('should redirect to login when no authentication provided', async () => {
-      mockAuthClient.verifyRequest.mockResolvedValue(null)
+      vi.mocked(mockAuthClient.verifyRequest).mockResolvedValue(null)
 
       const response = await app.request('/test')
 
@@ -208,20 +278,35 @@ describe('Multi-Auth Middleware', () => {
       const mockAPIKey = {
         id: 'key-123',
         name: 'Test Key',
+        key_hash: 'hash123',
+        key_prefix: 'vb_live_',
         scopes: ['data:read'],
         created_by: 'admin-123',
+        created_at: '2023-01-01T00:00:00.000Z',
+        last_used_at: null,
+        expires_at: null,
         is_active: true,
       }
 
       const mockUser = {
-        id: 123,
-        username: 'testuser',
+        id: 'user-123',
         email: 'test@example.com',
+        name: 'Test User',
+        avatar_url: 'https://example.com/avatar.jpg',
+        provider: 'github',
+        provider_id: '123456',
+        role: 'admin',
+        metadata: undefined,
+        last_login_at: '2023-01-01T00:00:00.000Z',
+        is_active: true,
+        created_at: '2023-01-01T00:00:00.000Z',
+        updated_at: '2023-01-01T00:00:00.000Z',
+        username: 'testuser',
         scope: ['admin'],
       }
 
-      mockAPIKeyManager.verifyAPIKey.mockResolvedValue(mockAPIKey)
-      mockAuthClient.verifyJWT.mockResolvedValue(mockUser)
+      vi.mocked(mockAPIKeyManager.verifyAPIKey).mockResolvedValue(mockAPIKey)
+      vi.mocked(mockAuthClient.verifyJWT).mockResolvedValue(mockUser as User)
 
       const response = await app.request('/test', {
         headers: {
@@ -231,7 +316,13 @@ describe('Multi-Auth Middleware', () => {
       })
 
       expect(response.status).toBe(200)
-      const data = (await response.json()) as any
+      const data = (await response.json()) as {
+        user?: unknown
+        apiKey?: unknown
+        authContext?: unknown
+        success?: boolean
+        error?: string
+      }
       expect(data.authContext).toEqual({ type: 'api_key', apiKey: mockAPIKey })
       expect(data.user).toBeUndefined()
       expect(mockAPIKeyManager.verifyAPIKey).toHaveBeenCalled()
@@ -258,7 +349,13 @@ describe('Multi-Auth Middleware', () => {
       })
 
       expect(response.status).toBe(401)
-      const data = (await response.json()) as any
+      const data = (await response.json()) as {
+        user?: unknown
+        apiKey?: unknown
+        authContext?: unknown
+        success?: boolean
+        error?: string
+      }
       expect(data.error).toBe('Invalid API key')
     })
 
@@ -280,7 +377,13 @@ describe('Multi-Auth Middleware', () => {
       })
 
       expect(response.status).toBe(503)
-      const data = (await response.json()) as any
+      const data = (await response.json()) as {
+        user?: unknown
+        apiKey?: unknown
+        authContext?: unknown
+        success?: boolean
+        error?: string
+      }
       expect(data.error).toBe('Authentication service unavailable')
     })
   })

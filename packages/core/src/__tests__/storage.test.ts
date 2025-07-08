@@ -1,3 +1,4 @@
+import type { R2Bucket } from '@cloudflare/workers-types'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Suppress console.error during tests to reduce noise
@@ -8,6 +9,7 @@ beforeEach(() => {
 import { Hono } from 'hono'
 import { storage } from '../routes/storage'
 import type { Env, Variables } from '../types'
+import { createMockEnv } from './helpers/mock-env'
 
 // Enhanced R2 mock for storage tests
 interface MockR2Object {
@@ -34,9 +36,13 @@ interface MockR2Object {
 interface MockR2Bucket {
   storage: Map<string, { data: ArrayBuffer; metadata: MockR2Object }>
   get(key: string): Promise<MockR2Object | null>
-  put(key: string, value: ArrayBuffer, options?: any): Promise<MockR2Object>
+  put(
+    key: string,
+    value: ArrayBuffer,
+    options?: { httpMetadata?: Record<string, string>; customMetadata?: Record<string, string> }
+  ): Promise<MockR2Object>
   delete(keys: string | string[]): Promise<void>
-  list(options?: any): Promise<{
+  list(options?: unknown): Promise<{
     objects: MockR2Object[]
     truncated: boolean
     cursor?: string
@@ -80,7 +86,11 @@ function createMockR2Bucket(): MockR2Bucket {
       return mockObject
     },
 
-    async put(key: string, value: ArrayBuffer, options?: any) {
+    async put(
+      key: string,
+      value: ArrayBuffer,
+      options?: { httpMetadata?: Record<string, string>; customMetadata?: Record<string, string> }
+    ) {
       const metadata: MockR2Object = {
         key,
         size: value.byteLength,
@@ -107,25 +117,25 @@ function createMockR2Bucket(): MockR2Bucket {
       keyArray.forEach((key) => storage.delete(key))
     },
 
-    async list(options?: any) {
+    async list(options?: Record<string, unknown>) {
       const { prefix = '', limit = 1000, cursor } = options || {}
 
       let objects = Array.from(storage.entries())
-        .filter(([key]) => key.startsWith(prefix))
+        .filter(([key]) => key.startsWith(prefix as string))
         .map(([_, item]) => item.metadata)
         .sort((a, b) => b.uploaded.getTime() - a.uploaded.getTime())
 
       // Simple cursor pagination simulation
       if (cursor) {
-        const cursorIndex = objects.findIndex((obj) => obj.key === cursor)
+        const cursorIndex = objects.findIndex((obj) => obj.key === (cursor as string))
         if (cursorIndex >= 0) {
           objects = objects.slice(cursorIndex + 1)
         }
       }
 
-      const truncated = objects.length > limit
+      const truncated = objects.length > (limit as number)
       if (truncated) {
-        objects = objects.slice(0, limit)
+        objects = objects.slice(0, limit as number)
       }
 
       return {
@@ -154,9 +164,9 @@ describe('Storage API', () => {
     // Set up environment
     app.use('*', async (c, next) => {
       c.env = {
-        USER_STORAGE: mockR2Bucket as any,
-        ENVIRONMENT: 'development',
-      } as Env
+        ...createMockEnv(),
+        USER_STORAGE: mockR2Bucket as unknown as R2Bucket,
+      } as unknown as Env
       await next()
     })
 
@@ -168,7 +178,12 @@ describe('Storage API', () => {
       const res = await app.request('/api/storage')
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as any
+      const data = (await res.json()) as {
+        objects: unknown[]
+        truncated: boolean
+        delimitedPrefixes: unknown[]
+        cursor?: string
+      }
       expect(data.objects).toEqual([])
       expect(data.truncated).toBe(false)
       expect(data.delimitedPrefixes).toEqual([])
@@ -185,7 +200,12 @@ describe('Storage API', () => {
       const res = await app.request('/api/storage')
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as any
+      const data = (await res.json()) as {
+        objects: Array<{ key: string; size: number; contentType?: string }>
+        truncated: boolean
+        delimitedPrefixes: unknown[]
+        cursor?: string
+      }
       expect(data.objects).toHaveLength(1)
       expect(data.objects[0]).toMatchObject({
         key: 'test.txt',
@@ -203,9 +223,14 @@ describe('Storage API', () => {
       const res = await app.request('/api/storage?prefix=images/')
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as any
+      const data = (await res.json()) as {
+        objects: Array<{ key: string }>
+        truncated: boolean
+        delimitedPrefixes: unknown[]
+        cursor?: string
+      }
       expect(data.objects).toHaveLength(2)
-      expect(data.objects.every((obj: any) => obj.key.startsWith('images/'))).toBe(true)
+      expect(data.objects.every((obj) => obj.key.startsWith('images/'))).toBe(true)
     })
 
     it('should handle pagination with limit and cursor', async () => {
@@ -217,7 +242,12 @@ describe('Storage API', () => {
       const res = await app.request('/api/storage?limit=2')
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as any
+      const data = (await res.json()) as {
+        objects: unknown[]
+        truncated: boolean
+        delimitedPrefixes: unknown[]
+        cursor?: string
+      }
       expect(data.objects).toHaveLength(2)
       expect(data.truncated).toBe(true)
       expect(data.cursor).toBeDefined()
@@ -226,7 +256,7 @@ describe('Storage API', () => {
     it('should return 500 when R2 bucket not configured', async () => {
       const tempApp = new Hono<{ Bindings: Env; Variables: Variables }>()
       tempApp.use('*', async (c, next) => {
-        c.env = { ENVIRONMENT: 'development' } as Env
+        c.env = { ...createMockEnv() } as Env
         await next()
       })
       tempApp.route('/api/storage', storage)
@@ -234,7 +264,9 @@ describe('Storage API', () => {
       const res = await tempApp.request('/api/storage')
       expect(res.status).toBe(500)
 
-      const data = (await res.json()) as any
+      const data = (await res.json()) as {
+        error: { message: string }
+      }
       expect(data.error.message).toBe('R2 bucket not configured')
     })
   })
@@ -252,7 +284,11 @@ describe('Storage API', () => {
 
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as any
+      const data = (await res.json()) as {
+        key: string
+        size: number
+        etag: string
+      }
       expect(data).toMatchObject({
         key: 'test.txt',
         size: 12, // 'test content'.length
@@ -278,7 +314,9 @@ describe('Storage API', () => {
 
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as any
+      const data = (await res.json()) as {
+        key: string
+      }
       expect(data.key).toBe('uploads/documents/test.txt')
     })
 
@@ -293,7 +331,9 @@ describe('Storage API', () => {
       expect(res.status).toBe(400)
 
       try {
-        const data = (await res.json()) as any
+        const data = (await res.json()) as {
+          error: { message: string }
+        }
         expect(data.error.message).toBe('No file provided')
       } catch {
         // Response might not be JSON in error cases
@@ -311,14 +351,16 @@ describe('Storage API', () => {
 
       expect(res.status).toBe(400)
 
-      const data = (await res.json()) as any
+      const data = (await res.json()) as {
+        error: { message: string }
+      }
       expect(data.error.message).toBe('Content-Type must be multipart/form-data')
     })
 
     it('should return 500 when R2 bucket not configured', async () => {
       const tempApp = new Hono<{ Bindings: Env; Variables: Variables }>()
       tempApp.use('*', async (c, next) => {
-        c.env = { ENVIRONMENT: 'development' } as Env // USER_STORAGE is undefined
+        c.env = { ...createMockEnv(), USER_STORAGE: undefined } as Env // USER_STORAGE is undefined
         await next()
       })
       tempApp.route('/api/storage', storage)
@@ -366,7 +408,9 @@ describe('Storage API', () => {
       const res = await app.request('/api/storage/download/non-existent.txt')
       expect(res.status).toBe(404)
 
-      const data = (await res.json()) as any
+      const data = (await res.json()) as {
+        error: { message: string }
+      }
       expect(data.error.message).toBe('File not found')
     })
 
@@ -397,7 +441,14 @@ describe('Storage API', () => {
       const res = await app.request('/api/storage/info/info-test.txt')
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as any
+      const data = (await res.json()) as {
+        key: string
+        size: number
+        contentType?: string
+        customMetadata?: Record<string, string>
+        uploaded: string
+        etag: string
+      }
       expect(data).toMatchObject({
         key: 'info-test.txt',
         size: 12,
@@ -427,7 +478,10 @@ describe('Storage API', () => {
 
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as any
+      const data = (await res.json()) as {
+        success: boolean
+        message: string
+      }
       expect(data).toMatchObject({
         success: true,
         message: 'File deleted successfully',
@@ -467,7 +521,11 @@ describe('Storage API', () => {
 
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as any
+      const data = (await res.json()) as {
+        success: boolean
+        message: string
+        deletedKeys: string[]
+      }
       expect(data).toMatchObject({
         success: true,
         message: '2 files deleted successfully',
@@ -494,7 +552,9 @@ describe('Storage API', () => {
 
       expect(res.status).toBe(400)
 
-      const data = (await res.json()) as any
+      const data = (await res.json()) as {
+        error: { message: string }
+      }
       expect(data.error.message).toBe('Keys array is required')
     })
 

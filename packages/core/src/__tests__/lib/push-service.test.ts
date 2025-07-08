@@ -28,19 +28,22 @@ describe('WebPushService', () => {
   describe('send', () => {
     it('should send push notification successfully', async () => {
       // Mock successful fetch response
-      ;(global.fetch as any).mockResolvedValue({
-        ok: true,
+      const mockResponse = new Response(null, {
         status: 200,
         statusText: 'OK',
         headers: new Headers(),
       })
+      vi.mocked(global.fetch).mockResolvedValue(mockResponse)
 
       // Mock crypto operations
       mockCrypto.subtle.importKey.mockResolvedValue({})
       mockCrypto.subtle.sign.mockResolvedValue(new ArrayBuffer(64))
 
       // Mock the private JWT generation method
-      vi.spyOn(service as any, 'generateVAPIDJWT').mockResolvedValue('mock-jwt-token')
+      vi.spyOn(
+        service as unknown as { generateVAPIDJWT: () => Promise<string> },
+        'generateVAPIDJWT'
+      ).mockResolvedValue('mock-jwt-token')
 
       const subscription = {
         id: 'sub1',
@@ -74,19 +77,22 @@ describe('WebPushService', () => {
 
     it('should handle send failure', async () => {
       // Mock failed fetch response
-      ;(global.fetch as any).mockResolvedValue({
-        ok: false,
+      const mockResponse = new Response(null, {
         status: 400,
         statusText: 'Bad Request',
         headers: new Headers(),
       })
+      vi.mocked(global.fetch).mockResolvedValue(mockResponse)
 
       // Mock crypto operations
       mockCrypto.subtle.importKey.mockResolvedValue({})
       mockCrypto.subtle.sign.mockResolvedValue(new ArrayBuffer(64))
 
       // Mock the private JWT generation method
-      vi.spyOn(service as any, 'generateVAPIDJWT').mockResolvedValue('mock-jwt-token')
+      vi.spyOn(
+        service as unknown as { generateVAPIDJWT: () => Promise<string> },
+        'generateVAPIDJWT'
+      ).mockResolvedValue('mock-jwt-token')
 
       const subscription = {
         id: 'sub1',
@@ -137,19 +143,22 @@ describe('WebPushService', () => {
   describe('sendBatch', () => {
     it('should send notifications to multiple subscriptions', async () => {
       // Mock successful responses
-      ;(global.fetch as any).mockResolvedValue({
-        ok: true,
+      const mockResponse = new Response(null, {
         status: 200,
         statusText: 'OK',
         headers: new Headers(),
       })
+      vi.mocked(global.fetch).mockResolvedValue(mockResponse)
 
       // Mock crypto operations
       mockCrypto.subtle.importKey.mockResolvedValue({})
       mockCrypto.subtle.sign.mockResolvedValue(new ArrayBuffer(64))
 
       // Mock the private JWT generation method
-      vi.spyOn(service as any, 'generateVAPIDJWT').mockResolvedValue('mock-jwt-token')
+      vi.spyOn(
+        service as unknown as { generateVAPIDJWT: () => Promise<string> },
+        'generateVAPIDJWT'
+      ).mockResolvedValue('mock-jwt-token')
 
       const subscriptions = [
         {
@@ -187,7 +196,9 @@ describe('WebPushService', () => {
   describe('Key conversion utilities', () => {
     it('should handle invalid private key length', () => {
       expect(() => {
-        ;(service as any).convertPrivateKeyToJWK('invalid-short-key')
+        ;(
+          service as unknown as { convertPrivateKeyToJWK: (key: string) => unknown }
+        ).convertPrivateKeyToJWK('invalid-short-key')
       }).toThrow('Invalid character')
     })
 
@@ -200,9 +211,9 @@ describe('WebPushService', () => {
       )
 
       expect(() => {
-        ;(invalidService as any).convertPrivateKeyToJWK(
-          'AjV0e5aJ8v9U04x90r_VYF1CcC9FjQUrQ58WARPHO44'
-        )
+        ;(
+          invalidService as unknown as { convertPrivateKeyToJWK: (key: string) => unknown }
+        ).convertPrivateKeyToJWK('AjV0e5aJ8v9U04x90r_VYF1CcC9FjQUrQ58WARPHO44')
       }).toThrow()
     })
   })

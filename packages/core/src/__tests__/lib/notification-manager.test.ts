@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NotificationManager } from '../../lib/notification-manager'
+import type { D1Database } from '../../types/cloudflare'
 import { createMockD1Database } from '../setup'
 
 // Mock generateId from utils for consistent testing
@@ -12,7 +13,7 @@ describe('NotificationManager', () => {
   let manager: NotificationManager
 
   beforeEach(() => {
-    db = createMockD1Database() as any
+    db = createMockD1Database() as unknown as D1Database
     manager = new NotificationManager(db, {
       publicKey: 'test-public-key',
       privateKey: 'test-private-key',

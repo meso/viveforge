@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { VibebaseAuthClient } from '../../lib/auth-client'
 import type { Env } from '../../types'
+import type { KVNamespace, R2Bucket } from '../../types/cloudflare'
 
 // Mock fetch globally
 const mockFetch = vi.fn()
@@ -25,10 +26,10 @@ describe('VibebaseAuthClient', () => {
       DEPLOYMENT_DOMAIN: 'test.example.com',
       WORKER_NAME: 'test-worker',
       ENVIRONMENT: 'development',
-      DB: {} as any,
-      SESSIONS: {} as any,
-      SYSTEM_STORAGE: {} as any,
-      USER_STORAGE: {} as any,
+      DB: {} as D1Database,
+      SESSIONS: {} as KVNamespace,
+      SYSTEM_STORAGE: {} as R2Bucket,
+      USER_STORAGE: {} as R2Bucket,
       ASSETS: {
         fetch: vi.fn(() => Promise.resolve(new Response('mock asset'))),
       },
@@ -232,21 +233,27 @@ describe('VibebaseAuthClient', () => {
   })
 
   describe('verifyRequest', () => {
-    let mockContext: any
+    let mockContext: {
+      req: {
+        header: ReturnType<typeof vi.fn<[string], string | undefined>>
+        raw: { headers: { get: ReturnType<typeof vi.fn<[string], string | null>> } }
+      }
+      res: { headers: { append: ReturnType<typeof vi.fn<[string, string], void>> } }
+    }
 
     beforeEach(() => {
       mockContext = {
         req: {
-          header: vi.fn(),
+          header: vi.fn<[string], string | undefined>(),
           raw: {
             headers: {
-              get: vi.fn(),
+              get: vi.fn<[string], string | null>(),
             },
           },
         },
         res: {
           headers: {
-            append: vi.fn(),
+            append: vi.fn<[string, string], void>(),
           },
         },
       }
@@ -285,9 +292,11 @@ describe('VibebaseAuthClient', () => {
       const mockToken = 'valid.jwt.token'
 
       mockContext.req.header.mockReturnValue(`Bearer ${mockToken}`)
-      mockContext.req.raw.headers.get.mockReturnValue(null)
+      mockContext.req.raw.headers.get.mockReturnValue(null as string | null)
 
-      const user = await authClient.verifyRequest(mockContext)
+      const user = await authClient.verifyRequest(
+        mockContext as Parameters<typeof authClient.verifyRequest>[0]
+      )
 
       expect(user).toMatchObject({
         id: '12345',
@@ -321,10 +330,12 @@ describe('VibebaseAuthClient', () => {
 
       const mockToken = 'valid.jwt.token'
 
-      mockContext.req.header.mockReturnValue(null)
+      mockContext.req.header.mockReturnValue(undefined)
       mockContext.req.raw.headers.get.mockReturnValue(`access_token=${mockToken}; other=value`)
 
-      const user = await authClient.verifyRequest(mockContext)
+      const user = await authClient.verifyRequest(
+        mockContext as Parameters<typeof authClient.verifyRequest>[0]
+      )
 
       expect(user).toMatchObject({
         id: '12345',
@@ -340,10 +351,12 @@ describe('VibebaseAuthClient', () => {
     })
 
     it('should return null for request with no authentication', async () => {
-      mockContext.req.header.mockReturnValue(null)
-      mockContext.req.raw.headers.get.mockReturnValue(null)
+      mockContext.req.header.mockReturnValue(undefined)
+      mockContext.req.raw.headers.get.mockReturnValue(null as string | null)
 
-      const user = await authClient.verifyRequest(mockContext)
+      const user = await authClient.verifyRequest(
+        mockContext as Parameters<typeof authClient.verifyRequest>[0]
+      )
 
       expect(user).toBeNull()
     })
@@ -377,10 +390,12 @@ describe('VibebaseAuthClient', () => {
       // Create a spy for the verifyToken method
       const verifyTokenSpy = vi.spyOn(authClient, 'verifyToken').mockResolvedValue(mockUser)
 
-      mockContext.req.header.mockReturnValue(null)
+      mockContext.req.header.mockReturnValue(undefined)
       mockContext.req.raw.headers.get.mockReturnValue(`refresh_token=${refreshToken}`)
 
-      const user = await authClient.verifyRequest(mockContext)
+      const user = await authClient.verifyRequest(
+        mockContext as Parameters<typeof authClient.verifyRequest>[0]
+      )
 
       expect(user).toEqual(mockUser)
       expect(refreshTokenSpy).toHaveBeenCalledWith(refreshToken)

@@ -89,7 +89,7 @@ describe('VibebaseProvider', () => {
       disconnect: vi.fn(),
     }
 
-    vi.mocked(VibebaseClient).mockImplementationOnce(() => mockClient as any)
+    vi.mocked(VibebaseClient).mockImplementationOnce(() => mockClient as unknown as VibebaseClient)
 
     render(
       <VibebaseProvider config={{ apiUrl: 'https://test.example.com' }}>

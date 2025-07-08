@@ -16,7 +16,7 @@ describe('DataClient', () => {
       put: vi.fn(),
       delete: vi.fn(),
       request: vi.fn(),
-    } as any
+    } as HttpClient
 
     dataClient = new DataClient(mockHttpClient)
   })

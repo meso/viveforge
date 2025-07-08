@@ -1,3 +1,4 @@
+import type { R2Bucket } from '@cloudflare/workers-types'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Suppress console.error during tests to reduce noise
@@ -8,19 +9,20 @@ beforeEach(() => {
 import { Hono } from 'hono'
 import { storage } from '../routes/storage'
 import type { Env, Variables } from '../types'
+import { createMockEnv } from './helpers/mock-env'
 
 // Simple R2 mock for basic testing
 interface SimpleMockR2Bucket {
-  storage: Map<string, { data: ArrayBuffer; metadata: any }>
-  get(key: string): Promise<any>
-  put(key: string, value: ArrayBuffer, options?: any): Promise<any>
+  storage: Map<string, { data: ArrayBuffer; metadata: unknown }>
+  get(key: string): Promise<unknown>
+  put(key: string, value: ArrayBuffer, options?: unknown): Promise<unknown>
   delete(keys: string | string[]): Promise<void>
-  list(options?: any): Promise<any>
-  head(key: string): Promise<any>
+  list(options?: unknown): Promise<unknown>
+  head(key: string): Promise<unknown>
 }
 
 function createSimpleMockR2Bucket(): SimpleMockR2Bucket {
-  const storage = new Map<string, { data: ArrayBuffer; metadata: any }>()
+  const storage = new Map<string, { data: ArrayBuffer; metadata: unknown }>()
 
   return {
     storage,
@@ -30,7 +32,7 @@ function createSimpleMockR2Bucket(): SimpleMockR2Bucket {
       if (!item) return null
 
       return {
-        ...item.metadata,
+        ...(item.metadata as Record<string, unknown>),
         body: new ReadableStream({
           start(controller) {
             controller.enqueue(new Uint8Array(item.data))
@@ -46,15 +48,15 @@ function createSimpleMockR2Bucket(): SimpleMockR2Bucket {
       }
     },
 
-    async put(key: string, value: ArrayBuffer, options?: any) {
+    async put(key: string, value: ArrayBuffer, options?: unknown) {
       const metadata = {
         key,
         size: value.byteLength,
         uploaded: new Date(),
         etag: Math.random().toString(36),
         httpEtag: `"${Math.random().toString(36)}"`,
-        httpMetadata: options?.httpMetadata,
-        customMetadata: options?.customMetadata,
+        httpMetadata: (options as { httpMetadata?: unknown })?.httpMetadata,
+        customMetadata: (options as { customMetadata?: unknown })?.customMetadata,
       }
 
       storage.set(key, { data: value, metadata })
@@ -66,13 +68,13 @@ function createSimpleMockR2Bucket(): SimpleMockR2Bucket {
       keyArray.forEach((key) => storage.delete(key))
     },
 
-    async list(options?: any) {
-      const { prefix = '', limit = 1000 } = options || {}
+    async list(options?: unknown) {
+      const { prefix = '', limit = 1000 } = (options as { prefix?: string; limit?: number }) || {}
 
       const objects = Array.from(storage.entries())
-        .filter(([key]) => key.startsWith(prefix))
+        .filter(([key]) => key.startsWith(prefix as string))
         .map(([_, item]) => item.metadata)
-        .slice(0, limit)
+        .slice(0, limit as number)
 
       return {
         objects,
@@ -98,9 +100,9 @@ describe('Storage API - Basic Tests', () => {
 
     app.use('*', async (c, next) => {
       c.env = {
-        USER_STORAGE: mockBucket as any,
-        ENVIRONMENT: 'development',
-      } as Env
+        ...createMockEnv(),
+        USER_STORAGE: mockBucket as unknown as R2Bucket,
+      } as unknown as Env
       await next()
     })
 
@@ -112,7 +114,7 @@ describe('Storage API - Basic Tests', () => {
       const res = await app.request('/api/storage')
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as any
+      const data = (await res.json()) as { objects: unknown[]; truncated: boolean }
       expect(data.objects).toEqual([])
       expect(data.truncated).toBe(false)
     })
@@ -129,7 +131,7 @@ describe('Storage API - Basic Tests', () => {
 
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as any
+      const data = (await res.json()) as { key: string; size: number }
       expect(data.key).toBe('test.txt')
       expect(data.size).toBe(12)
     })
@@ -160,7 +162,7 @@ describe('Storage API - Basic Tests', () => {
 
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as any
+      const data = (await res.json()) as { success: boolean }
       expect(data.success).toBe(true)
 
       // Verify file was deleted
@@ -179,7 +181,11 @@ describe('Storage API - Basic Tests', () => {
       const res = await app.request('/api/storage/info/info-test.txt')
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as any
+      const data = (await res.json()) as {
+        key: string
+        size: number
+        customMetadata: { uploadedBy: string }
+      }
       expect(data.key).toBe('info-test.txt')
       expect(data.size).toBe(12)
       expect(data.customMetadata.uploadedBy).toBe('test')
@@ -193,10 +199,10 @@ describe('Storage API - Basic Tests', () => {
       const res = await app.request('/api/storage')
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as any
+      const data = (await res.json()) as { objects: { key: string }[] }
       expect(data.objects).toHaveLength(2)
-      expect(data.objects.map((obj: any) => obj.key)).toContain('file1.txt')
-      expect(data.objects.map((obj: any) => obj.key)).toContain('file2.txt')
+      expect(data.objects.map((obj) => obj.key)).toContain('file1.txt')
+      expect(data.objects.map((obj) => obj.key)).toContain('file2.txt')
     })
 
     it('should handle bulk delete', async () => {
@@ -213,7 +219,7 @@ describe('Storage API - Basic Tests', () => {
 
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as any
+      const data = (await res.json()) as { success: boolean; deletedKeys: string[] }
       expect(data.success).toBe(true)
       expect(data.deletedKeys).toEqual(['bulk1.txt', 'bulk2.txt'])
 

@@ -99,50 +99,92 @@ export default function PushNotifications() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center">
           <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100">
-            <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 19c-.77.833.192 2.5 1.732 2.5z" />
+            <svg
+              className="h-6 w-6 text-yellow-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              role="img"
+              aria-label="Warning"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 19c-.77.833.192 2.5 1.732 2.5z"
+              />
             </svg>
           </div>
-          <h1 className="mt-4 text-2xl font-bold text-gray-900">Push Notifications Setup Required</h1>
+          <h1 className="mt-4 text-2xl font-bold text-gray-900">
+            Push Notifications Setup Required
+          </h1>
           <p className="mt-2 text-gray-600 max-w-md mx-auto">
-            Push notifications are not configured yet. You need to initialize VAPID keys to enable Web Push functionality.
+            Push notifications are not configured yet. You need to initialize VAPID keys to enable
+            Web Push functionality.
           </p>
           <div className="mt-8 bg-gray-50 rounded-lg p-6 max-w-2xl mx-auto">
             <h3 className="text-lg font-medium text-gray-900 mb-4">What are VAPID keys?</h3>
             <p className="text-sm text-gray-600 mb-4">
-              VAPID (Voluntary Application Server Identification) keys are required for sending push notifications to browsers.
-              They authenticate your server with push services like Google's FCM.
+              VAPID (Voluntary Application Server Identification) keys are required for sending push
+              notifications to browsers. They authenticate your server with push services like
+              Google's FCM.
             </p>
             <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-6">
               <div className="flex">
                 <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  <svg
+                    className="h-5 w-5 text-green-400"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                    role="img"
+                    aria-label="Success"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                      clipRule="evenodd"
+                    />
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <h3 className="text-sm font-medium text-green-800">
-                    Automatic Setup
-                  </h3>
+                  <h3 className="text-sm font-medium text-green-800">Automatic Setup</h3>
                   <div className="mt-2 text-sm text-green-700">
                     <p>
-                      VAPID keys will be automatically generated and securely stored in your database. 
-                      No manual configuration required - just click the button below!
+                      VAPID keys will be automatically generated and securely stored in your
+                      database. No manual configuration required - just click the button below!
                     </p>
                   </div>
                 </div>
               </div>
             </div>
             <button
+              type="button"
               onClick={handleInitializeVapid}
               disabled={loading}
               className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  <svg
+                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    role="img"
+                    aria-label="Loading"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
                   </svg>
                   Generating VAPID Keys...
                 </>
@@ -259,15 +301,17 @@ export default function PushNotifications() {
         size="md"
       >
         <div className="space-y-4">
-          <div className={`p-4 rounded-md ${messageModal.isError ? 'bg-red-50 border border-red-200' : 'bg-green-50 border border-green-200'}`}>
+          <div
+            className={`p-4 rounded-md ${messageModal.isError ? 'bg-red-50 border border-red-200' : 'bg-green-50 border border-green-200'}`}
+          >
             <div className="flex">
               <div className="flex-shrink-0">
-                <div className="text-2xl">
-                  {messageModal.isError ? '❌' : '✅'}
-                </div>
+                <div className="text-2xl">{messageModal.isError ? '❌' : '✅'}</div>
               </div>
               <div className="ml-3">
-                <div className={`text-sm ${messageModal.isError ? 'text-red-700' : 'text-green-700'}`}>
+                <div
+                  className={`text-sm ${messageModal.isError ? 'text-red-700' : 'text-green-700'}`}
+                >
                   <pre className="whitespace-pre-wrap font-sans">{messageModal.message}</pre>
                 </div>
               </div>

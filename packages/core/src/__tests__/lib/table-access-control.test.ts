@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { TableManager } from '../../lib/table-manager'
+import type { D1Database, ExecutionContext, R2Bucket } from '../../types/cloudflare'
 import type { MockD1Database, MockExecutionContext, MockR2Bucket } from '../setup'
 import { createMockD1Database, createMockExecutionContext, createMockR2Bucket } from '../setup'
 
@@ -13,9 +14,14 @@ describe('Table Access Control', () => {
     mockDb = createMockD1Database()
     mockStorage = createMockR2Bucket()
     mockCtx = createMockExecutionContext()
-    tm = new TableManager(mockDb as any, mockStorage as any, mockCtx as any, {
-      REALTIME: undefined,
-    })
+    tm = new TableManager(
+      mockDb as unknown as D1Database,
+      mockStorage as unknown as R2Bucket,
+      mockCtx as unknown as ExecutionContext,
+      {
+        REALTIME: undefined,
+      }
+    )
   })
 
   describe('Access Policy Management', () => {
@@ -101,7 +107,7 @@ describe('Table Access Control', () => {
       // This should be caught by database constraints in real implementation
       // For mocks, we just test that the method exists and can be called
       await expect(async () => {
-        await tm.setTableAccessPolicy('test_table', 'invalid' as any)
+        await tm.setTableAccessPolicy('test_table', 'invalid' as unknown as 'public' | 'private')
       }).not.toThrow()
     })
 

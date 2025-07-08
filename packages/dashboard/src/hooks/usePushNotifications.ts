@@ -72,7 +72,7 @@ export function usePushNotifications() {
         // VAPID not configured, silently ignore
         setVapidPublicKey('')
       }
-    } catch (error) {
+    } catch (_error) {
       // Silently ignore errors when VAPID is not configured
       setVapidPublicKey('')
     }
@@ -85,15 +85,22 @@ export function usePushNotifications() {
         method: 'POST',
         credentials: 'include',
       })
-      
+
       if (response.ok) {
         const data = await response.json()
         setVapidConfigured(true)
         return data
       } else {
         const errorData = await response.json().catch(() => ({}))
-        console.error('VAPID initialization failed:', response.status, response.statusText, errorData)
-        throw new Error(`Failed to initialize VAPID keys: ${errorData.error || response.statusText}`)
+        console.error(
+          'VAPID initialization failed:',
+          response.status,
+          response.statusText,
+          errorData
+        )
+        throw new Error(
+          `Failed to initialize VAPID keys: ${errorData.error || response.statusText}`
+        )
       }
     } catch (error) {
       console.error('Failed to initialize VAPID:', error)
@@ -115,7 +122,7 @@ export function usePushNotifications() {
         // VAPID not configured, silently ignore
         setIsAdminSubscribed(false)
       }
-    } catch (error) {
+    } catch (_error) {
       // Silently ignore errors when VAPID is not configured
       setIsAdminSubscribed(false)
     }

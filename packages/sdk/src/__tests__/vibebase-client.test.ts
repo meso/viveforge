@@ -35,7 +35,7 @@ describe('VibebaseClient', () => {
 
     it('should throw error with invalid config', () => {
       expect(() => {
-        new VibebaseClient({} as any)
+        new VibebaseClient({} as Parameters<typeof VibebaseClient>[0])
       }).toThrow('apiUrl is required')
     })
 

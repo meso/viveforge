@@ -1,7 +1,12 @@
 import { useState } from 'preact/hooks'
 import { type NewTableData, useTableOperations } from '../../hooks/useTableOperations'
 import type { TableInfo } from '../../lib/api'
-import { getSQLTypes, getUserTables, SYSTEM_TABLES, isEditableSystemTable } from '../../utils/database'
+import {
+  getSQLTypes,
+  getUserTables,
+  isEditableSystemTable,
+  SYSTEM_TABLES,
+} from '../../utils/database'
 
 interface TableListProps {
   tables: TableInfo[]
@@ -261,39 +266,44 @@ export function TableList({
               onClick={() => setShowSystemTables(!showSystemTables)}
               className="flex items-center gap-2 mb-3 text-lg font-medium text-gray-500 hover:text-gray-700 transition-colors"
             >
-              <span 
+              <span
                 className={`transition-transform duration-200 ${showSystemTables ? 'rotate-90' : ''}`}
               >
                 ▶
               </span>
               System Tables ({systemTables.length})
             </button>
-            
+
             {showSystemTables && (
               <div className="grid gap-2">
                 {systemTables.map((table) => {
                   const isEditable = isEditableSystemTable(table.name)
                   const isClickable = isEditable
-                  
-                  return (
-                    <div
+
+                  return isClickable ? (
+                    <button
                       key={table.name}
+                      type="button"
                       className={`p-3 border rounded-md text-left w-full transition-colors ${
-                        isClickable
-                          ? selectedTable === table.name
-                            ? 'border-blue-500 bg-blue-50 cursor-pointer'
-                            : 'border-gray-200 hover:border-gray-300 cursor-pointer'
-                          : 'border-gray-100 bg-gray-50 cursor-not-allowed'
+                        selectedTable === table.name
+                          ? 'border-blue-500 bg-blue-50 cursor-pointer'
+                          : 'border-gray-200 hover:border-gray-300 cursor-pointer'
                       }`}
-                      onClick={isClickable ? () => onTableSelect(table.name) : undefined}
+                      onClick={() => onTableSelect(table.name)}
                     >
                       <div className="flex items-center justify-between">
-                        <span className={`font-medium ${isClickable ? 'text-gray-700' : 'text-gray-400'}`}>
-                          {table.name}
-                        </span>
-                        <span className={`text-sm ${isClickable ? 'text-gray-500' : 'text-gray-400'}`}>
-                          {table.rowCount} rows
-                        </span>
+                        <span className="font-medium text-gray-700">{table.name}</span>
+                        <span className="text-sm text-gray-500">{table.rowCount} rows</span>
+                      </div>
+                    </button>
+                  ) : (
+                    <div
+                      key={table.name}
+                      className="p-3 border rounded-md text-left w-full transition-colors border-gray-100 bg-gray-50 cursor-not-allowed"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-gray-400">{table.name}</span>
+                        <span className="text-sm text-gray-400">{table.rowCount} rows</span>
                       </div>
                     </div>
                   )

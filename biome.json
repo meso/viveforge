@@ -15,18 +15,6 @@
       "recommended": true
     }
   },
-  "overrides": [
-    {
-      "includes": ["**/__tests__/**/*", "**/*.test.*"],
-      "linter": {
-        "rules": {
-          "suspicious": {
-            "noExplicitAny": "off"
-          }
-        }
-      }
-    }
-  ],
   "formatter": {
     "enabled": true,
     "indentStyle": "space",

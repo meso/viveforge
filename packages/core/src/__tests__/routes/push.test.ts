@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { push } from '../../routes/push'
 import type { Env } from '../../types'
+import type { D1Database } from '../../types/cloudflare'
 import { createMockD1Database } from '../setup'
 
 // Mock NotificationManager
@@ -15,15 +16,39 @@ vi.mock('../../lib/notification-manager', () => ({
   },
 }))
 
+// Mock VapidStorage
+const mockVapidStorage = {
+  retrieve: vi.fn(),
+  isConfigured: vi.fn(),
+}
+
+vi.mock('../../lib/vapid-storage', () => ({
+  VapidStorage: class MockVapidStorage {
+    retrieve = mockVapidStorage.retrieve
+    isConfigured = mockVapidStorage.isConfigured
+  },
+}))
+
 describe('Push Routes', () => {
   let app: Hono<{ Bindings: Env }>
   let env: Env
 
   beforeEach(() => {
+    // Reset mocks
+    vi.clearAllMocks()
+
+    // Setup default VapidStorage mock responses
+    mockVapidStorage.retrieve.mockResolvedValue({
+      publicKey: 'test-public-key',
+      privateKey: 'test-private-key',
+      subject: 'mailto:test@example.com',
+    })
+    mockVapidStorage.isConfigured.mockResolvedValue(true)
+
     app = new Hono<{ Bindings: Env }>()
 
     env = {
-      DB: createMockD1Database() as any,
+      DB: createMockD1Database() as unknown as D1Database,
       VAPID_PUBLIC_KEY: 'test-public-key',
       VAPID_PRIVATE_KEY: 'test-private-key',
       VAPID_SUBJECT: 'mailto:test@example.com',
@@ -60,7 +85,7 @@ describe('Push Routes', () => {
   describe('GET /vapid-public-key', () => {
     it('should return VAPID public key', async () => {
       const req = new Request('http://localhost/api/push/vapid-public-key')
-      const res = await app.request(req, env as any)
+      const res = await app.request(req, undefined, { env })
 
       expect(res.status).toBe(200)
       const data = (await res.json()) as { publicKey: string }
@@ -68,22 +93,15 @@ describe('Push Routes', () => {
     })
 
     it('should return error if VAPID key not configured', async () => {
-      // Create app with no VAPID key
-      const testApp = new Hono<{ Bindings: Env }>()
-      const testEnv = { ...env, VAPID_PUBLIC_KEY: undefined }
-
-      testApp.use('*', async (c, next) => {
-        c.env = testEnv
-        await next()
-      })
-      testApp.route('/api/push', push)
+      // Override mock to return null (not configured)
+      mockVapidStorage.retrieve.mockResolvedValueOnce(null)
 
       const req = new Request('http://localhost/api/push/vapid-public-key')
-      const res = await testApp.request(req)
+      const res = await app.request(req, undefined, { env })
 
       expect(res.status).toBe(500)
       const data = (await res.json()) as { error: string }
-      expect(data.error).toBe('VAPID public key not configured')
+      expect(data.error).toBe('VAPID keys not configured')
     })
   })
 

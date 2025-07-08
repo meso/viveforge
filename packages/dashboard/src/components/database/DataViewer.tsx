@@ -1,7 +1,14 @@
 import { useRef, useState } from 'preact/hooks'
 import { useTableOperations } from '../../hooks/useTableOperations'
 import type { ColumnInfo, ForeignKeyInfo } from '../../lib/api'
-import { copyToClipboard, formatDateTime, isIdValue, truncateId, isSystemTable, isEditableSystemTable } from '../../utils/database'
+import {
+  copyToClipboard,
+  formatDateTime,
+  isEditableSystemTable,
+  isIdValue,
+  isSystemTable,
+  truncateId,
+} from '../../utils/database'
 
 interface DataViewerProps {
   tableName: string
@@ -56,7 +63,7 @@ export function DataViewer({
   const canEditTable = !isSystemTableType || isEditableSystemTable(tableName)
   const showCreateButton = canEditTable
   const showEditControls = canEditTable
-  const showDeleteButton = canEditTable
+  const _showDeleteButton = canEditTable
 
   // Helper function to check if a column has foreign key constraint
   const hasForeignKey = (columnName: string): boolean => {

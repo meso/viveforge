@@ -47,15 +47,14 @@ async function getDerivedKey(deploymentDomain: string): Promise<CryptoKey> {
 }
 
 // Encrypt data with AES-GCM
-async function encryptData(data: string, key: CryptoKey): Promise<{ encrypted: string; iv: string }> {
+async function encryptData(
+  data: string,
+  key: CryptoKey
+): Promise<{ encrypted: string; iv: string }> {
   const encoder = new TextEncoder()
   const iv = crypto.getRandomValues(new Uint8Array(12))
-  
-  const encrypted = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv },
-    key,
-    encoder.encode(data)
-  )
+
+  const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoder.encode(data))
 
   return {
     encrypted: btoa(String.fromCharCode(...new Uint8Array(encrypted))),
@@ -64,24 +63,24 @@ async function encryptData(data: string, key: CryptoKey): Promise<{ encrypted: s
 }
 
 // Decrypt data with AES-GCM
-async function decryptData(encryptedData: string, ivString: string, key: CryptoKey): Promise<string> {
+async function decryptData(
+  encryptedData: string,
+  ivString: string,
+  key: CryptoKey
+): Promise<string> {
   const encrypted = new Uint8Array(
     atob(encryptedData)
       .split('')
       .map((char) => char.charCodeAt(0))
   )
-  
+
   const iv = new Uint8Array(
     atob(ivString)
       .split('')
       .map((char) => char.charCodeAt(0))
   )
 
-  const decrypted = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv },
-    key,
-    encrypted
-  )
+  const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, encrypted)
 
   return new TextDecoder().decode(decrypted)
 }
@@ -148,18 +147,24 @@ export class VapidStorage {
   // Generate new VAPID keys
   async generateKeys(subject?: string): Promise<VapidKeys> {
     // Generate VAPID keys using Web Crypto API
-    const keyPair = await crypto.subtle.generateKey(
+    const keyPair = (await crypto.subtle.generateKey(
       {
         name: 'ECDSA',
         namedCurve: 'P-256',
       },
       true,
       ['sign', 'verify']
-    ) as CryptoKeyPair
+    )) as CryptoKeyPair
 
     // Export keys in the format expected by VAPID
-    const publicKeyArrayBuffer = await crypto.subtle.exportKey('spki', keyPair.publicKey) as ArrayBuffer
-    const privateKeyArrayBuffer = await crypto.subtle.exportKey('pkcs8', keyPair.privateKey) as ArrayBuffer
+    const publicKeyArrayBuffer = (await crypto.subtle.exportKey(
+      'spki',
+      keyPair.publicKey
+    )) as ArrayBuffer
+    const privateKeyArrayBuffer = (await crypto.subtle.exportKey(
+      'pkcs8',
+      keyPair.privateKey
+    )) as ArrayBuffer
 
     // Convert to base64url format (VAPID format)
     const publicKeyBase64 = btoa(String.fromCharCode(...new Uint8Array(publicKeyArrayBuffer)))
@@ -190,8 +195,6 @@ export class VapidStorage {
 
   // Delete VAPID configuration
   async delete(): Promise<void> {
-    await this.db
-      .prepare('DELETE FROM vapid_config WHERE id = 1')
-      .run()
+    await this.db.prepare('DELETE FROM vapid_config WHERE id = 1').run()
   }
 }

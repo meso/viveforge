@@ -1,7 +1,9 @@
 import { Hono } from 'hono'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { VibebaseAuthClient } from '../../lib/auth-client'
 import { auth } from '../../routes/auth'
 import type { Env, Variables } from '../../types'
+import type { D1Database, KVNamespace, R2Bucket } from '../../types/cloudflare'
 
 // Mock VibebaseAuthClient
 vi.mock('../../lib/auth-client')
@@ -13,7 +15,33 @@ vi.stubGlobal('fetch', mockFetch)
 describe('Auth Routes', () => {
   let app: Hono<{ Bindings: Env; Variables: Variables }>
   let env: Env
-  let mockAuthClient: any
+  let mockAuthClient: {
+    getLoginUrl: ReturnType<typeof vi.fn>
+    verifyRequest: ReturnType<typeof vi.fn>
+    refreshToken: ReturnType<typeof vi.fn>
+    verifyToken: ReturnType<typeof vi.fn>
+    revokeToken: ReturnType<typeof vi.fn>
+    exchangeCodeForTokens: ReturnType<typeof vi.fn>
+    getUser: ReturnType<typeof vi.fn>
+    initialize: ReturnType<typeof vi.fn>
+    getDeploymentId: ReturnType<typeof vi.fn>
+    verifyJWT: ReturnType<typeof vi.fn>
+    // Additional properties required by VibebaseAuthClient
+    env: Env
+    registerDeployment: ReturnType<typeof vi.fn>
+    getExistingDeployment: ReturnType<typeof vi.fn>
+    validateDeployment: ReturnType<typeof vi.fn>
+    getPublicKey: ReturnType<typeof vi.fn>
+    cachePublicKey: ReturnType<typeof vi.fn>
+    jwkToPublicKey: ReturnType<typeof vi.fn>
+    verifyJWTWithHono: ReturnType<typeof vi.fn>
+    validateTokenPayload: ReturnType<typeof vi.fn>
+    // Legacy properties
+    authBaseUrl: string
+    deploymentId: string | null
+    deploymentDomain: string
+    publicKeyCache: Map<string, string>
+  }
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -60,31 +88,51 @@ describe('Auth Routes', () => {
       WORKER_NAME: 'test-worker',
       ENVIRONMENT: 'development',
       DB: mockDB as unknown as D1Database,
-      SESSIONS: {} as any,
-      SYSTEM_STORAGE: {} as any,
-      USER_STORAGE: {} as any,
+      SESSIONS: {} as unknown as KVNamespace,
+      SYSTEM_STORAGE: {} as unknown as R2Bucket,
+      USER_STORAGE: {} as unknown as R2Bucket,
       ASSETS: {
         fetch: vi.fn(() => Promise.resolve(new Response('mock asset'))),
       },
     }
 
     mockAuthClient = {
-      verifyToken: vi.fn(),
-      verifyRequest: vi.fn(),
       getLoginUrl: vi
         .fn()
         .mockReturnValue(
           'https://auth.vibebase.workers.dev/auth/login?origin=https%3A%2F%2Ftest.example.com&redirect_to=%2F'
         ),
-      refreshToken: vi.fn(),
+      exchangeCodeForTokens: vi.fn(),
       revokeToken: vi.fn(),
+      refreshToken: vi.fn(),
+      getUser: vi.fn(),
+      verifyToken: vi.fn(),
+      verifyRequest: vi.fn(),
+      verifyJWT: vi.fn(),
+      initialize: vi.fn(),
+      getDeploymentId: vi.fn(),
+      // Additional methods required by VibebaseAuthClient
+      env: env,
+      registerDeployment: vi.fn(),
+      getExistingDeployment: vi.fn(),
+      validateDeployment: vi.fn(),
+      getPublicKey: vi.fn(),
+      cachePublicKey: vi.fn(),
+      jwkToPublicKey: vi.fn(),
+      verifyJWTWithHono: vi.fn(),
+      validateTokenPayload: vi.fn(),
+      // Legacy properties
+      authBaseUrl: 'https://auth.vibebase.workers.dev',
+      deploymentId: null,
+      deploymentDomain: 'test.example.com',
+      publicKeyCache: new Map<string, string>(),
     }
 
     app = new Hono<{ Bindings: Env; Variables: Variables }>()
 
     // Setup middleware to inject mock auth client
     app.use('*', async (c, next) => {
-      c.set('authClient', mockAuthClient)
+      c.set('authClient', mockAuthClient as unknown as VibebaseAuthClient)
       await next()
     })
 
@@ -124,7 +172,7 @@ describe('Auth Routes', () => {
       const res = await testApp.request('/auth/login', {}, env)
 
       expect(res.status).toBe(503)
-      const body = (await res.json()) as any
+      const body = (await res.json()) as Record<string, unknown>
       expect(body.error).toBe('Authentication service not available')
     })
   })
@@ -265,7 +313,7 @@ describe('Auth Routes', () => {
       )
 
       expect(res.status).toBe(200)
-      const body = (await res.json()) as any
+      const body = (await res.json()) as Record<string, unknown>
       expect(body.success).toBe(true)
       expect(body.message).toBe('Logged out successfully')
 
@@ -283,7 +331,7 @@ describe('Auth Routes', () => {
       )
 
       expect(res.status).toBe(200)
-      const body = (await res.json()) as any
+      const body = (await res.json()) as Record<string, unknown>
       expect(body.success).toBe(true)
     })
 
@@ -302,7 +350,7 @@ describe('Auth Routes', () => {
       )
 
       expect(res.status).toBe(200)
-      const body = (await res.json()) as any
+      const body = (await res.json()) as Record<string, unknown>
       expect(body.success).toBe(true)
       expect(body.message).toBe('Logged out')
     })
@@ -352,7 +400,7 @@ describe('Auth Routes', () => {
       )
 
       expect(res.status).toBe(200)
-      const body = (await res.json()) as any
+      const body = (await res.json()) as Record<string, unknown>
       expect(body.success).toBe(true)
       expect(body.expires_in).toBe(900)
 
@@ -370,7 +418,7 @@ describe('Auth Routes', () => {
       )
 
       expect(res.status).toBe(401)
-      const body = (await res.json()) as any
+      const body = (await res.json()) as Record<string, unknown>
       expect(body.error).toBe('No refresh token')
     })
 
@@ -389,7 +437,7 @@ describe('Auth Routes', () => {
       )
 
       expect(res.status).toBe(401)
-      const body = (await res.json()) as any
+      const body = (await res.json()) as Record<string, unknown>
       expect(body.error).toBe('Token refresh failed')
     })
   })
@@ -413,7 +461,7 @@ describe('Auth Routes', () => {
       // Create a separate app instance for this test with user context
       const testApp = new Hono<{ Bindings: Env; Variables: Variables }>()
       testApp.use('*', async (c, next) => {
-        c.set('authClient', mockAuthClient)
+        c.set('authClient', mockAuthClient as unknown as VibebaseAuthClient)
         c.set('user', mockUser) // Set user in context
         await next()
       })
@@ -422,7 +470,7 @@ describe('Auth Routes', () => {
       const res = await testApp.request('/auth/me', {}, env)
 
       expect(res.status).toBe(200)
-      const body = (await res.json()) as any
+      const body = (await res.json()) as Record<string, unknown>
       expect(body.user).toEqual({
         id: '12345',
         username: 'testuser', // This comes from user.username || user.email
@@ -436,7 +484,7 @@ describe('Auth Routes', () => {
       const res = await app.request('/auth/me', {}, env)
 
       expect(res.status).toBe(401)
-      const body = (await res.json()) as any
+      const body = (await res.json()) as Record<string, unknown>
       expect(body.error).toBe('Not authenticated')
     })
   })
@@ -460,7 +508,7 @@ describe('Auth Routes', () => {
       // Create a separate app instance for this test with user context
       const testApp = new Hono<{ Bindings: Env; Variables: Variables }>()
       testApp.use('*', async (c, next) => {
-        c.set('authClient', mockAuthClient)
+        c.set('authClient', mockAuthClient as unknown as VibebaseAuthClient)
         c.set('user', mockUser) // Set user in context
         await next()
       })
@@ -469,7 +517,7 @@ describe('Auth Routes', () => {
       const res = await testApp.request('/auth/status', {}, env)
 
       expect(res.status).toBe(200)
-      const body = (await res.json()) as any
+      const body = (await res.json()) as Record<string, unknown>
       expect(body.authenticated).toBe(true)
       expect(body.user).toEqual({
         id: '12345',
@@ -484,7 +532,7 @@ describe('Auth Routes', () => {
       const res = await app.request('/auth/status', {}, env)
 
       expect(res.status).toBe(200)
-      const body = (await res.json()) as any
+      const body = (await res.json()) as Record<string, unknown>
       expect(body.authenticated).toBe(false)
       expect(body.user).toBeNull()
     })

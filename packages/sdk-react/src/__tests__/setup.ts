@@ -18,10 +18,11 @@ const EventSourceMock = vi.fn().mockImplementation(() => ({
   readyState: 0,
   url: '',
   withCredentials: false,
-})) as any
+})) as unknown as typeof EventSource
 
-EventSourceMock.CONNECTING = 0
-EventSourceMock.OPEN = 1
-EventSourceMock.CLOSED = 2
+// Set EventSource constants
+Object.defineProperty(EventSourceMock, 'CONNECTING', { value: 0 })
+Object.defineProperty(EventSourceMock, 'OPEN', { value: 1 })
+Object.defineProperty(EventSourceMock, 'CLOSED', { value: 2 })
 
 global.EventSource = EventSourceMock

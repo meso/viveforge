@@ -1,3 +1,4 @@
+import type { R2Bucket } from '@cloudflare/workers-types'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Suppress console.error during tests to reduce noise
@@ -8,6 +9,7 @@ beforeEach(() => {
 import { Hono } from 'hono'
 import { storage } from '../routes/storage'
 import type { Env, Variables } from '../types'
+import { createMockEnv } from './helpers/mock-env'
 
 // Mock that simulates R2 failures
 class FailingR2Bucket {
@@ -24,11 +26,14 @@ class FailingR2Bucket {
     return null
   }
 
-  async put(key: string, value: any) {
+  async put(key: string, value: unknown) {
     if (this.shouldFail) throw new Error(this.failureMessage)
     return {
       key: key,
-      size: value instanceof ArrayBuffer ? value.byteLength : value ? value.length || 0 : 0,
+      size:
+        value instanceof ArrayBuffer
+          ? value.byteLength
+          : (value as string | undefined)?.length || 0,
       uploaded: new Date(),
       etag: 'test-etag',
     }
@@ -63,9 +68,9 @@ describe('Storage API Integration Tests', () => {
 
     app.use('*', async (c, next) => {
       c.env = {
-        USER_STORAGE: failingBucket as any,
-        ENVIRONMENT: 'development',
-      } as Env
+        ...createMockEnv(),
+        USER_STORAGE: failingBucket as unknown as R2Bucket,
+      } as unknown as Env
       await next()
     })
 
@@ -79,8 +84,12 @@ describe('Storage API Integration Tests', () => {
       const res = await app.request('/api/storage')
       expect(res.status).toBe(500)
 
-      const data = (await res.json()) as any
-      expect(data.error.message).toBe('Failed to list objects')
+      const data = (await res.json()) as {
+        error?: { message: string }
+        success?: boolean
+        [key: string]: unknown
+      }
+      expect(data.error?.message).toBe('Failed to list objects')
     })
 
     it('should handle R2 upload failures gracefully', async () => {
@@ -97,8 +106,12 @@ describe('Storage API Integration Tests', () => {
 
       expect(res.status).toBe(500)
 
-      const data = (await res.json()) as any
-      expect(data.error.message).toBe('Failed to upload file')
+      const data = (await res.json()) as {
+        error?: { message: string }
+        success?: boolean
+        [key: string]: unknown
+      }
+      expect(data.error?.message).toBe('Failed to upload file')
     })
 
     it('should handle R2 download failures gracefully', async () => {
@@ -107,8 +120,12 @@ describe('Storage API Integration Tests', () => {
       const res = await app.request('/api/storage/download/test.txt')
       expect(res.status).toBe(500)
 
-      const data = (await res.json()) as any
-      expect(data.error.message).toBe('Failed to download file')
+      const data = (await res.json()) as {
+        error?: { message: string }
+        success?: boolean
+        [key: string]: unknown
+      }
+      expect(data.error?.message).toBe('Failed to download file')
     })
 
     it('should handle R2 head failures gracefully', async () => {
@@ -117,8 +134,12 @@ describe('Storage API Integration Tests', () => {
       const res = await app.request('/api/storage/info/test.txt')
       expect(res.status).toBe(500)
 
-      const data = (await res.json()) as any
-      expect(data.error.message).toBe('Failed to get file info')
+      const data = (await res.json()) as {
+        error?: { message: string }
+        success?: boolean
+        [key: string]: unknown
+      }
+      expect(data.error?.message).toBe('Failed to get file info')
     })
 
     it('should handle R2 delete failures gracefully', async () => {
@@ -130,8 +151,12 @@ describe('Storage API Integration Tests', () => {
 
       expect(res.status).toBe(500)
 
-      const data = (await res.json()) as any
-      expect(data.error.message).toBe('Failed to delete file')
+      const data = (await res.json()) as {
+        error?: { message: string }
+        success?: boolean
+        [key: string]: unknown
+      }
+      expect(data.error?.message).toBe('Failed to delete file')
     })
 
     it('should handle bulk delete failures gracefully', async () => {
@@ -145,8 +170,12 @@ describe('Storage API Integration Tests', () => {
 
       expect(res.status).toBe(500)
 
-      const data = (await res.json()) as any
-      expect(data.error.message).toBe('Failed to delete files')
+      const data = (await res.json()) as {
+        error?: { message: string }
+        success?: boolean
+        [key: string]: unknown
+      }
+      expect(data.error?.message).toBe('Failed to delete files')
     })
   })
 
@@ -181,7 +210,11 @@ describe('Storage API Integration Tests', () => {
 
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as any
+      const data = (await res.json()) as {
+        error?: { message: string }
+        success?: boolean
+        [key: string]: unknown
+      }
       expect(data.key).toBe('README')
     })
 
@@ -197,7 +230,11 @@ describe('Storage API Integration Tests', () => {
 
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as any
+      const data = (await res.json()) as {
+        error?: { message: string }
+        success?: boolean
+        [key: string]: unknown
+      }
       expect(data.size).toBe(0)
     })
 
@@ -214,7 +251,11 @@ describe('Storage API Integration Tests', () => {
 
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as any
+      const data = (await res.json()) as {
+        error?: { message: string }
+        success?: boolean
+        [key: string]: unknown
+      }
       expect(data.key).toBe(unicodeFileName)
     })
 
@@ -232,7 +273,11 @@ describe('Storage API Integration Tests', () => {
 
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as any
+      const data = (await res.json()) as {
+        error?: { message: string }
+        success?: boolean
+        [key: string]: unknown
+      }
       expect(data.key).toBe(`${deepPath}/deep.txt`)
     })
 
@@ -254,7 +299,7 @@ describe('Storage API Integration Tests', () => {
       })
 
       expect(res.status).toBe(400)
-      expect(((await res.json()) as any).error.message).toBe(
+      expect(((await res.json()) as { error: { message: string } }).error.message).toBe(
         'Content-Type must be multipart/form-data'
       )
     })
@@ -265,7 +310,11 @@ describe('Storage API Integration Tests', () => {
       const res = await app.request('/api/storage?limit=999999')
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as any
+      const data = (await res.json()) as {
+        error?: { message: string }
+        success?: boolean
+        [key: string]: unknown
+      }
       expect(Array.isArray(data.objects)).toBe(true)
     })
 
@@ -273,7 +322,11 @@ describe('Storage API Integration Tests', () => {
       const res = await app.request('/api/storage?cursor=invalid-cursor-value')
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as any
+      const data = (await res.json()) as {
+        error?: { message: string }
+        success?: boolean
+        [key: string]: unknown
+      }
       expect(Array.isArray(data.objects)).toBe(true)
     })
 
@@ -332,7 +385,11 @@ describe('Storage API Integration Tests', () => {
 
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as any
+      const data = (await res.json()) as {
+        error?: { message: string }
+        success?: boolean
+        [key: string]: unknown
+      }
       expect(Array.isArray(data.objects)).toBe(true)
     })
   })

@@ -10,7 +10,7 @@ vi.mock('nanoid', () => ({
 const mockNanoid = vi.mocked(nanoid)
 
 describe('APIKeyManager', () => {
-  let mockDB: any
+  let mockDB: D1Database
   let apiKeyManager: APIKeyManager
 
   beforeEach(() => {
@@ -41,8 +41,10 @@ describe('APIKeyManager', () => {
     }
 
     mockDB = {
-      prepare: vi.fn().mockImplementation(() => createChainableMock()),
-    }
+      prepare: vi
+        .fn()
+        .mockImplementation(() => createChainableMock()) as unknown as D1Database['prepare'],
+    } as unknown as D1Database
 
     apiKeyManager = new APIKeyManager(mockDB)
     mockNanoid.mockReturnValue('test-nanoid-123')
@@ -51,7 +53,7 @@ describe('APIKeyManager', () => {
   describe('initializeTable', () => {
     it('should create API keys table and indexes', async () => {
       const runMock = vi.fn().mockResolvedValue({ success: true })
-      mockDB.prepare.mockReturnValue({
+      ;(mockDB.prepare as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
         run: runMock,
       })
 
@@ -65,7 +67,7 @@ describe('APIKeyManager', () => {
 
     it('should handle table creation errors', async () => {
       const error = new Error('Table creation failed')
-      mockDB.prepare.mockReturnValue({
+      ;(mockDB.prepare as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
         run: vi.fn().mockRejectedValue(error),
       })
 
@@ -87,7 +89,7 @@ describe('APIKeyManager', () => {
   describe('createAPIKey', () => {
     it('should create API key successfully', async () => {
       const runMock = vi.fn().mockResolvedValue({ success: true })
-      mockDB.prepare.mockReturnValue({
+      ;(mockDB.prepare as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
         bind: vi.fn().mockReturnValue({
           run: runMock,
         }),
@@ -111,7 +113,7 @@ describe('APIKeyManager', () => {
 
     it('should create API key without expiration', async () => {
       const runMock = vi.fn().mockResolvedValue({ success: true })
-      mockDB.prepare.mockReturnValue({
+      ;(mockDB.prepare as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
         bind: vi.fn().mockReturnValue({
           run: runMock,
         }),
@@ -146,7 +148,7 @@ describe('APIKeyManager', () => {
       const firstMock = vi.fn().mockResolvedValue(mockKey)
       const runMock = vi.fn().mockResolvedValue({ success: true })
 
-      mockDB.prepare
+      ;(mockDB.prepare as unknown as ReturnType<typeof vi.fn>)
         .mockReturnValueOnce({
           bind: vi.fn().mockReturnValue({
             first: firstMock,
@@ -169,7 +171,7 @@ describe('APIKeyManager', () => {
 
     it('should return null for non-existent key', async () => {
       const firstMock = vi.fn().mockResolvedValue(null)
-      mockDB.prepare.mockReturnValue({
+      ;(mockDB.prepare as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
         bind: vi.fn().mockReturnValue({
           first: firstMock,
         }),
@@ -189,7 +191,7 @@ describe('APIKeyManager', () => {
       }
 
       const firstMock = vi.fn().mockResolvedValue(expiredKey)
-      mockDB.prepare.mockReturnValue({
+      ;(mockDB.prepare as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
         bind: vi.fn().mockReturnValue({
           first: firstMock,
         }),
@@ -205,7 +207,7 @@ describe('APIKeyManager', () => {
       const firstMock = vi.fn().mockResolvedValue(null)
       const runMock = vi.fn().mockResolvedValue({ success: true })
 
-      mockDB.prepare.mockReturnValue({
+      ;(mockDB.prepare as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
         bind: vi.fn().mockReturnValue({
           first: firstMock,
           run: runMock,
@@ -246,7 +248,7 @@ describe('APIKeyManager', () => {
       ]
 
       const allMock = vi.fn().mockResolvedValue({ results: mockKeys })
-      mockDB.prepare.mockReturnValue({
+      ;(mockDB.prepare as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
         bind: vi.fn().mockReturnValue({
           all: allMock,
         }),
@@ -263,7 +265,7 @@ describe('APIKeyManager', () => {
 
     it('should return empty array when no keys found', async () => {
       const allMock = vi.fn().mockResolvedValue({ results: [] })
-      mockDB.prepare.mockReturnValue({
+      ;(mockDB.prepare as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
         bind: vi.fn().mockReturnValue({
           all: allMock,
         }),
@@ -278,7 +280,7 @@ describe('APIKeyManager', () => {
   describe('revokeAPIKey', () => {
     it('should revoke API key successfully', async () => {
       const runMock = vi.fn().mockResolvedValue({ success: true, meta: { changes: 1 } })
-      mockDB.prepare.mockReturnValue({
+      ;(mockDB.prepare as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
         bind: vi.fn().mockReturnValue({
           run: runMock,
         }),
@@ -292,7 +294,7 @@ describe('APIKeyManager', () => {
 
     it('should return false when key not found', async () => {
       const runMock = vi.fn().mockResolvedValue({ success: true, meta: { changes: 0 } })
-      mockDB.prepare.mockReturnValue({
+      ;(mockDB.prepare as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
         bind: vi.fn().mockReturnValue({
           run: runMock,
         }),
@@ -306,7 +308,7 @@ describe('APIKeyManager', () => {
     it('should handle database errors', async () => {
       const error = new Error('Database error')
       const runMock = vi.fn().mockRejectedValue(error)
-      mockDB.prepare.mockReturnValue({
+      ;(mockDB.prepare as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
         bind: vi.fn().mockReturnValue({
           run: runMock,
         }),
@@ -321,7 +323,7 @@ describe('APIKeyManager', () => {
   describe('deleteAPIKey', () => {
     it('should delete API key successfully', async () => {
       const runMock = vi.fn().mockResolvedValue({ success: true, meta: { changes: 1 } })
-      mockDB.prepare.mockReturnValue({
+      ;(mockDB.prepare as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
         bind: vi.fn().mockReturnValue({
           run: runMock,
         }),
@@ -335,7 +337,7 @@ describe('APIKeyManager', () => {
 
     it('should return false when key not found', async () => {
       const runMock = vi.fn().mockResolvedValue({ success: true, meta: { changes: 0 } })
-      mockDB.prepare.mockReturnValue({
+      ;(mockDB.prepare as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
         bind: vi.fn().mockReturnValue({
           run: runMock,
         }),

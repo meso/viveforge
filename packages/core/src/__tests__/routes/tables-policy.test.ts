@@ -1,16 +1,22 @@
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
+import type { MockedFunction } from 'vitest'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
-import { SYSTEM_TABLES } from '../../lib/table-manager'
+import type { ColumnInfo } from '../../lib/schema-manager'
+import type { TableManager } from '../../lib/table-manager'
+import type { LocalTableInfo } from '../../lib/table-operations'
+import { SYSTEM_TABLES } from '../../lib/table-operations'
 import type { Env, Variables } from '../../types'
 
 // Mock auth middleware
 vi.mock('../../middleware/auth', () => ({
-  authMiddleware: vi.fn(() => async (c: any, next: any) => {
-    c.set('auth', { type: 'admin' })
-    await next()
-  }),
+  authMiddleware: vi.fn(
+    () => async (c: { set: (key: string, value: unknown) => void }, next: () => Promise<void>) => {
+      c.set('auth', { type: 'admin' })
+      await next()
+    }
+  ),
 }))
 
 // Create the policy update schema
@@ -22,7 +28,14 @@ const policyUpdateSchema = z.object({
 
 describe('Table Access Policy Routes', () => {
   let app: Hono<{ Bindings: Env; Variables: Variables }>
-  let mockTableManager: any
+  let mockTableManager: {
+    getTables: MockedFunction<() => Promise<LocalTableInfo[]>>
+    getTableColumns: MockedFunction<(tableName: string) => Promise<ColumnInfo[]>>
+    getTableAccessPolicy: MockedFunction<(tableName: string) => Promise<'public' | 'private'>>
+    setTableAccessPolicy: MockedFunction<
+      (tableName: string, policy: 'public' | 'private') => Promise<void>
+    >
+  }
 
   beforeEach(() => {
     app = new Hono<{ Bindings: Env; Variables: Variables }>()
@@ -37,7 +50,7 @@ describe('Table Access Policy Routes', () => {
 
     // Add middleware to inject tableManager
     app.use('*', async (c, next) => {
-      c.set('tableManager', mockTableManager)
+      c.set('tableManager', mockTableManager as unknown as TableManager)
       await next()
     })
 
@@ -110,11 +123,18 @@ describe('Table Access Policy Routes', () => {
 
   describe('PUT /api/tables/:tableName/policy', () => {
     it('should update table access policy from public to private when owner_id exists', async () => {
-      mockTableManager.getTables.mockResolvedValue([{ name: 'users', access_policy: 'public' }])
+      mockTableManager.getTables.mockResolvedValue([
+        {
+          name: 'users',
+          type: 'user',
+          sql: 'CREATE TABLE users (...)',
+          access_policy: 'public',
+        },
+      ])
       mockTableManager.getTableColumns.mockResolvedValue([
-        { name: 'id', type: 'TEXT' },
-        { name: 'owner_id', type: 'TEXT' },
-        { name: 'name', type: 'TEXT' },
+        { cid: 0, name: 'id', type: 'TEXT', notnull: 1, dflt_value: null, pk: 1 },
+        { cid: 1, name: 'owner_id', type: 'TEXT', notnull: 0, dflt_value: null, pk: 0 },
+        { cid: 2, name: 'name', type: 'TEXT', notnull: 0, dflt_value: null, pk: 0 },
       ])
       mockTableManager.setTableAccessPolicy.mockResolvedValue(undefined)
 
@@ -137,11 +157,18 @@ describe('Table Access Policy Routes', () => {
     })
 
     it('should fail when changing from public to private without owner_id column', async () => {
-      mockTableManager.getTables.mockResolvedValue([{ name: 'products', access_policy: 'public' }])
+      mockTableManager.getTables.mockResolvedValue([
+        {
+          name: 'products',
+          type: 'user',
+          sql: 'CREATE TABLE products (...)',
+          access_policy: 'public',
+        },
+      ])
       mockTableManager.getTableColumns.mockResolvedValue([
-        { name: 'id', type: 'TEXT' },
-        { name: 'name', type: 'TEXT' },
-        { name: 'price', type: 'REAL' },
+        { cid: 0, name: 'id', type: 'TEXT', notnull: 1, dflt_value: null, pk: 1 },
+        { cid: 1, name: 'name', type: 'TEXT', notnull: 0, dflt_value: null, pk: 0 },
+        { cid: 2, name: 'price', type: 'REAL', notnull: 0, dflt_value: null, pk: 0 },
       ])
 
       const response = await app.request('/api/tables/products/policy', {
@@ -158,7 +185,14 @@ describe('Table Access Policy Routes', () => {
     })
 
     it('should allow changing from private to public regardless of owner_id', async () => {
-      mockTableManager.getTables.mockResolvedValue([{ name: 'users', access_policy: 'private' }])
+      mockTableManager.getTables.mockResolvedValue([
+        {
+          name: 'users',
+          type: 'user',
+          sql: 'CREATE TABLE users (...)',
+          access_policy: 'private',
+        },
+      ])
       mockTableManager.setTableAccessPolicy.mockResolvedValue(undefined)
 
       const response = await app.request('/api/tables/users/policy', {
@@ -181,7 +215,14 @@ describe('Table Access Policy Routes', () => {
     })
 
     it('should not check owner_id when policy stays the same', async () => {
-      mockTableManager.getTables.mockResolvedValue([{ name: 'users', access_policy: 'private' }])
+      mockTableManager.getTables.mockResolvedValue([
+        {
+          name: 'users',
+          type: 'user',
+          sql: 'CREATE TABLE users (...)',
+          access_policy: 'private',
+        },
+      ])
       mockTableManager.setTableAccessPolicy.mockResolvedValue(undefined)
 
       const response = await app.request('/api/tables/users/policy', {
@@ -196,7 +237,14 @@ describe('Table Access Policy Routes', () => {
     })
 
     it('should return 404 for non-existent table', async () => {
-      mockTableManager.getTables.mockResolvedValue([{ name: 'users', access_policy: 'public' }])
+      mockTableManager.getTables.mockResolvedValue([
+        {
+          name: 'users',
+          type: 'user',
+          sql: 'CREATE TABLE users (...)',
+          access_policy: 'public',
+        },
+      ])
 
       const response = await app.request('/api/tables/nonexistent/policy', {
         method: 'PUT',

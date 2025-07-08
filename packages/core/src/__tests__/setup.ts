@@ -3,16 +3,16 @@ import type { D1Database } from '../types/cloudflare'
 
 export interface MockD1Database {
   prepare: (sql: string) => MockD1PreparedStatement
-  batch: (statements: MockD1PreparedStatement[]) => Promise<any>
-  exec: (sql: string) => Promise<any>
+  batch: (statements: MockD1PreparedStatement[]) => Promise<unknown[]>
+  exec: (sql: string) => Promise<unknown>
   withSession: <T>(callback: (session: D1Database) => Promise<T>) => Promise<T>
   dump: () => Promise<ArrayBuffer>
 }
 
 export interface MockD1PreparedStatement {
-  bind: (...params: any[]) => MockD1PreparedStatement
+  bind: (...params: unknown[]) => MockD1PreparedStatement
   run: () => Promise<{
-    results: any[]
+    results: unknown[]
     success: true
     meta: {
       changes: number
@@ -25,7 +25,7 @@ export interface MockD1PreparedStatement {
     }
   }>
   all: () => Promise<{
-    results: any[]
+    results: unknown[]
     success: true
     meta: {
       changes: number
@@ -37,8 +37,8 @@ export interface MockD1PreparedStatement {
       changed_db: boolean
     }
   }>
-  first: () => Promise<any>
-  raw: () => Promise<[string[], ...any[]]>
+  first: () => Promise<unknown>
+  raw: () => Promise<[string[], ...unknown[]]>
 }
 
 export interface MockR2Bucket {
@@ -49,9 +49,9 @@ export interface MockR2Bucket {
     etag: string
     httpEtag: string
     uploaded: Date
-    checksums: any
+    checksums: Record<string, string>
     text: () => Promise<string>
-    json: () => Promise<any>
+    json: () => Promise<unknown>
     arrayBuffer: () => Promise<ArrayBuffer>
     blob: () => Promise<Blob>
   } | null>
@@ -65,21 +65,21 @@ export interface MockR2Bucket {
     etag: string
     httpEtag: string
     uploaded: Date
-    checksums: any
+    checksums: Record<string, string>
     text: () => Promise<string>
-    json: () => Promise<any>
+    json: () => Promise<unknown>
     arrayBuffer: () => Promise<ArrayBuffer>
     blob: () => Promise<Blob>
   }>
   delete: (key: string) => Promise<void>
   list: (
-    options?: any
-  ) => Promise<{ objects: any[]; truncated: boolean; delimitedPrefixes: string[] }>
-  head: (key: string) => Promise<any>
+    options?: Record<string, unknown>
+  ) => Promise<{ objects: unknown[]; truncated: boolean; delimitedPrefixes: string[] }>
+  head: (key: string) => Promise<unknown>
 }
 
 export interface MockExecutionContext {
-  waitUntil: (promise: Promise<any>) => void
+  waitUntil: (promise: Promise<unknown>) => void
   passThroughOnException: () => void
 }
 
@@ -87,9 +87,9 @@ export interface MockExecutionContext {
 // Helper function to handle SELECT queries with WHERE clauses
 function handleSelectWithWhere(
   sql: string,
-  tableData: any[],
-  bindings?: any[]
-): { results: any[] } {
+  tableData: unknown[],
+  bindings?: unknown[]
+): { results: unknown[] } {
   const normalizedSql = sql.trim().toUpperCase()
 
   // Simple WHERE parsing for search functionality
@@ -102,11 +102,11 @@ function handleSelectWithWhere(
       let value = valueStr?.trim().replace(/['"`]/g, '') // Remove quotes
       if (value === '?' && bindings && bindings.length > 0) {
         // Use actual bound parameter
-        value = bindings[0]
+        value = bindings[0] as string
       }
 
       const filteredData = tableData.filter((record) => {
-        const recordValue = record[column]
+        const recordValue = (record as Record<string, unknown>)[column]
 
         switch (operator.toUpperCase()) {
           case '=':
@@ -136,11 +136,11 @@ function handleSelectWithWhere(
 }
 
 export function createMockD1Database(): MockD1Database {
-  const tables = new Map<string, any[]>()
+  const tables = new Map<string, unknown[]>()
   const schemas = new Map<string, string>()
-  const tableColumns = new Map<string, any[]>()
-  const tableIndexes = new Map<string, any[]>()
-  const snapshots = new Map<string, any>()
+  const tableColumns = new Map<string, unknown[]>()
+  const tableIndexes = new Map<string, unknown[]>()
+  const snapshots = new Map<string, unknown>()
   let snapshotCounter = 0
 
   // Default system tables
@@ -184,10 +184,22 @@ export function createMockD1Database(): MockD1Database {
     return null
   }
 
-  const createMockStatement = (sql: string, bindings: any[] = []): MockD1PreparedStatement => {
+  const createMockStatement = (sql: string, bindings: unknown[] = []): MockD1PreparedStatement => {
     return {
-      bind: (...params: any[]) => createMockStatement(sql, params),
-      run: async (): Promise<any> => {
+      bind: (...params: unknown[]) => createMockStatement(sql, params),
+      run: async (): Promise<{
+        results: unknown[]
+        success: true
+        meta: {
+          changes: number
+          last_row_id: number
+          duration: number
+          size_after: number
+          rows_read: number
+          rows_written: number
+          changed_db: boolean
+        }
+      }> => {
         // Basic SQL execution simulation
         const normalizedSql = sql.trim().toUpperCase()
 
@@ -204,7 +216,7 @@ export function createMockD1Database(): MockD1Database {
             if (createTableMatch) {
               const columnStr = createTableMatch[1]
               // Parse the actual user-defined columns from the SQL
-              const userColumnDefs: any[] = []
+              const userColumnDefs: unknown[] = []
 
               // Split by comma and parse each column definition
               const columnParts = columnStr.split(',').map((c) => c.trim())
@@ -307,7 +319,7 @@ export function createMockD1Database(): MockD1Database {
               }
 
               // Check for duplicate index name
-              if (existingIndexes.some((idx) => idx.name === indexName)) {
+              if (existingIndexes.some((idx) => (idx as { name: string }).name === indexName)) {
                 throw new Error(`Index "${indexName}" already exists`)
               }
 
@@ -325,7 +337,9 @@ export function createMockD1Database(): MockD1Database {
             const indexName = indexMatch[1]
             // Find and remove index from all tables
             for (const [_tableName, indexes] of tableIndexes.entries()) {
-              const indexIndex = indexes.findIndex((idx: any) => idx.name === indexName)
+              const indexIndex = indexes.findIndex(
+                (idx) => (idx as { name: string }).name === indexName
+              )
               if (indexIndex !== -1) {
                 indexes.splice(indexIndex, 1)
                 return {
@@ -392,8 +406,8 @@ export function createMockD1Database(): MockD1Database {
               created_by: bindings[10] || null,
               snapshot_type: bindings[11] || 'manual',
               d1_bookmark_id: bindings[12] || null,
-            }
-            snapshots.set(snapshotId, snapshot)
+            } as Record<string, unknown>
+            snapshots.set(snapshotId as string, snapshot)
             const snapshotsTable = tables.get('schema_snapshots')
             if (snapshotsTable) {
               snapshotsTable.push(snapshot)
@@ -413,7 +427,7 @@ export function createMockD1Database(): MockD1Database {
                     .map((col) => col.trim().replace(/["`]/g, ''))
 
                   // Create record with bound parameters
-                  const record: any = {
+                  const record: Record<string, unknown> = {
                     id: Math.random().toString(36).substring(2, 18), // Generate random ID
                   }
 
@@ -448,6 +462,7 @@ export function createMockD1Database(): MockD1Database {
             size_after: 100,
             rows_read: 0,
             rows_written: 1,
+            changed_db: false,
           },
         }
       },
@@ -474,13 +489,14 @@ export function createMockD1Database(): MockD1Database {
               },
             }
           } else if (normalizedSql.includes("TYPE = 'INDEX'")) {
-            const allIndexes: any[] = []
+            const allIndexes: unknown[] = []
             for (const [tableName, indexes] of tableIndexes.entries()) {
               for (const index of indexes) {
+                const indexObj = index as { name: string; sql: string }
                 allIndexes.push({
-                  name: index.name,
+                  name: indexObj.name,
                   tbl_name: tableName,
-                  sql: index.sql,
+                  sql: indexObj.sql,
                 })
               }
             }
@@ -619,10 +635,11 @@ export function createMockD1Database(): MockD1Database {
             const indexName = indexMatch[1]
             // Find index and return column info
             for (const indexes of tableIndexes.values()) {
-              const index = indexes.find((idx: any) => idx.name === indexName)
+              const index = indexes.find((idx) => (idx as { name: string }).name === indexName)
               if (index) {
+                const indexObj = index as { columns: string[] }
                 return {
-                  results: index.columns.map((col: string, i: number) => ({
+                  results: indexObj.columns.map((col: string, i: number) => ({
                     seqno: i,
                     cid: i,
                     name: col,
@@ -633,7 +650,7 @@ export function createMockD1Database(): MockD1Database {
                     last_row_id: 0,
                     duration: 1,
                     size_after: 100,
-                    rows_read: index.columns.length,
+                    rows_read: indexObj.columns.length,
                     rows_written: 0,
                     changed_db: false,
                   },
@@ -730,7 +747,9 @@ export function createMockD1Database(): MockD1Database {
         ) {
           const snapshotList = Array.from(snapshots.values())
           if (normalizedSql.includes('ORDER BY version DESC')) {
-            snapshotList.sort((a, b) => b.version - a.version)
+            snapshotList.sort(
+              (a, b) => (b as { version: number }).version - (a as { version: number }).version
+            )
           }
           return {
             results: snapshotList,
@@ -773,11 +792,13 @@ export function createMockD1Database(): MockD1Database {
               bindingIndex = questionMarksBeforeLimit
 
               limit =
-                limitMatch[1] === '?' ? bindings?.[bindingIndex] || limit : parseInt(limitMatch[1])
+                limitMatch[1] === '?'
+                  ? (bindings?.[bindingIndex] as number) || limit
+                  : parseInt(limitMatch[1])
               if (limitMatch[2]) {
                 offset =
                   limitMatch[2] === '?'
-                    ? bindings?.[bindingIndex + 1] || 0
+                    ? (bindings?.[bindingIndex + 1] as number) || 0
                     : parseInt(limitMatch[2])
               }
             }
@@ -825,14 +846,14 @@ export function createMockD1Database(): MockD1Database {
           normalizedSql.includes('FROM SCHEMA_SNAPSHOTS') &&
           normalizedSql.includes('WHERE ID =')
         ) {
-          const snapshotId = bindings[0]
+          const snapshotId = bindings[0] as string
           return snapshots.get(snapshotId) || null
         } else if (
           normalizedSql.includes('FROM sqlite_master') &&
           normalizedSql.includes('WHERE type=') &&
           normalizedSql.includes('AND name =')
         ) {
-          const targetName = bindings[0]
+          const targetName = bindings[0] as string
           const normalizedName = normalizeTableName(targetName)
 
           // Check if this is a table lookup
@@ -845,9 +866,11 @@ export function createMockD1Database(): MockD1Database {
             } else if (normalizedSql.includes("TYPE = 'index'")) {
               // Find index across all tables
               for (const indexes of tableIndexes.values()) {
-                const index = indexes.find((idx: any) => idx.name === targetName)
+                const index = indexes.find(
+                  (idx: unknown) => (idx as { name: string }).name === targetName
+                )
                 if (index) {
-                  return { sql: index.sql }
+                  return { sql: (index as { sql: string }).sql }
                 }
               }
               return null
@@ -876,10 +899,11 @@ export function createMockD1Database(): MockD1Database {
   return {
     prepare: (sql: string) => createMockStatement(sql),
     batch: async (statements: MockD1PreparedStatement[]) => {
+      const results: unknown[] = []
       for (const stmt of statements) {
         await stmt.run()
       }
-      return { results: [] }
+      return results
     },
     exec: async (_sql: string) => {
       return { results: [] }
@@ -888,7 +912,7 @@ export function createMockD1Database(): MockD1Database {
       this: MockD1Database,
       callback: (session: D1Database) => Promise<T>
     ): Promise<T> {
-      return await callback(this as any)
+      return await callback(this as unknown as D1Database)
     },
     dump: async () => {
       return new ArrayBuffer(0)
@@ -938,7 +962,7 @@ export function createMockR2Bucket(): MockR2Bucket {
     delete: async (key: string) => {
       storage.delete(key)
     },
-    list: async (_options?: any) => {
+    list: async (_options?: Record<string, unknown>) => {
       return { objects: [], truncated: false, delimitedPrefixes: [] }
     },
     head: async (_key: string) => {
@@ -949,10 +973,10 @@ export function createMockR2Bucket(): MockR2Bucket {
 
 // Create mock execution context
 export function createMockExecutionContext(): MockExecutionContext {
-  const promises: Promise<any>[] = []
+  const promises: Promise<unknown>[] = []
 
   return {
-    waitUntil: (promise: Promise<any>) => {
+    waitUntil: (promise: Promise<unknown>) => {
       promises.push(promise)
       // Execute the promise immediately in tests to ensure it completes
       promise.catch((error) => {

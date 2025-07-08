@@ -1,7 +1,7 @@
 import { useState } from 'preact/hooks'
 import { type NewTableColumn, useTableOperations } from '../../hooks/useTableOperations'
 import type { ColumnInfo, ForeignKeyInfo, IndexInfo, TableInfo } from '../../lib/api'
-import { generateIndexName, getSQLTypes, getUserTables, isSystemTable, isEditableSystemTable } from '../../utils/database'
+import { generateIndexName, getSQLTypes, getUserTables, isSystemTable } from '../../utils/database'
 
 interface SchemaEditorProps {
   tableName: string | null

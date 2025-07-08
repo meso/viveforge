@@ -28,7 +28,8 @@ export function HomePage() {
         const response = await fetch('/api/admin/oauth/providers', { credentials: 'include' })
         if (response.ok) {
           const providers = await response.json()
-          oauthProviders = providers.providers?.filter((p: any) => p.is_enabled)?.length || 0
+          oauthProviders =
+            providers.providers?.filter((p: { is_enabled: boolean }) => p.is_enabled)?.length || 0
         }
       } catch {
         // Ignore errors for OAuth providers
@@ -40,7 +41,7 @@ export function HomePage() {
         const response = await fetch('/api/push/rules', { credentials: 'include' })
         if (response.ok) {
           const rules = await response.json()
-          pushRules = rules.rules?.filter((r: any) => r.enabled)?.length || 0
+          pushRules = rules.rules?.filter((r: { enabled: boolean }) => r.enabled)?.length || 0
         }
       } catch {
         // Ignore errors for push rules

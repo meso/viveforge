@@ -77,7 +77,6 @@ describe('useQuery', () => {
     expect(queryFn).toHaveBeenCalledTimes(2)
   })
 
-
   it('should call onSuccess callback', async () => {
     const mockData = { id: 1 }
     const queryFn = vi.fn().mockResolvedValue(mockData)
@@ -91,5 +90,4 @@ describe('useQuery', () => {
 
     expect(onSuccess).toHaveBeenCalledWith(mockData)
   }, 10000)
-
 })

@@ -97,7 +97,7 @@ async function getVapidConfig(env: Env): Promise<{
   }
 
   const vapidStorage = new VapidStorage(env.DB, env.DEPLOYMENT_DOMAIN)
-  
+
   // Get VAPID keys from database
   const storedKeys = await vapidStorage.retrieve()
   if (storedKeys) {
@@ -148,9 +148,9 @@ push.post('/initialize', async (c) => {
 
   try {
     console.log('Starting VAPID initialization...')
-    
+
     const vapidStorage = new VapidStorage(c.env.DB, c.env.DEPLOYMENT_DOMAIN)
-    
+
     // Check if already configured
     console.log('Checking if VAPID is already configured...')
     if (await vapidStorage.isConfigured()) {
@@ -178,17 +178,20 @@ push.post('/initialize', async (c) => {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     const errorStack = error instanceof Error ? error.stack : ''
     console.error('Error details:', errorMessage, errorStack)
-    return c.json({ 
-      error: `Failed to generate VAPID keys: ${errorMessage}`,
-      details: errorStack
-    }, 500)
+    return c.json(
+      {
+        error: `Failed to generate VAPID keys: ${errorMessage}`,
+        details: errorStack,
+      },
+      500
+    )
   }
 })
 
 // Get VAPID public key
 push.get('/vapid-public-key', async (c) => {
   const vapidConfig = await getVapidConfig(c.env)
-  
+
   if (!vapidConfig.valid || !vapidConfig.config) {
     return c.json({ error: vapidConfig.error || 'VAPID keys not configured' }, 500)
   }
@@ -214,10 +217,7 @@ push.post('/subscribe', async (c) => {
       return c.json({ error: vapidConfig.error }, 500)
     }
 
-    const manager = new NotificationManager(
-      vapidConfig.config.db,
-      vapidConfig.config.vapidConfig
-    )
+    const manager = new NotificationManager(vapidConfig.config.db, vapidConfig.config.vapidConfig)
 
     const subscriptionId = await manager.subscribe(
       userId,
@@ -256,10 +256,7 @@ push.post('/unsubscribe', async (c) => {
       return c.json({ error: vapidConfig.error }, 500)
     }
 
-    const manager = new NotificationManager(
-      vapidConfig.config.db,
-      vapidConfig.config.vapidConfig
-    )
+    const manager = new NotificationManager(vapidConfig.config.db, vapidConfig.config.vapidConfig)
 
     await manager.unsubscribe(userId, validated.endpoint, validated.fcmToken)
 
@@ -355,10 +352,7 @@ push.post('/rules', async (c) => {
       return c.json({ error: vapidConfig.error }, 500)
     }
 
-    const manager = new NotificationManager(
-      vapidConfig.config.db,
-      vapidConfig.config.vapidConfig
-    )
+    const manager = new NotificationManager(vapidConfig.config.db, vapidConfig.config.vapidConfig)
 
     const ruleId = await manager.createRule(validated)
 
@@ -470,10 +464,7 @@ push.post('/send', async (c) => {
       return c.json({ error: vapidConfig.error }, 500)
     }
 
-    const manager = new NotificationManager(
-      vapidConfig.config.db,
-      vapidConfig.config.vapidConfig
-    )
+    const manager = new NotificationManager(vapidConfig.config.db, vapidConfig.config.vapidConfig)
 
     // Determine recipients
     let userIds: string[] = []
@@ -546,10 +537,7 @@ push.post('/admin/subscribe', async (c) => {
       return c.json({ error: vapidConfig.error }, 500)
     }
 
-    const manager = new NotificationManager(
-      vapidConfig.config.db,
-      vapidConfig.config.vapidConfig
-    )
+    const manager = new NotificationManager(vapidConfig.config.db, vapidConfig.config.vapidConfig)
 
     const subscriptionId = await manager.subscribe(
       adminUserId,
@@ -588,10 +576,7 @@ push.post('/admin/unsubscribe', async (c) => {
       return c.json({ error: vapidConfig.error }, 500)
     }
 
-    const manager = new NotificationManager(
-      vapidConfig.config.db,
-      vapidConfig.config.vapidConfig
-    )
+    const manager = new NotificationManager(vapidConfig.config.db, vapidConfig.config.vapidConfig)
 
     await manager.unsubscribe(adminUserId, validated.endpoint, validated.fcmToken)
 
@@ -623,10 +608,7 @@ push.post('/admin/test', async (c) => {
       return c.json({ error: vapidConfig.error }, 500)
     }
 
-    const manager = new NotificationManager(
-      vapidConfig.config.db,
-      vapidConfig.config.vapidConfig
-    )
+    const manager = new NotificationManager(vapidConfig.config.db, vapidConfig.config.vapidConfig)
 
     const payload = {
       title: 'Test Notification',

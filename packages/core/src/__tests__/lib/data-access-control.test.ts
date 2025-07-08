@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { DataManager } from '../../lib/data-manager'
+import type { D1Database } from '../../types/cloudflare'
 import type { MockD1Database } from '../setup'
 import { createMockD1Database } from '../setup'
 
@@ -9,7 +10,7 @@ describe('Data Access Control', () => {
 
   beforeEach(() => {
     mockDb = createMockD1Database()
-    dm = new DataManager(mockDb as any)
+    dm = new DataManager(mockDb as unknown as D1Database)
   })
 
   describe('Access Control Data Filtering', () => {

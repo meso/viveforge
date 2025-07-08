@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest'
 import {
   generateSecureJWTSecret,
   getOrGenerateJWTSecret,
@@ -121,7 +121,7 @@ describe('Security Utils', () => {
   })
 
   describe('logSecurityWarnings', () => {
-    let consoleSpy: any
+    let consoleSpy: MockInstance
 
     beforeEach(() => {
       consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})

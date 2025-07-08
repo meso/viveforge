@@ -76,7 +76,7 @@ export function useQuery<T = unknown>(
       }
     },
     // Remove onSuccess and onError from dependencies to prevent infinite loops
-    [queryFn, retry]
+    [queryFn, retry, onError, onSuccess]
   )
 
   const refetch = useCallback(async () => {
@@ -89,7 +89,7 @@ export function useQuery<T = unknown>(
       fetchData()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled])
+  }, [enabled, fetchData])
 
   // Refetch interval
   useEffect(() => {
@@ -105,7 +105,7 @@ export function useQuery<T = unknown>(
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refetchInterval, enabled])
+  }, [refetchInterval, enabled, fetchData])
 
   // Refetch on window focus
   useEffect(() => {
@@ -118,7 +118,7 @@ export function useQuery<T = unknown>(
     window.addEventListener('focus', handleFocus)
     return () => window.removeEventListener('focus', handleFocus)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refetchOnWindowFocus, enabled])
+  }, [refetchOnWindowFocus, enabled, fetchData])
 
   // Cleanup on unmount
   useEffect(() => {

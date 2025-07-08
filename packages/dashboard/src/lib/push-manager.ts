@@ -56,7 +56,7 @@ export class PushManager {
       await this.fetchVapidPublicKey()
 
       return true
-    } catch (error) {
+    } catch (_error) {
       // Silently ignore errors when VAPID is not configured
       return false
     }
@@ -402,7 +402,7 @@ export class PushManager {
 
       const data = await response.json()
       this.vapidPublicKey = data.publicKey
-    } catch (error) {
+    } catch (_error) {
       // Silently ignore errors when VAPID is not configured
       this.vapidPublicKey = null
     }

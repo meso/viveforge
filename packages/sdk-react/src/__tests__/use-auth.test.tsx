@@ -3,6 +3,7 @@
  */
 
 import { act, renderHook, waitFor } from '@testing-library/react'
+import type { VibebaseClient } from '@vibebase/sdk'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuth } from '../hooks/use-auth'
 import { VibebaseProvider } from '../providers/vibebase-provider'
@@ -22,15 +23,15 @@ const mockClient = {
   setApiKey: vi.fn(),
   health: vi.fn().mockResolvedValue({ success: true }),
   disconnect: vi.fn(),
-} as any
+} as unknown as VibebaseClient
 
 vi.mock('@vibebase/sdk', () => ({
   VibebaseClient: vi.fn().mockImplementation(() => mockClient),
 }))
 
 // Mock window.location
-delete (window as any).location
-window.location = { href: '' } as any
+delete (window as Record<string, unknown>).location
+window.location = { href: '' } as Location
 
 describe('useAuth', () => {
   beforeEach(() => {

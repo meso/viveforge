@@ -1,3 +1,9 @@
+import type {
+  D1Database,
+  DurableObjectNamespace,
+  Fetcher,
+  R2Bucket,
+} from '@cloudflare/workers-types'
 import { Hono } from 'hono'
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
@@ -11,17 +17,17 @@ import type { Env, Variables } from '../../types'
 // Mock environment
 const mockEnv: Env = {
   ENVIRONMENT: 'production',
-  DB: {} as any,
-  SESSIONS: {} as any,
-  ASSETS: {} as any,
-  SYSTEM_STORAGE: {} as any,
-  USER_STORAGE: {} as any,
+  DB: {} as unknown as D1Database,
+  SESSIONS: {} as unknown as DurableObjectNamespace,
+  ASSETS: {} as unknown as Fetcher,
+  SYSTEM_STORAGE: {} as unknown as R2Bucket,
+  USER_STORAGE: {} as unknown as R2Bucket,
   JWT_SECRET: 'test-secret',
   VIBEBASE_AUTH_URL: 'https://auth.example.com',
   DEPLOYMENT_DOMAIN: 'example.com',
   WORKER_NAME: 'test-worker',
   DOMAIN: 'example.com',
-}
+} as unknown as Env
 
 // Test app setup
 function createTestApp() {

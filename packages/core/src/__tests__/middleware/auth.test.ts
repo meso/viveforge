@@ -1,7 +1,9 @@
 import { Hono } from 'hono'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { VibebaseAuthClient } from '../../lib/auth-client'
 import { getCurrentUser, multiAuth } from '../../middleware/auth'
 import type { Env, Variables } from '../../types'
+import type { D1Database, KVNamespace, R2Bucket } from '../../types/cloudflare'
 
 // Mock VibebaseAuthClient
 vi.mock('../../lib/auth-client')
@@ -9,7 +11,7 @@ vi.mock('../../lib/auth-client')
 describe('Auth Middleware', () => {
   let app: Hono<{ Bindings: Env; Variables: Variables }>
   let env: Env
-  let mockAuthClient: any
+  let mockAuthClient: VibebaseAuthClient
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -19,10 +21,10 @@ describe('Auth Middleware', () => {
       DEPLOYMENT_DOMAIN: 'test.example.com',
       WORKER_NAME: 'test-worker',
       ENVIRONMENT: 'development',
-      DB: {} as any,
-      SESSIONS: {} as any,
-      SYSTEM_STORAGE: {} as any,
-      USER_STORAGE: {} as any,
+      DB: {} as unknown as D1Database,
+      SESSIONS: {} as unknown as KVNamespace,
+      SYSTEM_STORAGE: {} as unknown as R2Bucket,
+      USER_STORAGE: {} as unknown as R2Bucket,
       ASSETS: {
         fetch: vi.fn(() => Promise.resolve(new Response('mock asset'))),
       },
@@ -35,7 +37,7 @@ describe('Auth Middleware', () => {
         .mockReturnValue(
           'https://auth.vibebase.workers.dev/auth/login?origin=https%3A%2F%2Ftest.example.com&redirect_to=%2F'
         ),
-    }
+    } as unknown as VibebaseAuthClient
 
     app = new Hono<{ Bindings: Env; Variables: Variables }>()
 
@@ -62,7 +64,7 @@ describe('Auth Middleware', () => {
         updated_at: '2023-01-01T00:00:00.000Z',
       }
 
-      mockAuthClient.verifyRequest.mockResolvedValue(mockUser)
+      vi.mocked(mockAuthClient.verifyRequest).mockResolvedValue(mockUser)
 
       app.get('/protected', multiAuth, (c) => {
         const user = getCurrentUser(c)
@@ -72,13 +74,17 @@ describe('Auth Middleware', () => {
       const res = await app.request('/protected', {}, { env })
 
       expect(res.status).toBe(200)
-      const body = (await res.json()) as any
+      const body = (await res.json()) as {
+        error?: string
+        message?: string
+        [key: string]: unknown
+      }
       expect(body.message).toBe('success')
       expect(body.user).toEqual(mockUser)
     })
 
     it('should redirect unauthenticated browser requests to login', async () => {
-      mockAuthClient.verifyRequest.mockResolvedValue(null)
+      vi.mocked(mockAuthClient.verifyRequest).mockResolvedValue(null)
 
       app.get('/protected', multiAuth, (c) => {
         return c.json({ message: 'should not reach here' })
@@ -99,7 +105,7 @@ describe('Auth Middleware', () => {
     })
 
     it('should return JSON error for unauthenticated API requests', async () => {
-      mockAuthClient.verifyRequest.mockResolvedValue(null)
+      vi.mocked(mockAuthClient.verifyRequest).mockResolvedValue(null)
 
       app.get('/api/protected', multiAuth, (c) => {
         return c.json({ message: 'should not reach here' })
@@ -116,7 +122,11 @@ describe('Auth Middleware', () => {
       )
 
       expect(res.status).toBe(401)
-      const body = (await res.json()) as any
+      const body = (await res.json()) as {
+        error?: string
+        message?: string
+        [key: string]: unknown
+      }
       expect(body.error).toBe('Authentication required')
       expect(body.login_url).toBe(
         'https://auth.vibebase.workers.dev/auth/login?origin=https%3A%2F%2Ftest.example.com&redirect_to=%2F'
@@ -136,12 +146,16 @@ describe('Auth Middleware', () => {
       const res = await app.request('/protected', {}, { env })
 
       expect(res.status).toBe(503)
-      const body = (await res.json()) as any
+      const body = (await res.json()) as {
+        error?: string
+        message?: string
+        [key: string]: unknown
+      }
       expect(body.error).toBe('Authentication service unavailable')
     })
 
     it('should handle auth service errors', async () => {
-      mockAuthClient.verifyRequest.mockRejectedValue(new Error('Service error'))
+      vi.mocked(mockAuthClient.verifyRequest).mockRejectedValue(new Error('Service error'))
 
       app.get('/protected', multiAuth, (c) => {
         return c.json({ message: 'should not reach here' })
@@ -150,7 +164,11 @@ describe('Auth Middleware', () => {
       const res = await app.request('/protected', {}, { env })
 
       expect(res.status).toBe(503)
-      const body = (await res.json()) as any
+      const body = (await res.json()) as {
+        error?: string
+        message?: string
+        [key: string]: unknown
+      }
       expect(body.error).toBe('Authentication service error')
     })
   })
