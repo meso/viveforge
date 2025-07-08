@@ -59,7 +59,7 @@ async function handleUserJWTAuth(
     const userAuthManager = new UserAuthManager(
       c.env.DB,
       c.env.JWT_SECRET,
-      c.env.DOMAIN || 'localhost'
+      c.env.WORKER_DOMAIN || 'localhost'
     )
     const authResult = await userAuthManager.verifyUserToken(token)
 

@@ -35,18 +35,12 @@ id = "63a32a4e4bdf4699a1447d7f5e56c74f"
 [vars]
 ENVIRONMENT = "production"
 VIBEBASE_AUTH_URL = "https://auth.vibebase.workers.dev"
-DEPLOYMENT_DOMAIN = "vibebase.mesongo.workers.dev"
-WORKER_NAME = "vibebase"
-DOMAIN = "vibebase.mesongo.workers.dev"
-VAPID_PUBLIC_KEY = "BLk5DRYrDTproCdr3CVKQlinA66-Ab6DaLRyhvn_OMIYV5r2iazgiX4BQKgcmiMi_MSR2DJ2Xe60zz9gKj_oo4U"
-VAPID_SUBJECT = "mailto:support@vibebase.app"
+WORKER_DOMAIN = "vibebase.mesongo.workers.dev"
 
 [env.development.vars]
 ENVIRONMENT = "development"
 VIBEBASE_AUTH_URL = "https://auth.vibebase.workers.dev"
-DEPLOYMENT_DOMAIN = "localhost:8787"
-WORKER_NAME = "vibebase-dev"
-DOMAIN = "localhost:8787"
+WORKER_DOMAIN = "localhost:8787"
 
 # Durable Objects for realtime functionality
 [[durable_objects.bindings]]

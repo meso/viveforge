@@ -95,9 +95,24 @@ export class VibebaseAuthClient {
 
   constructor(private env: Env) {
     this.authBaseUrl = env.VIBEBASE_AUTH_URL || 'https://auth.vibebase.workers.dev'
-    this.deploymentDomain = env.DEPLOYMENT_DOMAIN || 'unknown'
+    this.deploymentDomain = env.WORKER_DOMAIN || 'unknown'
     // deployment_idは不要になったため削除
     this.deploymentId = null
+  }
+
+  /**
+   * Worker名をドメインから推測
+   */
+  private getWorkerName(): string {
+    const domain = this.deploymentDomain
+    if (domain.includes('.workers.dev')) {
+      // xxx.yyy.workers.dev から xxx を抽出
+      return domain.split('.')[0]
+    }
+    if (domain.includes('localhost')) {
+      return 'vibebase-dev'
+    }
+    return 'vibebase'
   }
 
   /**
@@ -127,7 +142,7 @@ export class VibebaseAuthClient {
           version: '0.2.0',
           features: ['database', 'storage', 'auth'],
           metadata: {
-            worker_name: this.env.WORKER_NAME || 'vibebase',
+            worker_name: this.getWorkerName(),
             created_at: new Date().toISOString(),
           },
         }),

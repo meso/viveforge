@@ -44,8 +44,7 @@ describe('Multi-Auth Middleware', () => {
       USER_STORAGE: {} as unknown as CustomR2Bucket,
       ASSETS: { fetch: vi.fn(() => Promise.resolve(new Response('mock asset'))) },
       VIBEBASE_AUTH_URL: 'https://auth.example.com',
-      DEPLOYMENT_DOMAIN: 'example.com',
-      WORKER_NAME: 'test-worker',
+      WORKER_DOMAIN: 'example.com',
       ENVIRONMENT: 'development',
     }
 

@@ -96,7 +96,7 @@ async function getVapidConfig(env: Env): Promise<{
     return { valid: false, error: 'Database not configured' }
   }
 
-  const vapidStorage = new VapidStorage(env.DB, env.DEPLOYMENT_DOMAIN)
+  const vapidStorage = new VapidStorage(env.DB, env.WORKER_DOMAIN)
 
   // Get VAPID keys from database
   const storedKeys = await vapidStorage.retrieve()
@@ -125,7 +125,7 @@ push.get('/status', async (c) => {
     return c.json({ error: 'Database not configured' }, 500)
   }
 
-  const vapidStorage = new VapidStorage(c.env.DB, c.env.DEPLOYMENT_DOMAIN)
+  const vapidStorage = new VapidStorage(c.env.DB, c.env.WORKER_DOMAIN)
   const configured = await vapidStorage.isConfigured()
 
   return c.json({
@@ -149,7 +149,7 @@ push.post('/initialize', async (c) => {
   try {
     console.log('Starting VAPID initialization...')
 
-    const vapidStorage = new VapidStorage(c.env.DB, c.env.DEPLOYMENT_DOMAIN)
+    const vapidStorage = new VapidStorage(c.env.DB, c.env.WORKER_DOMAIN)
 
     // Check if already configured
     console.log('Checking if VAPID is already configured...')

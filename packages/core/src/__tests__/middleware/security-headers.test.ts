@@ -24,8 +24,7 @@ const mockEnv: Env = {
   USER_STORAGE: {} as unknown as R2Bucket,
   JWT_SECRET: 'test-secret',
   VIBEBASE_AUTH_URL: 'https://auth.example.com',
-  DEPLOYMENT_DOMAIN: 'example.com',
-  WORKER_NAME: 'test-worker',
+  WORKER_DOMAIN: 'example.com',
   DOMAIN: 'example.com',
 } as unknown as Env
 

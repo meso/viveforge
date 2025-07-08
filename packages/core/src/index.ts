@@ -65,6 +65,14 @@ app.use('*', async (c, next) => {
   // Update environment with the validated/generated secret
   c.env.JWT_SECRET = jwtSecretResult.secret
 
+  // Set WORKER_DOMAIN from request if not already set
+  if (!c.env.WORKER_DOMAIN) {
+    const host = c.req.header('host')
+    if (host) {
+      c.env.WORKER_DOMAIN = host
+    }
+  }
+
   await next()
 })
 
@@ -227,7 +235,7 @@ export default {
 
     try {
       // Call the process-events endpoint internally
-      const url = `https://${env.DOMAIN}/api/realtime/process-events`
+      const url = `https://${env.WORKER_DOMAIN}/api/realtime/process-events`
       const response = await fetch(url, {
         method: 'POST',
         headers: {

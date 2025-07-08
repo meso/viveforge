@@ -19,13 +19,11 @@ export interface Env {
 
   // User authentication
   JWT_SECRET?: string
-  DOMAIN?: string
+  WORKER_DOMAIN?: string
 
   // Vibebase Auth settings
   VIBEBASE_AUTH_URL?: string
   DEPLOYMENT_ID?: string
-  DEPLOYMENT_DOMAIN?: string
-  WORKER_NAME?: string
 
   // Legacy Cloudflare Access settings (deprecated)
   CLOUDFLARE_TEAM_DOMAIN?: string

@@ -84,8 +84,7 @@ describe('Auth Routes', () => {
 
     env = {
       VIBEBASE_AUTH_URL: 'https://auth.vibebase.workers.dev',
-      DEPLOYMENT_DOMAIN: 'test.example.com',
-      WORKER_NAME: 'test-worker',
+      WORKER_DOMAIN: 'test.example.com',
       ENVIRONMENT: 'development',
       DB: mockDB as unknown as D1Database,
       SESSIONS: {} as unknown as KVNamespace,

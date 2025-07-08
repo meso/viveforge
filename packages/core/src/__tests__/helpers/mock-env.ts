@@ -9,8 +9,7 @@ export const createMockEnv = (overrides: Partial<Env> = {}): Env => ({
   SYSTEM_STORAGE: {} as R2Bucket,
   ASSETS: { fetch: vi.fn(() => Promise.resolve(new Response('mock asset'))) },
   VIBEBASE_AUTH_URL: 'https://auth.vibebase.workers.dev',
-  DEPLOYMENT_DOMAIN: 'test.example.com',
-  WORKER_NAME: 'test-worker',
+  WORKER_DOMAIN: 'test.example.com',
   ENVIRONMENT: 'development',
   ...overrides,
 })

@@ -11,8 +11,7 @@ describe('Authentication Logic Patterns', () => {
 
     env = {
       VIBEBASE_AUTH_URL: 'https://auth.vibebase.workers.dev',
-      DEPLOYMENT_DOMAIN: 'test.example.com',
-      WORKER_NAME: 'test-worker',
+      WORKER_DOMAIN: 'test.example.com',
       ENVIRONMENT: 'development',
       DB: {} as unknown as D1Database,
       SESSIONS: {} as unknown as KVNamespace,
@@ -34,7 +33,7 @@ describe('Authentication Logic Patterns', () => {
 
   it('should handle vibebase-auth integration patterns', async () => {
     // Test the new vibebase-auth integration patterns
-    const deploymentDomain = env.DEPLOYMENT_DOMAIN
+    const deploymentDomain = env.WORKER_DOMAIN
     const authBaseUrl = env.VIBEBASE_AUTH_URL
 
     expect(deploymentDomain).toBe('test.example.com')
@@ -56,7 +55,7 @@ describe('Authentication Logic Patterns', () => {
   it('should handle JWT token validation patterns', async () => {
     // Test JWT token validation logic patterns
     const now = Math.floor(Date.now() / 1000)
-    const deploymentDomain = env.DEPLOYMENT_DOMAIN
+    const deploymentDomain = env.WORKER_DOMAIN
     const authBaseUrl = env.VIBEBASE_AUTH_URL
 
     // Valid token payload

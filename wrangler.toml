@@ -28,6 +28,19 @@ bucket_name = "vibebase-storage"
 [[kv_namespaces]]
 binding = "SESSIONS"
 
+# Durable Objects for realtime functionality
+[[durable_objects.bindings]]
+name = "REALTIME"
+class_name = "RealtimeConnectionManager"
+
+[[migrations]]
+tag = "v1"
+new_classes = [ "RealtimeConnectionManager" ]
+
+# Cron Triggers for realtime event processing
+[triggers]
+crons = ["*/5 * * * *"]  # 5分ごとに実行
+
 # Environment variables
 [vars]
 ENVIRONMENT = "production"

@@ -85,8 +85,7 @@ describe('API Keys Routes', () => {
       USER_STORAGE: {} as unknown as R2Bucket,
       ASSETS: { fetch: vi.fn() },
       VIBEBASE_AUTH_URL: 'https://auth.example.com',
-      DEPLOYMENT_DOMAIN: 'example.com',
-      WORKER_NAME: 'test-worker',
+      WORKER_DOMAIN: 'example.com',
       ENVIRONMENT: 'development',
     }
 

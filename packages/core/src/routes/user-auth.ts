@@ -165,7 +165,7 @@ userAuth.get('/callback/:provider', async (c) => {
     const userAuthManager = new UserAuthManager(
       c.env.DB,
       c.env.JWT_SECRET,
-      c.env.DOMAIN || 'localhost'
+      c.env.WORKER_DOMAIN || 'localhost'
     )
     const user = await userAuthManager.createOrUpdateUser({
       provider,
@@ -224,7 +224,7 @@ userAuth.post('/refresh', async (c) => {
     const userAuthManager = new UserAuthManager(
       c.env.DB,
       c.env.JWT_SECRET,
-      c.env.DOMAIN || 'localhost'
+      c.env.WORKER_DOMAIN || 'localhost'
     )
     const result = await userAuthManager.refreshAccessToken(refreshToken)
 
@@ -279,7 +279,7 @@ userAuth.post('/logout', multiAuth, requireUserAuth(), async (c) => {
     const userAuthManager = new UserAuthManager(
       c.env.DB,
       c.env.JWT_SECRET,
-      c.env.DOMAIN || 'localhost'
+      c.env.WORKER_DOMAIN || 'localhost'
     )
     await userAuthManager.logout(authContext.session.id)
 
