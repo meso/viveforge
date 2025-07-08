@@ -2,6 +2,7 @@ import type { D1Database } from '@cloudflare/workers-types'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { NotificationManager } from '../lib/notification-manager'
+import { VapidStorage } from '../lib/vapid-storage'
 import type { Env } from '../types'
 
 // Schemas
@@ -78,8 +79,8 @@ const sendNotificationSchema = z.object({
 
 export const push = new Hono<{ Bindings: Env }>()
 
-// Helper function to validate required environment variables
-function validateNotificationEnv(env: Env): {
+// Helper function to get VAPID configuration from database
+async function getVapidConfig(env: Env): Promise<{
   valid: boolean
   error?: string
   config?: {
@@ -90,45 +91,109 @@ function validateNotificationEnv(env: Env): {
       subject: string
     }
   }
-} {
+}> {
   if (!env.DB) {
     return { valid: false, error: 'Database not configured' }
   }
 
-  if (!env.VAPID_PUBLIC_KEY) {
-    return { valid: false, error: 'VAPID public key not configured' }
-  }
-
-  if (!env.VAPID_PRIVATE_KEY) {
-    return { valid: false, error: 'VAPID private key not configured' }
-  }
-
-  if (!env.VAPID_SUBJECT) {
-    return { valid: false, error: 'VAPID subject not configured' }
-  }
-
-  return {
-    valid: true,
-    config: {
-      db: env.DB,
-      vapidConfig: {
-        publicKey: env.VAPID_PUBLIC_KEY,
-        privateKey: env.VAPID_PRIVATE_KEY,
-        subject: env.VAPID_SUBJECT,
+  const vapidStorage = new VapidStorage(env.DB, env.DEPLOYMENT_DOMAIN)
+  
+  // Get VAPID keys from database
+  const storedKeys = await vapidStorage.retrieve()
+  if (storedKeys) {
+    return {
+      valid: true,
+      config: {
+        db: env.DB,
+        vapidConfig: storedKeys,
       },
-    },
+    }
   }
+
+  return { valid: false, error: 'VAPID keys not configured' }
 }
+
+// Check VAPID configuration status
+push.get('/status', async (c) => {
+  const authContext = c.get('authContext')
+
+  if (!authContext || authContext.type !== 'admin') {
+    return c.json({ error: 'Admin access required' }, 403)
+  }
+
+  if (!c.env.DB) {
+    return c.json({ error: 'Database not configured' }, 500)
+  }
+
+  const vapidStorage = new VapidStorage(c.env.DB, c.env.DEPLOYMENT_DOMAIN)
+  const configured = await vapidStorage.isConfigured()
+
+  return c.json({
+    configured,
+    source: configured ? 'database' : 'none',
+  })
+})
+
+// Initialize VAPID keys (admin only)
+push.post('/initialize', async (c) => {
+  const authContext = c.get('authContext')
+
+  if (!authContext || authContext.type !== 'admin') {
+    return c.json({ error: 'Admin access required' }, 403)
+  }
+
+  if (!c.env.DB) {
+    return c.json({ error: 'Database not configured' }, 500)
+  }
+
+  try {
+    console.log('Starting VAPID initialization...')
+    
+    const vapidStorage = new VapidStorage(c.env.DB, c.env.DEPLOYMENT_DOMAIN)
+    
+    // Check if already configured
+    console.log('Checking if VAPID is already configured...')
+    if (await vapidStorage.isConfigured()) {
+      console.log('VAPID already configured')
+      return c.json({ error: 'VAPID keys are already configured' }, 400)
+    }
+
+    // Generate and store keys automatically
+    console.log('Generating and storing VAPID keys...')
+    const keys = await vapidStorage.initialize()
+    console.log('VAPID keys generated successfully')
+
+    return c.json({
+      success: true,
+      message: 'VAPID keys generated and stored successfully',
+      keys: {
+        publicKey: keys.publicKey,
+        subject: keys.subject,
+        // Don't return private key for security
+      },
+      note: 'Private key has been encrypted and stored securely in the database. Push notifications are now ready to use!',
+    })
+  } catch (error) {
+    console.error('Failed to initialize VAPID keys:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const errorStack = error instanceof Error ? error.stack : ''
+    console.error('Error details:', errorMessage, errorStack)
+    return c.json({ 
+      error: `Failed to generate VAPID keys: ${errorMessage}`,
+      details: errorStack
+    }, 500)
+  }
+})
 
 // Get VAPID public key
 push.get('/vapid-public-key', async (c) => {
-  const vapidPublicKey = c.env.VAPID_PUBLIC_KEY
-
-  if (!vapidPublicKey) {
-    return c.json({ error: 'VAPID public key not configured' }, 500)
+  const vapidConfig = await getVapidConfig(c.env)
+  
+  if (!vapidConfig.valid || !vapidConfig.config) {
+    return c.json({ error: vapidConfig.error || 'VAPID keys not configured' }, 500)
   }
 
-  return c.json({ publicKey: vapidPublicKey })
+  return c.json({ publicKey: vapidConfig.config.vapidConfig.publicKey })
 })
 
 // Subscribe to push notifications
@@ -144,14 +209,14 @@ push.post('/subscribe', async (c) => {
 
     const userId = authContext.user.id
 
-    const envValidation = validateNotificationEnv(c.env)
-    if (!envValidation.valid || !envValidation.config) {
-      return c.json({ error: envValidation.error }, 500)
+    const vapidConfig = await getVapidConfig(c.env)
+    if (!vapidConfig.valid || !vapidConfig.config) {
+      return c.json({ error: vapidConfig.error }, 500)
     }
 
     const manager = new NotificationManager(
-      envValidation.config.db,
-      envValidation.config.vapidConfig
+      vapidConfig.config.db,
+      vapidConfig.config.vapidConfig
     )
 
     const subscriptionId = await manager.subscribe(
@@ -186,14 +251,14 @@ push.post('/unsubscribe', async (c) => {
 
     const userId = authContext.user.id
 
-    const envValidation = validateNotificationEnv(c.env)
-    if (!envValidation.valid || !envValidation.config) {
-      return c.json({ error: envValidation.error }, 500)
+    const vapidConfig = await getVapidConfig(c.env)
+    if (!vapidConfig.valid || !vapidConfig.config) {
+      return c.json({ error: vapidConfig.error }, 500)
     }
 
     const manager = new NotificationManager(
-      envValidation.config.db,
-      envValidation.config.vapidConfig
+      vapidConfig.config.db,
+      vapidConfig.config.vapidConfig
     )
 
     await manager.unsubscribe(userId, validated.endpoint, validated.fcmToken)
@@ -220,12 +285,12 @@ push.get('/subscriptions/:userId', async (c) => {
 
   const userId = c.req.param('userId')
 
-  const envValidation = validateNotificationEnv(c.env)
-  if (!envValidation.valid || !envValidation.config) {
-    return c.json({ error: envValidation.error }, 500)
+  const vapidConfig = await getVapidConfig(c.env)
+  if (!vapidConfig.valid || !vapidConfig.config) {
+    return c.json({ error: vapidConfig.error }, 500)
   }
 
-  const manager = new NotificationManager(envValidation.config.db, envValidation.config.vapidConfig)
+  const manager = new NotificationManager(vapidConfig.config.db, vapidConfig.config.vapidConfig)
 
   const subscriptions = await manager.getUserSubscriptions(userId)
 
@@ -285,14 +350,14 @@ push.post('/rules', async (c) => {
     const body = await c.req.json()
     const validated = notificationRuleSchema.parse(body)
 
-    const envValidation = validateNotificationEnv(c.env)
-    if (!envValidation.valid || !envValidation.config) {
-      return c.json({ error: envValidation.error }, 500)
+    const vapidConfig = await getVapidConfig(c.env)
+    if (!vapidConfig.valid || !vapidConfig.config) {
+      return c.json({ error: vapidConfig.error }, 500)
     }
 
     const manager = new NotificationManager(
-      envValidation.config.db,
-      envValidation.config.vapidConfig
+      vapidConfig.config.db,
+      vapidConfig.config.vapidConfig
     )
 
     const ruleId = await manager.createRule(validated)
@@ -400,14 +465,14 @@ push.post('/send', async (c) => {
       return c.json({ error: 'Admin or API key access required' }, 403)
     }
 
-    const envValidation = validateNotificationEnv(c.env)
-    if (!envValidation.valid || !envValidation.config) {
-      return c.json({ error: envValidation.error }, 500)
+    const vapidConfig = await getVapidConfig(c.env)
+    if (!vapidConfig.valid || !vapidConfig.config) {
+      return c.json({ error: vapidConfig.error }, 500)
     }
 
     const manager = new NotificationManager(
-      envValidation.config.db,
-      envValidation.config.vapidConfig
+      vapidConfig.config.db,
+      vapidConfig.config.vapidConfig
     )
 
     // Determine recipients
@@ -476,14 +541,14 @@ push.post('/admin/subscribe', async (c) => {
     // Use admin user ID for subscription
     const adminUserId = `admin_${authContext.user.id}`
 
-    const envValidation = validateNotificationEnv(c.env)
-    if (!envValidation.valid || !envValidation.config) {
-      return c.json({ error: envValidation.error }, 500)
+    const vapidConfig = await getVapidConfig(c.env)
+    if (!vapidConfig.valid || !vapidConfig.config) {
+      return c.json({ error: vapidConfig.error }, 500)
     }
 
     const manager = new NotificationManager(
-      envValidation.config.db,
-      envValidation.config.vapidConfig
+      vapidConfig.config.db,
+      vapidConfig.config.vapidConfig
     )
 
     const subscriptionId = await manager.subscribe(
@@ -518,14 +583,14 @@ push.post('/admin/unsubscribe', async (c) => {
 
     const adminUserId = `admin_${authContext.user.id}`
 
-    const envValidation = validateNotificationEnv(c.env)
-    if (!envValidation.valid || !envValidation.config) {
-      return c.json({ error: envValidation.error }, 500)
+    const vapidConfig = await getVapidConfig(c.env)
+    if (!vapidConfig.valid || !vapidConfig.config) {
+      return c.json({ error: vapidConfig.error }, 500)
     }
 
     const manager = new NotificationManager(
-      envValidation.config.db,
-      envValidation.config.vapidConfig
+      vapidConfig.config.db,
+      vapidConfig.config.vapidConfig
     )
 
     await manager.unsubscribe(adminUserId, validated.endpoint, validated.fcmToken)
@@ -553,14 +618,14 @@ push.post('/admin/test', async (c) => {
 
     const adminUserId = `admin_${authContext.user.id}`
 
-    const envValidation = validateNotificationEnv(c.env)
-    if (!envValidation.valid || !envValidation.config) {
-      return c.json({ error: envValidation.error }, 500)
+    const vapidConfig = await getVapidConfig(c.env)
+    if (!vapidConfig.valid || !vapidConfig.config) {
+      return c.json({ error: vapidConfig.error }, 500)
     }
 
     const manager = new NotificationManager(
-      envValidation.config.db,
-      envValidation.config.vapidConfig
+      vapidConfig.config.db,
+      vapidConfig.config.vapidConfig
     )
 
     const payload = {
@@ -596,12 +661,12 @@ push.get('/admin/subscription', async (c) => {
 
   const adminUserId = `admin_${authContext.user.id}`
 
-  const envValidation = validateNotificationEnv(c.env)
-  if (!envValidation.valid || !envValidation.config) {
-    return c.json({ error: envValidation.error }, 500)
+  const vapidConfig = await getVapidConfig(c.env)
+  if (!vapidConfig.valid || !vapidConfig.config) {
+    return c.json({ error: vapidConfig.error }, 500)
   }
 
-  const manager = new NotificationManager(envValidation.config.db, envValidation.config.vapidConfig)
+  const manager = new NotificationManager(vapidConfig.config.db, vapidConfig.config.vapidConfig)
 
   const subscriptions = await manager.getUserSubscriptions(adminUserId)
 

@@ -4,8 +4,9 @@ import { api } from '../lib/api'
 export function HomePage() {
   const [stats, setStats] = useState({
     userTables: 0,
-    systemTables: 0,
     dbStatus: 'checking...',
+    oauthProviders: 0,
+    pushRules: 0,
   })
 
   useEffect(() => {
@@ -20,15 +21,39 @@ export function HomePage() {
       // Load tables
       const tablesResult = await api.getTables()
       const userTables = tablesResult.tables.filter((t) => t.type === 'user').length
-      const systemTables = tablesResult.tables.filter((t) => t.type === 'system').length
+
+      // Load OAuth providers
+      let oauthProviders = 0
+      try {
+        const response = await fetch('/api/admin/oauth/providers', { credentials: 'include' })
+        if (response.ok) {
+          const providers = await response.json()
+          oauthProviders = providers.providers?.filter((p: any) => p.is_enabled)?.length || 0
+        }
+      } catch {
+        // Ignore errors for OAuth providers
+      }
+
+      // Load push notification rules
+      let pushRules = 0
+      try {
+        const response = await fetch('/api/push/rules', { credentials: 'include' })
+        if (response.ok) {
+          const rules = await response.json()
+          pushRules = rules.rules?.filter((r: any) => r.enabled)?.length || 0
+        }
+      } catch {
+        // Ignore errors for push rules
+      }
 
       setStats({
         userTables,
-        systemTables,
         dbStatus:
           (health as { database?: string })?.database === 'connected'
             ? 'connected'
             : 'disconnected',
+        oauthProviders,
+        pushRules,
       })
     } catch (error) {
       console.error('Failed to load stats:', error)
@@ -40,19 +65,13 @@ export function HomePage() {
     <div>
       <h2 class="text-2xl font-bold text-gray-900 mb-6">Dashboard</h2>
 
-      <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <DashboardCard
-          title="Database Tables"
+          title="User Tables"
           description="User-defined tables in D1"
           href="/database"
           stats={`${stats.userTables} tables`}
           status={stats.dbStatus}
-        />
-        <DashboardCard
-          title="System Tables"
-          description="Protected system tables"
-          href="/database"
-          stats={`${stats.systemTables} tables`}
         />
         <DashboardCard
           title="Storage"
@@ -60,6 +79,18 @@ export function HomePage() {
           href="/storage"
           stats="Ready"
           status="connected"
+        />
+        <DashboardCard
+          title="OAuth Providers"
+          description="Active authentication providers"
+          href="/auth"
+          stats={`${stats.oauthProviders} enabled`}
+        />
+        <DashboardCard
+          title="Push Rules"
+          description="Active notification rules"
+          href="/push"
+          stats={`${stats.pushRules} rules`}
         />
       </div>
 

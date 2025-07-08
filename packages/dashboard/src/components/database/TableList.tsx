@@ -1,7 +1,7 @@
 import { useState } from 'preact/hooks'
 import { type NewTableData, useTableOperations } from '../../hooks/useTableOperations'
 import type { TableInfo } from '../../lib/api'
-import { getSQLTypes, getUserTables, SYSTEM_TABLES } from '../../utils/database'
+import { getSQLTypes, getUserTables, SYSTEM_TABLES, isEditableSystemTable } from '../../utils/database'
 
 interface TableListProps {
   tables: TableInfo[]
@@ -32,6 +32,7 @@ export function TableList({
     indexes: [],
   })
   const [openDropdownTable, setOpenDropdownTable] = useState<string | null>(null)
+  const [showSystemTables, setShowSystemTables] = useState(false)
 
   const {
     createTable,
@@ -255,26 +256,50 @@ export function TableList({
 
           {/* System Tables */}
           <div>
-            <h3 className="text-lg font-medium text-gray-500 mb-3">System Tables</h3>
-            <div className="grid gap-2">
-              {systemTables.map((table) => (
-                <button
-                  key={table.name}
-                  type="button"
-                  onClick={() => onTableSelect(table.name)}
-                  className={`p-3 border rounded-md cursor-pointer transition-colors text-left w-full ${
-                    selectedTable === table.name
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-gray-700">{table.name}</span>
-                    <span className="text-sm text-gray-500">{table.rowCount} rows</span>
-                  </div>
-                </button>
-              ))}
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowSystemTables(!showSystemTables)}
+              className="flex items-center gap-2 mb-3 text-lg font-medium text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              <span 
+                className={`transition-transform duration-200 ${showSystemTables ? 'rotate-90' : ''}`}
+              >
+                ▶
+              </span>
+              System Tables ({systemTables.length})
+            </button>
+            
+            {showSystemTables && (
+              <div className="grid gap-2">
+                {systemTables.map((table) => {
+                  const isEditable = isEditableSystemTable(table.name)
+                  const isClickable = isEditable
+                  
+                  return (
+                    <div
+                      key={table.name}
+                      className={`p-3 border rounded-md text-left w-full transition-colors ${
+                        isClickable
+                          ? selectedTable === table.name
+                            ? 'border-blue-500 bg-blue-50 cursor-pointer'
+                            : 'border-gray-200 hover:border-gray-300 cursor-pointer'
+                          : 'border-gray-100 bg-gray-50 cursor-not-allowed'
+                      }`}
+                      onClick={isClickable ? () => onTableSelect(table.name) : undefined}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className={`font-medium ${isClickable ? 'text-gray-700' : 'text-gray-400'}`}>
+                          {table.name}
+                        </span>
+                        <span className={`text-sm ${isClickable ? 'text-gray-500' : 'text-gray-400'}`}>
+                          {table.rowCount} rows
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}

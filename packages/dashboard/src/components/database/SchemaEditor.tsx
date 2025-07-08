@@ -1,7 +1,7 @@
 import { useState } from 'preact/hooks'
 import { type NewTableColumn, useTableOperations } from '../../hooks/useTableOperations'
 import type { ColumnInfo, ForeignKeyInfo, IndexInfo, TableInfo } from '../../lib/api'
-import { generateIndexName, getSQLTypes, getUserTables } from '../../utils/database'
+import { generateIndexName, getSQLTypes, getUserTables, isSystemTable, isEditableSystemTable } from '../../utils/database'
 
 interface SchemaEditorProps {
   tableName: string | null
@@ -42,6 +42,9 @@ export function SchemaEditor({
     error: operationsError,
     clearError,
   } = useTableOperations()
+
+  // Check if current table allows schema modifications
+  const canEditSchema = tableName ? !isSystemTable(tableName) : false
 
   // Handle add column
   const handleAddColumn = async (e: Event) => {
@@ -128,25 +131,32 @@ export function SchemaEditor({
       {/* Schema Overview */}
       <div className="bg-white rounded-lg shadow-sm border p-6">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-900">{tableName} Schema</h2>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setShowSchemaEditor(true)}
-              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-              disabled={loading || operationsLoading}
-            >
-              Add Column
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowIndexManager(true)}
-              className="px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors"
-              disabled={loading || operationsLoading}
-            >
-              Manage Indexes
-            </button>
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">{tableName} Schema</h2>
+            {!canEditSchema && (
+              <p className="text-sm text-gray-500 mt-1">System table - schema is read-only</p>
+            )}
           </div>
+          {canEditSchema && (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowSchemaEditor(true)}
+                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                disabled={loading || operationsLoading}
+              >
+                Add Column
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowIndexManager(true)}
+                className="px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors"
+                disabled={loading || operationsLoading}
+              >
+                Manage Indexes
+              </button>
+            </div>
+          )}
         </div>
 
         {operationsError && (

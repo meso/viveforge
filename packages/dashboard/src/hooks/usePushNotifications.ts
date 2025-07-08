@@ -16,15 +16,23 @@ export function usePushNotifications() {
   const [logs, setLogs] = useState<NotificationLog[]>([])
   const [vapidPublicKey, setVapidPublicKey] = useState<string>('')
   const [activeTab, setActiveTab] = useState<ActiveTab>('settings')
+  const [vapidConfigured, setVapidConfigured] = useState<boolean | null>(null)
 
   // Initialize on component mount
   useEffect(() => {
-    initializePush()
-    fetchRules()
-    fetchLogs()
-    fetchVapidPublicKey()
-    checkAdminSubscription()
+    checkVapidStatus()
   }, [])
+
+  // Initialize other functions only after VAPID status is known
+  useEffect(() => {
+    if (vapidConfigured === true) {
+      initializePush()
+      fetchRules()
+      fetchLogs()
+      fetchVapidPublicKey()
+      checkAdminSubscription()
+    }
+  }, [vapidConfigured])
 
   // Push manager initialization
   const initializePush = async () => {
@@ -33,15 +41,65 @@ export function usePushNotifications() {
   }
 
   // API calls
+  const checkVapidStatus = async () => {
+    try {
+      const response = await fetch('/api/push/status', {
+        credentials: 'include',
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setVapidConfigured(data.configured)
+      } else {
+        console.error('VAPID status check failed:', response.status, response.statusText)
+        if (response.status === 403) {
+          console.log('Admin authentication required for VAPID status')
+        }
+        setVapidConfigured(false)
+      }
+    } catch (error) {
+      console.error('Failed to check VAPID status:', error)
+      setVapidConfigured(false)
+    }
+  }
+
   const fetchVapidPublicKey = async () => {
     try {
       const response = await fetch('/api/push/vapid-public-key')
       if (response.ok) {
         const data = await response.json()
         setVapidPublicKey(data.publicKey)
+      } else if (response.status === 500) {
+        // VAPID not configured, silently ignore
+        setVapidPublicKey('')
       }
     } catch (error) {
-      console.error('Failed to fetch VAPID public key:', error)
+      // Silently ignore errors when VAPID is not configured
+      setVapidPublicKey('')
+    }
+  }
+
+  const initializeVapid = async () => {
+    setLoading(true)
+    try {
+      const response = await fetch('/api/push/initialize', {
+        method: 'POST',
+        credentials: 'include',
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setVapidConfigured(true)
+        return data
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('VAPID initialization failed:', response.status, response.statusText, errorData)
+        throw new Error(`Failed to initialize VAPID keys: ${errorData.error || response.statusText}`)
+      }
+    } catch (error) {
+      console.error('Failed to initialize VAPID:', error)
+      throw error
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -53,9 +111,13 @@ export function usePushNotifications() {
       if (response.ok) {
         const data = await response.json()
         setIsAdminSubscribed(data.isSubscribed)
+      } else if (response.status === 500) {
+        // VAPID not configured, silently ignore
+        setIsAdminSubscribed(false)
       }
     } catch (error) {
-      console.error('Failed to check admin subscription:', error)
+      // Silently ignore errors when VAPID is not configured
+      setIsAdminSubscribed(false)
     }
   }
 
@@ -196,6 +258,7 @@ export function usePushNotifications() {
     logs,
     vapidPublicKey,
     activeTab,
+    vapidConfigured,
     setActiveTab,
     setLoading,
 
@@ -207,5 +270,7 @@ export function usePushNotifications() {
     handleToggleRule,
     fetchRules,
     fetchLogs,
+    initializeVapid,
+    checkVapidStatus,
   }
 }

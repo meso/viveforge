@@ -25,6 +25,7 @@ export const SYSTEM_TABLES = [
   'notification_rules',
   'notification_templates',
   'notification_logs',
+  'vapid_config',
 ] as const
 
 type SystemTable = (typeof SYSTEM_TABLES)[number]

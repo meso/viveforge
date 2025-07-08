@@ -38,11 +38,6 @@ export interface Env {
 
   // Durable Objects
   REALTIME?: CustomDurableObjectNamespace
-
-  // Web Push VAPID keys
-  VAPID_PUBLIC_KEY?: string
-  VAPID_PRIVATE_KEY?: string
-  VAPID_SUBJECT?: string
 }
 
 // Hono Context Variables

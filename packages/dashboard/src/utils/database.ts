@@ -22,6 +22,7 @@ export const SYSTEM_TABLES = [
   'notification_rules',
   'notification_templates',
   'notification_logs',
+  'vapid_config',
 ] as const
 
 /**
@@ -33,12 +34,24 @@ export const truncateId = (id: string | null): string => {
 }
 
 /**
+ * Check if a table is a system table
+ */
+export const isSystemTable = (tableName: string): boolean => {
+  return SYSTEM_TABLES.includes(tableName as (typeof SYSTEM_TABLES)[number])
+}
+
+/**
+ * Check if a table allows editing (no system tables are editable in the database UI)
+ */
+export const isEditableSystemTable = (tableName: string): boolean => {
+  return false // All system tables are read-only in database UI
+}
+
+/**
  * Filter out system tables for FK references
  */
 export const getUserTables = (tables: TableInfo[]): TableInfo[] => {
-  return tables.filter(
-    (table) => !SYSTEM_TABLES.includes(table.name as (typeof SYSTEM_TABLES)[number])
-  )
+  return tables.filter((table) => !isSystemTable(table.name))
 }
 
 /**

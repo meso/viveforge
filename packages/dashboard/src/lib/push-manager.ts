@@ -52,12 +52,12 @@ export class PushManager {
       // Wait for service worker to be ready
       await navigator.serviceWorker.ready
 
-      // Get VAPID public key
+      // Get VAPID public key (ignore errors if not configured)
       await this.fetchVapidPublicKey()
 
       return true
     } catch (error) {
-      console.error('Failed to initialize push notifications:', error)
+      // Silently ignore errors when VAPID is not configured
       return false
     }
   }
@@ -392,14 +392,19 @@ export class PushManager {
     try {
       const response = await fetch(`${this.apiBaseUrl}/push/vapid-public-key`)
       if (!response.ok) {
+        if (response.status === 500) {
+          // VAPID not configured, silently ignore
+          this.vapidPublicKey = null
+          return
+        }
         throw new Error('Failed to fetch VAPID public key')
       }
 
       const data = await response.json()
       this.vapidPublicKey = data.publicKey
     } catch (error) {
-      console.error('Failed to fetch VAPID public key:', error)
-      throw error
+      // Silently ignore errors when VAPID is not configured
+      this.vapidPublicKey = null
     }
   }
 

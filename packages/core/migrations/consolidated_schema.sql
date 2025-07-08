@@ -242,6 +242,17 @@ CREATE TABLE notification_logs (
   FOREIGN KEY (template_id) REFERENCES notification_templates(id) ON DELETE SET NULL
 );
 
+-- VAPID configuration storage
+CREATE TABLE vapid_config (
+  id INTEGER PRIMARY KEY CHECK (id = 1), -- Ensure only one row
+  public_key TEXT NOT NULL,
+  encrypted_private_key TEXT NOT NULL,
+  encryption_iv TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- ============================
 -- User Data Tables
 -- ============================

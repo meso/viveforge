@@ -1,7 +1,7 @@
 import { useRef, useState } from 'preact/hooks'
 import { useTableOperations } from '../../hooks/useTableOperations'
 import type { ColumnInfo, ForeignKeyInfo } from '../../lib/api'
-import { copyToClipboard, formatDateTime, isIdValue, truncateId } from '../../utils/database'
+import { copyToClipboard, formatDateTime, isIdValue, truncateId, isSystemTable, isEditableSystemTable } from '../../utils/database'
 
 interface DataViewerProps {
   tableName: string
@@ -51,6 +51,13 @@ export function DataViewer({
     clearError,
   } = useTableOperations()
 
+  // Check table editing permissions
+  const isSystemTableType = isSystemTable(tableName)
+  const canEditTable = !isSystemTableType || isEditableSystemTable(tableName)
+  const showCreateButton = canEditTable
+  const showEditControls = canEditTable
+  const showDeleteButton = canEditTable
+
   // Helper function to check if a column has foreign key constraint
   const hasForeignKey = (columnName: string): boolean => {
     return tableForeignKeys.some((fk) => fk.from === columnName)
@@ -83,6 +90,11 @@ export function DataViewer({
 
   // Handle cell click for inline editing
   const handleCellClick = (rowId: string, columnName: string, currentValue: unknown) => {
+    // Don't edit if table editing is not allowed
+    if (!showEditControls) {
+      return
+    }
+
     // Don't edit system columns
     if (['id', 'created_at', 'updated_at'].includes(columnName)) {
       return
@@ -179,15 +191,24 @@ export function DataViewer({
     <div className="bg-white rounded-lg shadow-sm border">
       <div className="p-6 border-b">
         <div className="flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-gray-900">{tableName} Data</h2>
-          <button
-            type="button"
-            onClick={() => setShowCreateForm(true)}
-            className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
-            disabled={loading || operationsLoading}
-          >
-            Add Record
-          </button>
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">{tableName} Data</h2>
+            {isSystemTableType && (
+              <p className="text-sm text-gray-500 mt-1">
+                {canEditTable ? 'Admin-only system table' : 'Read-only system table'}
+              </p>
+            )}
+          </div>
+          {showCreateButton && (
+            <button
+              type="button"
+              onClick={() => setShowCreateForm(true)}
+              className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
+              disabled={loading || operationsLoading}
+            >
+              Add Record
+            </button>
+          )}
         </div>
 
         {operationsError && (
@@ -225,9 +246,11 @@ export function DataViewer({
                     {column.name}
                   </th>
                 ))}
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
+                {showEditControls && (
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -342,16 +365,18 @@ export function DataViewer({
                         </td>
                       )
                     })}
-                    <td className="px-4 py-3 text-sm">
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteRecord(row.id as string)}
-                        className="text-red-600 hover:text-red-800 text-sm"
-                        disabled={operationsLoading}
-                      >
-                        Delete
-                      </button>
-                    </td>
+                    {showEditControls && (
+                      <td className="px-4 py-3 text-sm">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteRecord(row.id as string)}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                          disabled={operationsLoading}
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 )
               })}

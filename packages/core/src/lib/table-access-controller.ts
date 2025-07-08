@@ -6,6 +6,7 @@ import type {
 } from '../types/cloudflare'
 import { DataManager } from './data-manager'
 import { ErrorHandler } from './error-handler'
+import { SYSTEM_TABLES } from './table-operations'
 import { generateId } from './utils'
 
 interface TableAccessControllerEnvironment {
@@ -262,26 +263,3 @@ export class TableAccessController {
     )
   }
 }
-
-// Import system tables list for filtering
-const SYSTEM_TABLES = [
-  'admins',
-  'sessions',
-  'schema_snapshots',
-  'schema_snapshot_counter',
-  'd1_migrations',
-  'api_keys',
-  'user_sessions',
-  'oauth_providers',
-  'app_settings',
-  'table_policies',
-  'hooks',
-  'event_queue',
-  'realtime_subscriptions',
-  'custom_queries',
-  'custom_query_logs',
-  'push_subscriptions',
-  'notification_rules',
-  'notification_templates',
-  'notification_logs',
-] as const

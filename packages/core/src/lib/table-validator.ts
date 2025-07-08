@@ -2,29 +2,7 @@ import type { D1Database } from '../types/cloudflare'
 import { ErrorHandler } from './error-handler'
 import type { ColumnDefinition } from './schema-manager'
 import { validateAndEscapeColumnName, validateAndEscapeTableName } from './sql-utils'
-
-// System tables that cannot be modified by users
-const SYSTEM_TABLES = [
-  'admins',
-  'sessions',
-  'schema_snapshots',
-  'schema_snapshot_counter',
-  'd1_migrations',
-  'api_keys',
-  'user_sessions',
-  'oauth_providers',
-  'app_settings',
-  'table_policies',
-  'hooks',
-  'event_queue',
-  'realtime_subscriptions',
-  'custom_queries',
-  'custom_query_logs',
-  'push_subscriptions',
-  'notification_rules',
-  'notification_templates',
-  'notification_logs',
-] as const
+import { SYSTEM_TABLES } from './table-operations'
 
 type SystemTable = (typeof SYSTEM_TABLES)[number]
 
