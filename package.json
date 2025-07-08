@@ -8,6 +8,7 @@
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm -r build",
     "deploy": "pnpm --filter @vibebase/dashboard build && pnpm --filter @vibebase/core run deploy",
+    "deploy:button": "pnpm --filter @vibebase/dashboard build && cd packages/core && npm run db:init && cd ../.. && wrangler deploy",
     "test": "pnpm -r test",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",

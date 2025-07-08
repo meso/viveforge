@@ -4,7 +4,7 @@
 
 ⚠️ **Work in Progress** - このプロジェクトは現在開発中です。基本機能は動作しますが、まだ実験的な段階にあります。本番環境での使用は推奨されません。
 
-[![Deploy to Cloudflare](https://img.shields.io/badge/Deploy%20to-Cloudflare-orange?style=for-the-badge&logo=cloudflare)](https://github.com/vibebase/vibebase/actions/workflows/deploy.yml)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/meso/vibebase)
 
 Vibebaseは、Cloudflare上で動作する、AIを活用してコードを書く開発者（Vibe Coders）のためのパーソナルBaaSプラットフォームです。フロントエンドやモバイルアプリ開発が得意な開発者が、バックエンドインフラを簡単に構築・管理できることを目指しています。
 
@@ -27,37 +27,20 @@ Vibebaseは、Cloudflare上で動作する、AIを活用してコードを書く
 
 ### 🎯 1-Click 自動デプロイ
 
-1. **GitHub アカウントでログイン**して、下記ボタンをクリック
-2. **Cloudflare API Token**を設定（初回のみ）
-3. **Worker名を入力**（オプション）
-4. **Deploy**ボタンをクリック
-5. **完了！**あなたのVibebaseインスタンスが稼働開始
+1. **Deploy Buttonをクリック**
+2. **GitHubアカウントでログイン**
+3. **Cloudflareアカウントでログイン**
+4. **プロジェクト名を入力**（オプション）
+5. **Deploy**ボタンをクリック
+6. **完了！**あなたのVibebaseインスタンスが稼働開始
 
-[![Deploy to Cloudflare](https://img.shields.io/badge/Deploy%20to-Cloudflare-orange?style=for-the-badge&logo=cloudflare)](https://github.com/vibebase/vibebase/actions/workflows/deploy.yml)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/meso/vibebase)
 
 **📋 必要な準備**
-1. [Cloudflare アカウント](https://dash.cloudflare.com)を作成
-2. [Cloudflare API Token](https://dash.cloudflare.com/profile/api-tokens)を取得
-   - Template: **Custom token**
-   - Permissions: `Workers:Edit`, `D1:Edit`, `R2:Edit`, `KV:Edit`
+- [Cloudflare アカウント](https://dash.cloudflare.com)（無料）
+- [GitHub アカウント](https://github.com)（無料）
+- **API Tokenの設定は不要**！
 
-または、以下のコマンドで手動デプロイ：
-
-```bash
-# 1. リポジトリをクローン
-git clone https://github.com/meso/vibebase.git
-cd vibebase
-
-# 2. Wrangler CLIをインストール
-npm install -g wrangler
-
-# 3. Cloudflareにログイン
-wrangler login
-
-# 4. 自動セットアップを実行
-chmod +x deploy/setup.sh
-./deploy/setup.sh
-```
 
 **📋 R2について**
 - R2を有効化しない場合でも基本機能は動作します

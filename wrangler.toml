@@ -1,9 +1,7 @@
-# This is the template wrangler.toml for Deploy Button
-# The actual configuration will be in packages/core/wrangler.toml
-
 name = "vibebase"
 main = "packages/core/src/index.ts"
 compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
 
 # Workers Assets for dashboard
 assets = { directory = "packages/dashboard/dist", binding = "ASSETS", run_worker_first = true }
@@ -12,5 +10,26 @@ assets = { directory = "packages/dashboard/dist", binding = "ASSETS", run_worker
 [observability]
 enabled = true
 
-# Note: D1, R2, and KV resources will be created during deployment
-# See packages/core/wrangler.toml for the actual configuration
+# D1 Database binding (新規作成用 - IDなし)
+[[d1_databases]]
+binding = "DB"
+database_name = "vibebase-db"
+
+# R2 Storage bindings (新規作成用 - IDなし)
+[[r2_buckets]]
+binding = "SYSTEM_STORAGE"
+bucket_name = "vibebase-system"
+
+[[r2_buckets]]
+binding = "USER_STORAGE"
+bucket_name = "vibebase-storage"
+
+# KV Namespace for sessions (新規作成用 - IDなし)
+[[kv_namespaces]]
+binding = "SESSIONS"
+
+# Environment variables
+[vars]
+ENVIRONMENT = "production"
+VIBEBASE_DEPLOY_MODE = "deploy-button"
+VIBEBASE_AUTH_URL = "https://auth.vibebase.workers.dev"
