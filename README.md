@@ -25,30 +25,21 @@ Vibebaseは、Cloudflare上で動作する、AIを活用してコードを書く
 
 ## 🚀 クイックスタート
 
-### 🎯 1-Click 自動デプロイ
+### 🎯 2-Click 自動デプロイ
 
 1. **Deploy Buttonをクリック**
-2. **GitHubアカウントでログイン**
-3. **Cloudflareアカウントでログイン**
-4. **プロジェクト名を入力**（オプション）
-5. **Deploy**ボタンをクリック
-6. **完了！**あなたのVibebaseインスタンスが稼働開始
+2. **Cloudflareアカウントでログイン**
+3. **GitHubアカウントと連携**
+4. **R2の有効化（支払い情報の登録）** 無料枠からスタート
+5. **必要な情報を入力**（デフォルトから変える場合）
+6. **「作成とデプロイ」をクリック**
+7. **完了！** あなたのVibebaseインスタンスが稼働開始
 
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/meso/vibebase)
 
 **📋 必要な準備**
 - [Cloudflare アカウント](https://dash.cloudflare.com)（無料）
 - [GitHub アカウント](https://github.com)（無料）
-- **API Tokenの設定は不要**！
-
-
-**📋 R2について**
-- R2を有効化しない場合でも基本機能は動作します
-- R2なしの場合、以下の機能が制限されます：
-  - スキーマスナップショットのファイル保存
-  - 将来的なファイルアップロード機能
-
-詳細なデプロイ手順は [DEPLOYMENT.md](./DEPLOYMENT.md) をご覧ください。
 
 ## 📋 主要機能
 
@@ -225,7 +216,7 @@ curl -X POST https://your-worker.your-subdomain.workers.dev/api/push/send \
   }'
 ```
 
-詳細なAPI仕様は [DEPLOYMENT.md](./DEPLOYMENT.md) をご覧ください。
+詳細なAPI仕様は [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) をご覧ください。
 
 ## 🗺️ ロードマップ
 
