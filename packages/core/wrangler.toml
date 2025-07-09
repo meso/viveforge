@@ -29,7 +29,6 @@ bucket_name = "vibebase-storage"
 [[kv_namespaces]]
 binding = "SESSIONS"
 id = "placeholder"
-preview_id = "placeholder"
 
 # Durable Objects for realtime functionality
 [[durable_objects.bindings]]
