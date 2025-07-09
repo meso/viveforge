@@ -14,6 +14,7 @@ enabled = true
 [[d1_databases]]
 binding = "DB"
 database_name = "vibebase-db"
+database_id = "placeholder"
 
 # R2 Storage bindings (新規作成用 - IDなし)
 [[r2_buckets]]
@@ -27,7 +28,8 @@ bucket_name = "vibebase-storage"
 # KV Namespace for sessions (新規作成用 - IDなし)
 [[kv_namespaces]]
 binding = "SESSIONS"
-preview_id = "SESSIONS_PREVIEW"
+id = "placeholder"
+preview_id = "placeholder"
 
 # Durable Objects for realtime functionality
 [[durable_objects.bindings]]
