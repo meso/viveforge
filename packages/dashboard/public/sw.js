@@ -79,22 +79,7 @@ self.addEventListener('fetch', event => {
 
 // Push event
 self.addEventListener('push', event => {
-  console.log('🔔 Push event received:', event);
-  console.log('🔔 Event data:', event.data);
-  console.log('🔔 Has data:', !!event.data);
-  console.log('🔔 Data text:', event.data ? event.data.text() : 'No data');
-  console.log('🔔 Timestamp:', new Date().toISOString());
-  
-  // Force show a notification even if no data (for debugging)
   if (!event.data) {
-    console.log('🔔 No data received, showing fallback notification');
-    event.waitUntil(
-      self.registration.showNotification('Push Event Received', {
-        body: 'Push event was received but no data was provided',
-        icon: '/favicon.svg',
-        tag: 'push-debug'
-      })
-    );
     return;
   }
   
@@ -107,29 +92,26 @@ self.addEventListener('push', event => {
     data: {}
   };
   
-  if (event.data) {
-    try {
-      const payload = event.data.json();
-      console.log('Push payload:', payload);
-      
-      notificationData = {
-        title: payload.title || notificationData.title,
-        body: payload.body || notificationData.body,
-        icon: payload.icon || notificationData.icon,
-        badge: payload.badge || notificationData.badge,
-        image: payload.image,
-        tag: payload.tag || notificationData.tag,
-        data: {
-          ...payload.data,
-          clickAction: payload.clickAction || payload.data?.clickAction
-        },
-        actions: payload.actions,
-        requireInteraction: payload.requireInteraction,
-        silent: payload.silent
-      };
-    } catch (error) {
-      console.error('Failed to parse push payload:', error);
-    }
+  try {
+    const payload = event.data.json();
+    
+    notificationData = {
+      title: payload.title || notificationData.title,
+      body: payload.body || notificationData.body,
+      icon: payload.icon || notificationData.icon,
+      badge: payload.badge || notificationData.badge,
+      image: payload.image,
+      tag: payload.tag || notificationData.tag,
+      data: {
+        ...payload.data,
+        clickAction: payload.clickAction || payload.data?.clickAction
+      },
+      actions: payload.actions,
+      requireInteraction: payload.requireInteraction,
+      silent: payload.silent
+    };
+  } catch (error) {
+    console.error('Failed to parse push payload:', error);
   }
   
   const options = {

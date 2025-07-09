@@ -83,12 +83,10 @@ export class WebPushService extends PushService {
     }
 
     try {
-      console.log('Starting push notification send with webcrypto-web-push...')
-      
       // Convert our subscription to webcrypto-web-push format
       const webPushSubscription: WebPushSubscription = {
         endpoint: subscription.endpoint,
-        expirationTime: null, // No expiration
+        expirationTime: null,
         keys: {
           p256dh: subscription.p256dh,
           auth: subscription.auth,
@@ -118,24 +116,12 @@ export class WebPushService extends PushService {
         },
       }
 
-      console.log('Message payload:', message)
-      console.log('Subscription endpoint:', subscription.endpoint)
-
       // Build push payload using webcrypto-web-push
       const pushPayload = await buildPushPayload(message, webPushSubscription, vapidConfig)
-      console.log('Push payload built successfully')
 
       // Send the push notification
       const response = await fetch(subscription.endpoint, pushPayload)
-      console.log('Push response status:', response.status, response.statusText)
       
-      if (!response.ok) {
-        const responseText = await response.text()
-        console.error('Push notification failed:', response.status, responseText)
-      } else {
-        console.log('Push notification sent successfully to FCM')
-      }
-
       return {
         success: response.ok,
         statusCode: response.status,
@@ -143,7 +129,6 @@ export class WebPushService extends PushService {
         error: response.ok ? undefined : `HTTP ${response.status}: ${response.statusText}`,
       }
     } catch (error) {
-      console.error('Push service send error:', error)
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -168,119 +153,6 @@ export class WebPushService extends PushService {
     return results
   }
 
-  private async generateVAPIDJWT(endpoint: string): Promise<string> {
-    try {
-      const url = new URL(endpoint)
-      const aud = `${url.protocol}//${url.host}`
-
-      const header = {
-        typ: 'JWT',
-        alg: 'ES256',
-      }
-
-      const payload = {
-        aud,
-        exp: Math.floor(Date.now() / 1000) + 12 * 60 * 60, // 12 hours
-        sub: this.vapidSubject,
-      }
-
-      // Import the private key using JWK format
-      const jwk = this.convertPrivateKeyToJWK(this.vapidPrivateKey)
-
-      const privateKey = await crypto.subtle.importKey(
-        'jwk',
-        jwk,
-        {
-          name: 'ECDSA',
-          namedCurve: 'P-256',
-        },
-        false,
-        ['sign']
-      )
-
-      // Create JWT
-      const encodedHeader = this.urlBase64Encode(JSON.stringify(header))
-      const encodedPayload = this.urlBase64Encode(JSON.stringify(payload))
-      const signingInput = `${encodedHeader}.${encodedPayload}`
-
-      const signature = await crypto.subtle.sign(
-        {
-          name: 'ECDSA',
-          hash: 'SHA-256',
-        },
-        privateKey,
-        new TextEncoder().encode(signingInput)
-      )
-
-      const encodedSignature = this.urlBase64Encode(signature)
-
-      return `${signingInput}.${encodedSignature}`
-    } catch (error) {
-      console.error('VAPID JWT generation failed:', error)
-      console.error('Private key used:', this.vapidPrivateKey)
-      throw new Error(
-        `VAPID JWT generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      )
-    }
-  }
-
-
-  private convertPrivateKeyToJWK(privateKey: string): JsonWebKey {
-    // For VAPID, we need to convert the base64url private key to JWK format
-    // The private key is 32 bytes for P-256 curve
-    const keyData = this.urlBase64Decode(privateKey)
-
-    if (keyData.length !== 32) {
-      throw new Error(`Invalid private key length: ${keyData.length}, expected 32 bytes`)
-    }
-
-    // Convert the public key from the VAPID public key
-    const publicKeyData = this.urlBase64Decode(this.vapidPublicKey)
-
-    // Extract x and y coordinates from uncompressed public key (65 bytes)
-    if (publicKeyData.length !== 65 || publicKeyData[0] !== 0x04) {
-      throw new Error('Invalid public key format')
-    }
-
-    const x = this.urlBase64Encode(publicKeyData.slice(1, 33))
-    const y = this.urlBase64Encode(publicKeyData.slice(33, 65))
-
-    return {
-      kty: 'EC',
-      crv: 'P-256',
-      d: privateKey,
-      x: x,
-      y: y,
-      key_ops: ['sign'],
-    }
-  }
-
-  private urlBase64Encode(data: string | ArrayBuffer): string {
-    const base64 =
-      typeof data === 'string' ? btoa(data) : btoa(String.fromCharCode(...new Uint8Array(data)))
-
-    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
-  }
-
-  private urlBase64Decode(data: string): Uint8Array {
-    const base64 = data
-      .replace(/-/g, '+')
-      .replace(/_/g, '/')
-      .padEnd(data.length + ((4 - (data.length % 4)) % 4), '=')
-
-    return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
-  }
-
-  private getUrgency(priority: 'high' | 'normal' | 'low'): string {
-    switch (priority) {
-      case 'high':
-        return 'high'
-      case 'low':
-        return 'low'
-      default:
-        return 'normal'
-    }
-  }
 
 }
 
