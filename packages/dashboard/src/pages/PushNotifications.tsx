@@ -256,8 +256,8 @@ export default function PushNotifications() {
       {/* Tab Content */}
       <div role="tabpanel" id="settings-panel" aria-labelledby="settings-tab">
         {activeTab === 'settings' && (
-          <PushSettings 
-            vapidPublicKey={vapidPublicKey} 
+          <PushSettings
+            vapidPublicKey={vapidPublicKey}
             onReinitializeVapid={initializeVapid}
             loading={loading}
           />

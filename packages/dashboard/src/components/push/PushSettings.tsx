@@ -81,7 +81,8 @@ export function PushSettings({ vapidPublicKey, onReinitializeVapid, loading }: P
             </div>
             <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
               <p className="text-xs text-yellow-800">
-                ⚠️ This will invalidate all existing subscriptions. Users will need to re-subscribe to receive notifications.
+                ⚠️ This will invalidate all existing subscriptions. Users will need to re-subscribe
+                to receive notifications.
               </p>
             </div>
           </div>
@@ -142,7 +143,7 @@ export function PushSettings({ vapidPublicKey, onReinitializeVapid, loading }: P
               </div>
             </div>
           </div>
-          
+
           <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
             <div className="flex">
               <div className="flex-shrink-0">

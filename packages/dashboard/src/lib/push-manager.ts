@@ -30,6 +30,11 @@ export class PushManager {
     this.apiBaseUrl = apiBaseUrl
   }
 
+  // Getter for accessing registration from outside the class
+  get serviceWorkerRegistration(): ServiceWorkerRegistration | null {
+    return this.registration
+  }
+
   // Initialize push notifications
   async initialize(): Promise<boolean> {
     try {
@@ -269,7 +274,7 @@ export class PushManager {
       console.log('New subscription created:', subscription.endpoint)
       console.log('Subscription keys:', {
         p256dh: this.arrayBufferToBase64(subscription.getKey('p256dh') || new ArrayBuffer(0)),
-        auth: this.arrayBufferToBase64(subscription.getKey('auth') || new ArrayBuffer(0))
+        auth: this.arrayBufferToBase64(subscription.getKey('auth') || new ArrayBuffer(0)),
       })
 
       // Send subscription to server (admin endpoint)
@@ -317,7 +322,7 @@ export class PushManager {
       }
 
       const subscription = await this.registration.pushManager.getSubscription()
-      
+
       if (!subscription) {
         // Still notify server to clean up any orphaned subscriptions
         const response = await fetch(`${this.apiBaseUrl}/push/admin/unsubscribe`, {
@@ -330,7 +335,7 @@ export class PushManager {
             // No endpoint, server will clean up all subscriptions
           }),
         })
-        
+
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
           console.error('Failed to notify server of admin unsubscription:', errorData)

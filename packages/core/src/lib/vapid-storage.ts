@@ -161,13 +161,10 @@ export class VapidStorage {
       'raw',
       keyPair.publicKey
     )) as ArrayBuffer
-    
+
     // Export private key as JWK to get the raw 'd' parameter
-    const privateKeyJWK = (await crypto.subtle.exportKey(
-      'jwk',
-      keyPair.privateKey
-    )) as JsonWebKey
-    
+    const privateKeyJWK = (await crypto.subtle.exportKey('jwk', keyPair.privateKey)) as JsonWebKey
+
     if (!privateKeyJWK.d) {
       throw new Error('Failed to export private key: d parameter missing')
     }

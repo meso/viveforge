@@ -1,6 +1,9 @@
 // Push notification service interfaces and implementations
 
-import { buildPushPayload, type PushSubscription as WebPushSubscription } from '@block65/webcrypto-web-push'
+import {
+  buildPushPayload,
+  type PushSubscription as WebPushSubscription,
+} from '@block65/webcrypto-web-push'
 
 export interface PushSubscription {
   id: string
@@ -110,7 +113,7 @@ export class WebPushService extends PushService {
           badge: payload.badge,
           tag: payload.tag,
           data: payload.data ? JSON.parse(JSON.stringify(payload.data)) : {},
-          actions: payload.actions,
+          actions: payload.actions ? JSON.parse(JSON.stringify(payload.actions)) : undefined,
           requireInteraction: payload.requireInteraction,
           silent: payload.silent,
         },
@@ -121,7 +124,7 @@ export class WebPushService extends PushService {
 
       // Send the push notification
       const response = await fetch(subscription.endpoint, pushPayload)
-      
+
       return {
         success: response.ok,
         statusCode: response.status,
@@ -152,8 +155,6 @@ export class WebPushService extends PushService {
 
     return results
   }
-
-
 }
 
 // Factory function to create push service based on provider

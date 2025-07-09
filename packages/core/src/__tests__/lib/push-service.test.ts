@@ -24,7 +24,7 @@ describe('WebPushService', () => {
   describe('send', () => {
     it('should send push notification successfully', async () => {
       const { buildPushPayload } = await import('@block65/webcrypto-web-push')
-      
+
       // Mock successful fetch response
       const mockResponse = new Response(null, {
         status: 200,
@@ -37,11 +37,15 @@ describe('WebPushService', () => {
       const mockPushPayload = {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/octet-stream',
-          'Content-Encoding': 'aes128gcm',
-          'Authorization': 'vapid t=mock-jwt-token, k=mock-public-key',
+          'content-encoding': 'aes128gcm',
+          'content-length': '64',
+          'content-type': 'application/octet-stream',
+          'crypto-key': 'dh=mock-key',
+          encryption: 'salt=mock-salt',
+          ttl: '86400',
+          authorization: 'vapid t=mock-jwt-token, k=mock-public-key',
         },
-        body: new ArrayBuffer(64),
+        body: new Uint8Array(64),
       }
       vi.mocked(buildPushPayload).mockResolvedValue(mockPushPayload)
 
@@ -88,7 +92,8 @@ describe('WebPushService', () => {
         },
         {
           subject: 'mailto:test@example.com',
-          publicKey: 'BLk5DRYrDTproCdr3CVKQlinA66-Ab6DaLRyhvn_OMIYV5r2iazgiX4BQKgcmiMi_MSR2DJ2Xe60zz9gKj_oo4U',
+          publicKey:
+            'BLk5DRYrDTproCdr3CVKQlinA66-Ab6DaLRyhvn_OMIYV5r2iazgiX4BQKgcmiMi_MSR2DJ2Xe60zz9gKj_oo4U',
           privateKey: 'AjV0e5aJ8v9U04x90r_VYF1CcC9FjQUrQ58WARPHO44',
         }
       )
@@ -97,7 +102,7 @@ describe('WebPushService', () => {
 
     it('should handle send failure', async () => {
       const { buildPushPayload } = await import('@block65/webcrypto-web-push')
-      
+
       // Mock failed fetch response
       const mockResponse = new Response(null, {
         status: 400,
@@ -110,11 +115,15 @@ describe('WebPushService', () => {
       const mockPushPayload = {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/octet-stream',
-          'Content-Encoding': 'aes128gcm',
-          'Authorization': 'vapid t=mock-jwt-token, k=mock-public-key',
+          'content-encoding': 'aes128gcm',
+          'content-length': '64',
+          'content-type': 'application/octet-stream',
+          'crypto-key': 'dh=mock-key',
+          encryption: 'salt=mock-salt',
+          ttl: '86400',
+          authorization: 'vapid t=mock-jwt-token, k=mock-public-key',
         },
-        body: new ArrayBuffer(64),
+        body: new Uint8Array(64),
       }
       vi.mocked(buildPushPayload).mockResolvedValue(mockPushPayload)
 
@@ -141,7 +150,7 @@ describe('WebPushService', () => {
 
     it('should handle buildPushPayload errors', async () => {
       const { buildPushPayload } = await import('@block65/webcrypto-web-push')
-      
+
       // Mock buildPushPayload to throw an error
       vi.mocked(buildPushPayload).mockRejectedValue(new Error('Invalid key format'))
 
@@ -169,7 +178,7 @@ describe('WebPushService', () => {
   describe('sendBatch', () => {
     it('should send notifications to multiple subscriptions', async () => {
       const { buildPushPayload } = await import('@block65/webcrypto-web-push')
-      
+
       // Mock successful responses
       const mockResponse = new Response(null, {
         status: 200,
@@ -182,11 +191,15 @@ describe('WebPushService', () => {
       const mockPushPayload = {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/octet-stream',
-          'Content-Encoding': 'aes128gcm',
-          'Authorization': 'vapid t=mock-jwt-token, k=mock-public-key',
+          'content-encoding': 'aes128gcm',
+          'content-length': '64',
+          'content-type': 'application/octet-stream',
+          'crypto-key': 'dh=mock-key',
+          encryption: 'salt=mock-salt',
+          ttl: '86400',
+          authorization: 'vapid t=mock-jwt-token, k=mock-public-key',
         },
-        body: new ArrayBuffer(64),
+        body: new Uint8Array(64),
       }
       vi.mocked(buildPushPayload).mockResolvedValue(mockPushPayload)
 
@@ -291,7 +304,7 @@ describe('WebPushService', () => {
   describe('Payload structure', () => {
     it('should correctly structure message payload with all fields', async () => {
       const { buildPushPayload } = await import('@block65/webcrypto-web-push')
-      
+
       // Mock successful fetch response
       const mockResponse = new Response(null, {
         status: 200,
@@ -304,10 +317,15 @@ describe('WebPushService', () => {
       const mockPushPayload = {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/octet-stream',
-          'Content-Encoding': 'aes128gcm',
+          'content-encoding': 'aes128gcm',
+          'content-length': '64',
+          'content-type': 'application/octet-stream',
+          'crypto-key': 'dh=mock-key',
+          encryption: 'salt=mock-salt',
+          ttl: '86400',
+          authorization: 'vapid t=mock-jwt-token, k=mock-public-key',
         },
-        body: new ArrayBuffer(64),
+        body: new Uint8Array(64),
       }
       vi.mocked(buildPushPayload).mockResolvedValue(mockPushPayload)
 
@@ -360,7 +378,8 @@ describe('WebPushService', () => {
         }),
         expect.objectContaining({
           subject: 'mailto:test@example.com',
-          publicKey: 'BLk5DRYrDTproCdr3CVKQlinA66-Ab6DaLRyhvn_OMIYV5r2iazgiX4BQKgcmiMi_MSR2DJ2Xe60zz9gKj_oo4U',
+          publicKey:
+            'BLk5DRYrDTproCdr3CVKQlinA66-Ab6DaLRyhvn_OMIYV5r2iazgiX4BQKgcmiMi_MSR2DJ2Xe60zz9gKj_oo4U',
           privateKey: 'AjV0e5aJ8v9U04x90r_VYF1CcC9FjQUrQ58WARPHO44',
         })
       )
