@@ -4,14 +4,10 @@ import { WebPushService } from '../../lib/push-service'
 // Mock fetch globally
 global.fetch = vi.fn()
 
-// Mock crypto.subtle
-const mockCrypto = {
-  subtle: {
-    importKey: vi.fn(),
-    sign: vi.fn(),
-  },
-}
-Object.defineProperty(global, 'crypto', { value: mockCrypto })
+// Mock the webcrypto-web-push library
+vi.mock('@block65/webcrypto-web-push', () => ({
+  buildPushPayload: vi.fn(),
+}))
 
 describe('WebPushService', () => {
   let service: WebPushService
@@ -27,23 +23,27 @@ describe('WebPushService', () => {
 
   describe('send', () => {
     it('should send push notification successfully', async () => {
+      const { buildPushPayload } = await import('@block65/webcrypto-web-push')
+      
       // Mock successful fetch response
       const mockResponse = new Response(null, {
         status: 200,
         statusText: 'OK',
-        headers: new Headers(),
+        headers: new Headers({ 'content-type': 'application/json' }),
       })
       vi.mocked(global.fetch).mockResolvedValue(mockResponse)
 
-      // Mock crypto operations
-      mockCrypto.subtle.importKey.mockResolvedValue({})
-      mockCrypto.subtle.sign.mockResolvedValue(new ArrayBuffer(64))
-
-      // Mock the private JWT generation method
-      vi.spyOn(
-        service as unknown as { generateVAPIDJWT: () => Promise<string> },
-        'generateVAPIDJWT'
-      ).mockResolvedValue('mock-jwt-token')
+      // Mock buildPushPayload to return a valid fetch request object
+      const mockPushPayload = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/octet-stream',
+          'Content-Encoding': 'aes128gcm',
+          'Authorization': 'vapid t=mock-jwt-token, k=mock-public-key',
+        },
+        body: new ArrayBuffer(64),
+      }
+      vi.mocked(buildPushPayload).mockResolvedValue(mockPushPayload)
 
       const subscription = {
         id: 'sub1',
@@ -63,19 +63,41 @@ describe('WebPushService', () => {
 
       expect(result.success).toBe(true)
       expect(result.statusCode).toBe(200)
-      expect(global.fetch).toHaveBeenCalledWith(
-        subscription.endpoint,
-        expect.objectContaining({
-          method: 'POST',
-          headers: expect.objectContaining({
-            'Content-Type': 'application/octet-stream',
-            'Content-Encoding': 'aes128gcm',
-          }),
-        })
+      expect(buildPushPayload).toHaveBeenCalledWith(
+        {
+          data: {
+            title: 'Test Notification',
+            body: 'This is a test notification',
+            icon: undefined,
+            image: undefined,
+            badge: undefined,
+            tag: undefined,
+            data: {},
+            actions: undefined,
+            requireInteraction: undefined,
+            silent: undefined,
+          },
+        },
+        {
+          endpoint: subscription.endpoint,
+          expirationTime: null,
+          keys: {
+            p256dh: subscription.p256dh,
+            auth: subscription.auth,
+          },
+        },
+        {
+          subject: 'mailto:test@example.com',
+          publicKey: 'BLk5DRYrDTproCdr3CVKQlinA66-Ab6DaLRyhvn_OMIYV5r2iazgiX4BQKgcmiMi_MSR2DJ2Xe60zz9gKj_oo4U',
+          privateKey: 'AjV0e5aJ8v9U04x90r_VYF1CcC9FjQUrQ58WARPHO44',
+        }
       )
+      expect(global.fetch).toHaveBeenCalledWith(subscription.endpoint, mockPushPayload)
     })
 
     it('should handle send failure', async () => {
+      const { buildPushPayload } = await import('@block65/webcrypto-web-push')
+      
       // Mock failed fetch response
       const mockResponse = new Response(null, {
         status: 400,
@@ -84,15 +106,17 @@ describe('WebPushService', () => {
       })
       vi.mocked(global.fetch).mockResolvedValue(mockResponse)
 
-      // Mock crypto operations
-      mockCrypto.subtle.importKey.mockResolvedValue({})
-      mockCrypto.subtle.sign.mockResolvedValue(new ArrayBuffer(64))
-
-      // Mock the private JWT generation method
-      vi.spyOn(
-        service as unknown as { generateVAPIDJWT: () => Promise<string> },
-        'generateVAPIDJWT'
-      ).mockResolvedValue('mock-jwt-token')
+      // Mock buildPushPayload to return a valid fetch request object
+      const mockPushPayload = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/octet-stream',
+          'Content-Encoding': 'aes128gcm',
+          'Authorization': 'vapid t=mock-jwt-token, k=mock-public-key',
+        },
+        body: new ArrayBuffer(64),
+      }
+      vi.mocked(buildPushPayload).mockResolvedValue(mockPushPayload)
 
       const subscription = {
         id: 'sub1',
@@ -115,9 +139,11 @@ describe('WebPushService', () => {
       expect(result.error).toBe('HTTP 400: Bad Request')
     })
 
-    it('should handle crypto errors', async () => {
-      // Mock crypto error
-      mockCrypto.subtle.importKey.mockRejectedValue(new Error('Invalid key format'))
+    it('should handle buildPushPayload errors', async () => {
+      const { buildPushPayload } = await import('@block65/webcrypto-web-push')
+      
+      // Mock buildPushPayload to throw an error
+      vi.mocked(buildPushPayload).mockRejectedValue(new Error('Invalid key format'))
 
       const subscription = {
         id: 'sub1',
@@ -136,12 +162,14 @@ describe('WebPushService', () => {
       const result = await service.send(subscription, payload)
 
       expect(result.success).toBe(false)
-      expect(result.error).toContain('VAPID JWT generation failed')
+      expect(result.error).toBe('Invalid key format')
     })
   })
 
   describe('sendBatch', () => {
     it('should send notifications to multiple subscriptions', async () => {
+      const { buildPushPayload } = await import('@block65/webcrypto-web-push')
+      
       // Mock successful responses
       const mockResponse = new Response(null, {
         status: 200,
@@ -150,15 +178,17 @@ describe('WebPushService', () => {
       })
       vi.mocked(global.fetch).mockResolvedValue(mockResponse)
 
-      // Mock crypto operations
-      mockCrypto.subtle.importKey.mockResolvedValue({})
-      mockCrypto.subtle.sign.mockResolvedValue(new ArrayBuffer(64))
-
-      // Mock the private JWT generation method
-      vi.spyOn(
-        service as unknown as { generateVAPIDJWT: () => Promise<string> },
-        'generateVAPIDJWT'
-      ).mockResolvedValue('mock-jwt-token')
+      // Mock buildPushPayload to return a valid fetch request object
+      const mockPushPayload = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/octet-stream',
+          'Content-Encoding': 'aes128gcm',
+          'Authorization': 'vapid t=mock-jwt-token, k=mock-public-key',
+        },
+        body: new ArrayBuffer(64),
+      }
+      vi.mocked(buildPushPayload).mockResolvedValue(mockPushPayload)
 
       const subscriptions = [
         {
@@ -193,28 +223,147 @@ describe('WebPushService', () => {
     })
   })
 
-  describe('Key conversion utilities', () => {
-    it('should handle invalid private key length', () => {
-      expect(() => {
-        ;(
-          service as unknown as { convertPrivateKeyToJWK: (key: string) => unknown }
-        ).convertPrivateKeyToJWK('invalid-short-key')
-      }).toThrow('Invalid character')
+  describe('Invalid subscription handling', () => {
+    it('should handle missing subscription endpoint', async () => {
+      const subscription = {
+        id: 'sub1',
+        userId: 'user123',
+        provider: 'webpush' as const,
+        endpoint: '', // Missing endpoint
+        p256dh: 'test-p256dh',
+        auth: 'test-auth',
+      }
+
+      const payload = {
+        title: 'Test Notification',
+        body: 'This is a test notification',
+      }
+
+      const result = await service.send(subscription, payload)
+
+      expect(result.success).toBe(false)
+      expect(result.error).toBe('Invalid subscription: missing endpoint, p256dh, or auth')
     })
 
-    it('should handle invalid public key format', () => {
-      // Test the method that actually validates the public key
-      const invalidService = new WebPushService(
-        'invalid-key',
-        'AjV0e5aJ8v9U04x90r_VYF1CcC9FjQUrQ58WARPHO44',
-        'mailto:test@example.com'
-      )
+    it('should handle missing p256dh key', async () => {
+      const subscription = {
+        id: 'sub1',
+        userId: 'user123',
+        provider: 'webpush' as const,
+        endpoint: 'https://fcm.googleapis.com/fcm/send/test',
+        p256dh: '', // Missing p256dh
+        auth: 'test-auth',
+      }
 
-      expect(() => {
-        ;(
-          invalidService as unknown as { convertPrivateKeyToJWK: (key: string) => unknown }
-        ).convertPrivateKeyToJWK('AjV0e5aJ8v9U04x90r_VYF1CcC9FjQUrQ58WARPHO44')
-      }).toThrow()
+      const payload = {
+        title: 'Test Notification',
+        body: 'This is a test notification',
+      }
+
+      const result = await service.send(subscription, payload)
+
+      expect(result.success).toBe(false)
+      expect(result.error).toBe('Invalid subscription: missing endpoint, p256dh, or auth')
+    })
+
+    it('should handle missing auth key', async () => {
+      const subscription = {
+        id: 'sub1',
+        userId: 'user123',
+        provider: 'webpush' as const,
+        endpoint: 'https://fcm.googleapis.com/fcm/send/test',
+        p256dh: 'test-p256dh',
+        auth: '', // Missing auth
+      }
+
+      const payload = {
+        title: 'Test Notification',
+        body: 'This is a test notification',
+      }
+
+      const result = await service.send(subscription, payload)
+
+      expect(result.success).toBe(false)
+      expect(result.error).toBe('Invalid subscription: missing endpoint, p256dh, or auth')
+    })
+  })
+
+  describe('Payload structure', () => {
+    it('should correctly structure message payload with all fields', async () => {
+      const { buildPushPayload } = await import('@block65/webcrypto-web-push')
+      
+      // Mock successful fetch response
+      const mockResponse = new Response(null, {
+        status: 200,
+        statusText: 'OK',
+        headers: new Headers(),
+      })
+      vi.mocked(global.fetch).mockResolvedValue(mockResponse)
+
+      // Mock buildPushPayload
+      const mockPushPayload = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/octet-stream',
+          'Content-Encoding': 'aes128gcm',
+        },
+        body: new ArrayBuffer(64),
+      }
+      vi.mocked(buildPushPayload).mockResolvedValue(mockPushPayload)
+
+      const subscription = {
+        id: 'sub1',
+        userId: 'user123',
+        provider: 'webpush' as const,
+        endpoint: 'https://fcm.googleapis.com/fcm/send/test',
+        p256dh: 'test-p256dh',
+        auth: 'test-auth',
+      }
+
+      const payload = {
+        title: 'Test Notification',
+        body: 'This is a test notification',
+        icon: '/icon.png',
+        image: '/image.jpg',
+        badge: '/badge.png',
+        tag: 'test-tag',
+        data: { customData: 'value' },
+        actions: [{ action: 'view', title: 'View' }],
+        requireInteraction: true,
+        silent: false,
+      }
+
+      await service.send(subscription, payload)
+
+      expect(buildPushPayload).toHaveBeenCalledWith(
+        {
+          data: {
+            title: 'Test Notification',
+            body: 'This is a test notification',
+            icon: '/icon.png',
+            image: '/image.jpg',
+            badge: '/badge.png',
+            tag: 'test-tag',
+            data: { customData: 'value' },
+            actions: [{ action: 'view', title: 'View' }],
+            requireInteraction: true,
+            silent: false,
+          },
+        },
+        expect.objectContaining({
+          endpoint: subscription.endpoint,
+          expirationTime: null,
+          keys: {
+            p256dh: subscription.p256dh,
+            auth: subscription.auth,
+          },
+        }),
+        expect.objectContaining({
+          subject: 'mailto:test@example.com',
+          publicKey: 'BLk5DRYrDTproCdr3CVKQlinA66-Ab6DaLRyhvn_OMIYV5r2iazgiX4BQKgcmiMi_MSR2DJ2Xe60zz9gKj_oo4U',
+          privateKey: 'AjV0e5aJ8v9U04x90r_VYF1CcC9FjQUrQ58WARPHO44',
+        })
+      )
     })
   })
 })
