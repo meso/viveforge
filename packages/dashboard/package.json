@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && npm run copy-assets",
-    "copy-assets": "rm -f ../core/assets/index-*.js ../core/assets/index-*.js.map ../core/assets/index-*.css && cp dist/favicon.svg dist/index.html dist/sw.js ../core/assets/ && cp dist/assets/* ../core/assets/ && node scripts/update-assets.js",
+    "copy-assets": "rm -rf ../core/assets/assets && mkdir -p ../core/assets/assets && cp dist/favicon.svg dist/index.html dist/sw.js ../core/assets/ && cp dist/assets/* ../core/assets/assets/ && node scripts/update-assets.js",
     "preview": "vite preview",
     "lint": "biome check src/",
     "lint:fix": "biome check --write src/",
