@@ -27,6 +27,7 @@ bucket_name = "vibebase-storage"
 # KV Namespace for sessions (新規作成用 - IDなし)
 [[kv_namespaces]]
 binding = "SESSIONS"
+preview_id = "SESSIONS_PREVIEW"
 
 # Durable Objects for realtime functionality
 [[durable_objects.bindings]]
