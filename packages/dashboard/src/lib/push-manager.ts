@@ -241,6 +241,8 @@ export class PushManager {
         throw new Error('VAPID public key not available')
       }
 
+      console.log('VAPID public key being used:', this.vapidPublicKey)
+
       // Check permission
       const permission = this.getPermissionStatus()
       if (permission !== 'granted') {
@@ -253,6 +255,7 @@ export class PushManager {
       // Check for existing subscription and unsubscribe if it exists
       const existingSubscription = await this.registration.pushManager.getSubscription()
       if (existingSubscription) {
+        console.log('Existing subscription:', existingSubscription.endpoint)
         console.log('Unsubscribing from existing subscription...')
         await existingSubscription.unsubscribe()
       }
@@ -261,6 +264,12 @@ export class PushManager {
       const subscription = await this.registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: this.urlBase64ToUint8Array(this.vapidPublicKey),
+      })
+
+      console.log('New subscription created:', subscription.endpoint)
+      console.log('Subscription keys:', {
+        p256dh: this.arrayBufferToBase64(subscription.getKey('p256dh') || new ArrayBuffer(0)),
+        auth: this.arrayBufferToBase64(subscription.getKey('auth') || new ArrayBuffer(0))
       })
 
       // Send subscription to server (admin endpoint)

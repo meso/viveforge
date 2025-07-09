@@ -97,6 +97,9 @@ export class WebPushService extends PushService {
         requireInteraction: payload.requireInteraction,
         silent: payload.silent,
       })
+      
+      console.log('Notification payload being sent:', notificationPayload)
+      console.log('Subscription endpoint:', subscription.endpoint)
 
       // Encrypt the payload
       const encryptedPayload = await this.encryptPayload(
@@ -106,17 +109,27 @@ export class WebPushService extends PushService {
       )
 
       // Send the push notification
+      console.log('VAPID Authorization header:', `vapid t=${jwt}, k=${this.vapidPublicKey}`)
+      
+      // Test with empty payload (no encryption needed)
       const response = await fetch(subscription.endpoint, {
         method: 'POST',
         headers: {
           Authorization: `vapid t=${jwt}, k=${this.vapidPublicKey}`,
-          'Content-Type': 'application/octet-stream',
-          'Content-Encoding': 'aes128gcm',
           TTL: '86400', // 24 hours
           Urgency: this.getUrgency(payload.android?.priority || 'normal'),
         },
-        body: encryptedPayload,
+        // Empty body for testing
       })
+
+      console.log('Push response status:', response.status, response.statusText)
+      
+      if (!response.ok) {
+        const responseText = await response.text()
+        console.error('Push notification failed:', response.status, responseText)
+      } else {
+        console.log('Push notification sent successfully to FCM')
+      }
 
       return {
         success: response.ok,
@@ -125,6 +138,7 @@ export class WebPushService extends PushService {
         error: response.ok ? undefined : `HTTP ${response.status}: ${response.statusText}`,
       }
     } catch (error) {
+      console.error('Push service send error:', error)
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -165,12 +179,8 @@ export class WebPushService extends PushService {
         sub: this.vapidSubject,
       }
 
-      console.log('VAPID JWT generation - endpoint:', endpoint)
-      console.log('VAPID private key length:', this.vapidPrivateKey.length)
-
       // Import the private key using JWK format
       const jwk = this.convertPrivateKeyToJWK(this.vapidPrivateKey)
-      console.log('JWK for import:', JSON.stringify(jwk, null, 2))
 
       const privateKey = await crypto.subtle.importKey(
         'jwk',

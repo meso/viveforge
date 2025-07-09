@@ -17,6 +17,7 @@ export function usePushNotifications() {
   const [vapidPublicKey, setVapidPublicKey] = useState<string>('')
   const [activeTab, setActiveTab] = useState<ActiveTab>('settings')
   const [vapidConfigured, setVapidConfigured] = useState<boolean | null>(null)
+  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   // Initialize on component mount
   useEffect(() => {
@@ -89,6 +90,23 @@ export function usePushNotifications() {
       if (response.ok) {
         const data = await response.json()
         setVapidConfigured(true)
+        
+        // Reset client-side subscription state after VAPID regeneration
+        // because old subscriptions are now invalid
+        setIsAdminSubscribed(false)
+        
+        // Clear any existing browser subscription
+        try {
+          if (pushManager.registration) {
+            const existingSubscription = await pushManager.registration.pushManager.getSubscription()
+            if (existingSubscription) {
+              await existingSubscription.unsubscribe()
+            }
+          }
+        } catch (error) {
+          console.warn('Failed to clear existing subscription:', error)
+        }
+        
         return data
       } else {
         const errorData = await response.json().catch(() => ({}))
@@ -165,12 +183,12 @@ export function usePushNotifications() {
         // Re-check subscription status from server to ensure consistency
         await checkAdminSubscription()
         setPermission('granted')
-        alert('Successfully subscribed to push notifications for testing!')
+        setStatusMessage({ type: 'success', message: 'Successfully subscribed to push notifications for testing!' })
       } else {
-        alert(`Failed to subscribe: ${result.error}`)
+        setStatusMessage({ type: 'error', message: `Failed to subscribe: ${result.error}` })
       }
     } catch (error) {
-      alert(`Error: ${error}`)
+      setStatusMessage({ type: 'error', message: `Error: ${error}` })
     } finally {
       setLoading(false)
     }
@@ -184,12 +202,12 @@ export function usePushNotifications() {
       if (result.success) {
         // Re-check subscription status from server to ensure consistency
         await checkAdminSubscription()
-        alert('Successfully unsubscribed from push notifications!')
+        setStatusMessage({ type: 'success', message: 'Successfully unsubscribed from push notifications!' })
       } else {
-        alert(`Failed to unsubscribe: ${result.error}`)
+        setStatusMessage({ type: 'error', message: `Failed to unsubscribe: ${result.error}` })
       }
     } catch (error) {
-      alert(`Error: ${error}`)
+      setStatusMessage({ type: 'error', message: `Error: ${error}` })
     } finally {
       setLoading(false)
     }
@@ -200,13 +218,13 @@ export function usePushNotifications() {
     try {
       const result = await pushManager.sendAdminTestNotification()
       if (result.success) {
-        alert('Test notification sent! Check your notifications.')
+        setStatusMessage({ type: 'success', message: 'Test notification sent! Check your notifications.' })
         fetchLogs() // Refresh logs after sending
       } else {
-        alert(`Failed to send test notification: ${result.error}`)
+        setStatusMessage({ type: 'error', message: `Failed to send test notification: ${result.error}` })
       }
     } catch (error) {
-      alert(`Error: ${error}`)
+      setStatusMessage({ type: 'error', message: `Error: ${error}` })
     } finally {
       setLoading(false)
     }
@@ -269,8 +287,10 @@ export function usePushNotifications() {
     vapidPublicKey,
     activeTab,
     vapidConfigured,
+    statusMessage,
     setActiveTab,
     setLoading,
+    clearStatusMessage: () => setStatusMessage(null),
 
     // Actions
     handleAdminSubscribe,

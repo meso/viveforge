@@ -18,8 +18,10 @@ export default function PushNotifications() {
     vapidPublicKey,
     activeTab,
     vapidConfigured,
+    statusMessage,
     setActiveTab,
     setLoading,
+    clearStatusMessage,
     handleAdminSubscribe,
     handleAdminUnsubscribe,
     handleAdminTestNotification,
@@ -253,7 +255,13 @@ export default function PushNotifications() {
 
       {/* Tab Content */}
       <div role="tabpanel" id="settings-panel" aria-labelledby="settings-tab">
-        {activeTab === 'settings' && <PushSettings vapidPublicKey={vapidPublicKey} />}
+        {activeTab === 'settings' && (
+          <PushSettings 
+            vapidPublicKey={vapidPublicKey} 
+            onReinitializeVapid={initializeVapid}
+            loading={loading}
+          />
+        )}
       </div>
       <div role="tabpanel" id="test-panel" aria-labelledby="test-tab">
         {activeTab === 'test' && (
@@ -261,9 +269,11 @@ export default function PushNotifications() {
             isAdminSubscribed={isAdminSubscribed}
             permission={permission}
             loading={loading}
+            statusMessage={statusMessage}
             onAdminSubscribe={handleAdminSubscribe}
             onAdminUnsubscribe={handleAdminUnsubscribe}
             onAdminTestNotification={handleAdminTestNotification}
+            onClearStatusMessage={clearStatusMessage}
           />
         )}
       </div>
