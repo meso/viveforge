@@ -1,6 +1,6 @@
 name = "vibebase"
 main = "src/index.ts"
-compatibility_date = "2024-01-01"
+compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 account_id = "c84ee758532a3352dc13df8b565ebb68"
 

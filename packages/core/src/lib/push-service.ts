@@ -1,5 +1,7 @@
 // Push notification service interfaces and implementations
 
+import { buildPushPayload, type PushSubscription as WebPushSubscription } from '@block65/webcrypto-web-push'
+
 export interface PushSubscription {
   id: string
   userId: string
@@ -81,47 +83,50 @@ export class WebPushService extends PushService {
     }
 
     try {
-      // Generate JWT for VAPID
-      const jwt = await this.generateVAPIDJWT(subscription.endpoint)
-
-      // Prepare the notification payload
-      const notificationPayload = JSON.stringify({
-        title: payload.title,
-        body: payload.body,
-        icon: payload.icon,
-        image: payload.image,
-        badge: payload.badge,
-        tag: payload.tag,
-        data: payload.data,
-        actions: payload.actions,
-        requireInteraction: payload.requireInteraction,
-        silent: payload.silent,
-      })
+      console.log('Starting push notification send with webcrypto-web-push...')
       
-      console.log('Notification payload being sent:', notificationPayload)
+      // Convert our subscription to webcrypto-web-push format
+      const webPushSubscription: WebPushSubscription = {
+        endpoint: subscription.endpoint,
+        expirationTime: null, // No expiration
+        keys: {
+          p256dh: subscription.p256dh,
+          auth: subscription.auth,
+        },
+      }
+
+      // VAPID configuration
+      const vapidConfig = {
+        subject: this.vapidSubject,
+        publicKey: this.vapidPublicKey,
+        privateKey: this.vapidPrivateKey,
+      }
+
+      // Message payload - Web Push standard requires all data to be in the data field
+      const message = {
+        data: {
+          title: payload.title,
+          body: payload.body,
+          icon: payload.icon,
+          image: payload.image,
+          badge: payload.badge,
+          tag: payload.tag,
+          data: payload.data ? JSON.parse(JSON.stringify(payload.data)) : {},
+          actions: payload.actions,
+          requireInteraction: payload.requireInteraction,
+          silent: payload.silent,
+        },
+      }
+
+      console.log('Message payload:', message)
       console.log('Subscription endpoint:', subscription.endpoint)
 
-      // Encrypt the payload
-      const encryptedPayload = await this.encryptPayload(
-        notificationPayload,
-        subscription.p256dh,
-        subscription.auth
-      )
+      // Build push payload using webcrypto-web-push
+      const pushPayload = await buildPushPayload(message, webPushSubscription, vapidConfig)
+      console.log('Push payload built successfully')
 
       // Send the push notification
-      console.log('VAPID Authorization header:', `vapid t=${jwt}, k=${this.vapidPublicKey}`)
-      
-      // Test with empty payload (no encryption needed)
-      const response = await fetch(subscription.endpoint, {
-        method: 'POST',
-        headers: {
-          Authorization: `vapid t=${jwt}, k=${this.vapidPublicKey}`,
-          TTL: '86400', // 24 hours
-          Urgency: this.getUrgency(payload.android?.priority || 'normal'),
-        },
-        // Empty body for testing
-      })
-
+      const response = await fetch(subscription.endpoint, pushPayload)
       console.log('Push response status:', response.status, response.statusText)
       
       if (!response.ok) {
@@ -219,21 +224,6 @@ export class WebPushService extends PushService {
     }
   }
 
-  private async encryptPayload(
-    payload: string,
-    _p256dh: string,
-    _auth: string
-  ): Promise<ArrayBuffer> {
-    // This is a simplified version. In production, use a proper web-push library
-    // or implement the full encryption spec: https://tools.ietf.org/html/rfc8291
-
-    const encoder = new TextEncoder()
-    const payloadData = encoder.encode(payload)
-
-    // For now, return the payload as-is (not encrypted)
-    // TODO: Implement proper payload encryption
-    return payloadData.buffer
-  }
 
   private convertPrivateKeyToJWK(privateKey: string): JsonWebKey {
     // For VAPID, we need to convert the base64url private key to JWK format
@@ -291,6 +281,7 @@ export class WebPushService extends PushService {
         return 'normal'
     }
   }
+
 }
 
 // Factory function to create push service based on provider
