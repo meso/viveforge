@@ -6,9 +6,10 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "deploy:button": "npm run db:init && wrangler deploy -c wrangler.deploy.toml",
+    "dev": "wrangler dev -c wrangler.local.toml",
+    "deploy": "wrangler deploy -c wrangler.local.toml",
+    "build": "echo 'Using pre-built assets'",
+    "deploy:button": "npm run db:init && wrangler deploy",
     "db:init": "wrangler d1 execute DB --file=./migrations/consolidated_schema.sql",
     "test": "vitest run",
     "lint": "biome check src/",

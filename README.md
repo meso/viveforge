@@ -4,7 +4,7 @@
 
 ⚠️ **Work in Progress** - このプロジェクトは現在開発中です。基本機能は動作しますが、まだ実験的な段階にあります。本番環境での使用は推奨されません。
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/meso/vibebase)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/vibebase/vibebase/tree/main/packages/core)
 
 Vibebaseは、Cloudflare上で動作する、AIを活用してコードを書く開発者（Vibe Coders）のためのパーソナルBaaSプラットフォームです。フロントエンドやモバイルアプリ開発が得意な開発者が、バックエンドインフラを簡単に構築・管理できることを目指しています。
 
@@ -35,11 +35,45 @@ Vibebaseは、Cloudflare上で動作する、AIを活用してコードを書く
 6. **「作成とデプロイ」をクリック**
 7. **完了！** あなたのVibebaseインスタンスが稼働開始
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/meso/vibebase)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/vibebase/vibebase/tree/main/packages/core)
 
 **📋 必要な準備**
 - [Cloudflare アカウント](https://dash.cloudflare.com)（無料）
 - [GitHub アカウント](https://github.com)（無料）
+
+### 🛠️ 開発者向けデプロイ
+
+開発者として貢献したい場合は、以下の手順でローカル開発環境を構築できます：
+
+1. **このリポジトリをFork**
+   ```bash
+   git clone https://github.com/vibebase/vibebase.git
+   cd vibebase
+   ```
+
+2. **依存関係のインストール**
+   ```bash
+   pnpm install
+   ```
+
+3. **開発用設定ファイルの準備**
+   ```bash
+   cd packages/core
+   cp wrangler.toml wrangler.local.toml
+   # wrangler.local.tomlにあなたのアカウントIDとリソースIDを設定
+   ```
+
+4. **Cloudflare CLIでログイン**
+   ```bash
+   npx wrangler login
+   ```
+
+5. **デプロイ実行**
+   ```bash
+   pnpm run deploy
+   ```
+
+詳細なデプロイ手順は [DEPLOYMENT.md](./DEPLOYMENT.md) をご覧ください。
 
 ## 📋 主要機能
 
