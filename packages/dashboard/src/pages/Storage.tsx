@@ -245,6 +245,7 @@ export function StoragePage() {
                       href={`/api/storage/download/${encodeURIComponent(obj.key)}`}
                       class="text-blue-600 hover:text-blue-900 mr-4"
                       download
+                      target="_blank"
                     >
                       Download
                     </a>
