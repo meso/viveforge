@@ -2,8 +2,8 @@ import type { ExecutionContext, ScheduledEvent } from '@cloudflare/workers-types
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
-import { VibebaseAuthClient } from './lib/auth-client'
 import { AppSettingsManager } from './lib/app-settings-manager'
+import { VibebaseAuthClient } from './lib/auth-client'
 import { getOrGenerateJWTSecret, logSecurityWarnings } from './lib/security-utils'
 import { multiAuth } from './middleware/auth'
 import { securityHeaders } from './middleware/security-headers'
@@ -67,10 +67,10 @@ app.use('*', async (c, next) => {
   c.env.JWT_SECRET = jwtSecretResult.secret
 
   // Set WORKER_DOMAIN: DB > リクエストhost の優先順位
-  if (!c.env.WORKER_DOMAIN) {
-    const appSettings = new AppSettingsManager(c.env.DB!)
+  if (!c.env.WORKER_DOMAIN && c.env.DB) {
+    const appSettings = new AppSettingsManager(c.env.DB)
     const storedDomain = await appSettings.getWorkerDomain()
-    
+
     if (storedDomain) {
       // DBに保存済みの値を使用
       c.env.WORKER_DOMAIN = storedDomain
@@ -247,10 +247,10 @@ export default {
     try {
       // Get WORKER_DOMAIN from environment or DB
       let workerDomain = env.WORKER_DOMAIN
-      
-      if (!workerDomain) {
-        const appSettings = new AppSettingsManager(env.DB!)
-        workerDomain = await appSettings.getWorkerDomain() || undefined
+
+      if (!workerDomain && env.DB) {
+        const appSettings = new AppSettingsManager(env.DB)
+        workerDomain = (await appSettings.getWorkerDomain()) || undefined
       }
 
       if (!workerDomain) {

@@ -7,12 +7,11 @@ import type {
 } from '../types/cloudflare'
 import { getCurrentDateTimeISO } from './datetime-utils'
 import { NotificationManager } from './notification-manager'
+import { VapidStorage } from './vapid-storage'
 
 interface RealtimeEnvironment {
   REALTIME?: CustomDurableObjectNamespace
-  VAPID_PUBLIC_KEY?: string
-  VAPID_PRIVATE_KEY?: string
-  VAPID_SUBJECT?: string
+  WORKER_DOMAIN?: string
 }
 
 interface BroadcastOptions {
@@ -44,7 +43,10 @@ export interface EventQueueItem {
 }
 
 export class HookManager {
-  constructor(private db: D1Database) {}
+  constructor(
+    private db: D1Database,
+    private workerDomain: string = 'vibebase.app'
+  ) {}
 
   async listHooks(): Promise<Hook[]> {
     const result = await this.db
@@ -194,14 +196,10 @@ export class HookManager {
     }
 
     // プッシュ通知処理（waitUntilでバックグラウンド実行）
-    if (
-      options?.env?.VAPID_PUBLIC_KEY &&
-      options?.env?.VAPID_PRIVATE_KEY &&
-      options?.env?.VAPID_SUBJECT &&
-      options?.executionCtx
-    ) {
+    if (options?.executionCtx) {
+      const workerDomain = options?.env?.WORKER_DOMAIN || this.workerDomain
       options.executionCtx.waitUntil(
-        this.processNotifications(tableName, eventType, eventData, options.env)
+        this.processNotifications(tableName, eventType, eventData, workerDomain)
       )
     }
 
@@ -218,17 +216,21 @@ export class HookManager {
     tableName: string,
     eventType: HookEventType,
     eventData: Record<string, unknown>,
-    env: RealtimeEnvironment
+    workerDomain: string
   ): Promise<void> {
     try {
-      if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY || !env.VAPID_SUBJECT) {
+      const vapidStorage = new VapidStorage(this.db, workerDomain)
+      const vapidKeys = await vapidStorage.retrieve()
+
+      if (!vapidKeys) {
+        // VAPID keys not configured, skip push notification processing
         return
       }
 
       const notificationManager = new NotificationManager(this.db, {
-        publicKey: env.VAPID_PUBLIC_KEY,
-        privateKey: env.VAPID_PRIVATE_KEY,
-        subject: env.VAPID_SUBJECT,
+        publicKey: vapidKeys.publicKey,
+        privateKey: vapidKeys.privateKey,
+        subject: vapidKeys.subject,
       })
 
       await notificationManager.processDbChange(tableName, eventType, eventData)

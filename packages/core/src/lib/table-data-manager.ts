@@ -12,6 +12,7 @@ import { validateAndEscapeTableName } from './sql-utils'
 
 interface TableDataManagerEnvironment {
   REALTIME?: CustomDurableObjectNamespace
+  WORKER_DOMAIN?: string
 }
 
 /**

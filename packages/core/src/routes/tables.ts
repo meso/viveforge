@@ -17,6 +17,7 @@ tables.use('*', async (c, next) => {
     'tableManager',
     new TableManager(c.env.DB, c.env.SYSTEM_STORAGE, c.executionCtx, {
       REALTIME: c.env.REALTIME as CustomDurableObjectNamespace,
+      WORKER_DOMAIN: c.env.WORKER_DOMAIN,
     })
   )
   await next()

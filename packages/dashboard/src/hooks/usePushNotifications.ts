@@ -162,7 +162,8 @@ export function usePushNotifications() {
     try {
       const result = await pushManager.adminSubscribe()
       if (result.success) {
-        setIsAdminSubscribed(true)
+        // Re-check subscription status from server to ensure consistency
+        await checkAdminSubscription()
         setPermission('granted')
         alert('Successfully subscribed to push notifications for testing!')
       } else {
@@ -179,8 +180,10 @@ export function usePushNotifications() {
     setLoading(true)
     try {
       const result = await pushManager.adminUnsubscribe()
+      
       if (result.success) {
-        setIsAdminSubscribed(false)
+        // Re-check subscription status from server to ensure consistency
+        await checkAdminSubscription()
         alert('Successfully unsubscribed from push notifications!')
       } else {
         alert(`Failed to unsubscribe: ${result.error}`)

@@ -35,7 +35,14 @@ appSettings.get('/', async (c) => {
 appSettings.get('/:key', async (c) => {
   try {
     const key = c.req.param('key')
-    const validKeys = ['app_name', 'app_url', 'support_email', 'oauth_user_agent', 'callback_urls', 'worker_domain']
+    const validKeys = [
+      'app_name',
+      'app_url',
+      'support_email',
+      'oauth_user_agent',
+      'callback_urls',
+      'worker_domain',
+    ]
 
     if (!validKeys.includes(key)) {
       return c.json({ error: `Invalid setting key: '${key}'` }, 400)

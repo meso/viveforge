@@ -107,6 +107,13 @@ export class PushManager {
         }
       }
 
+      // Check for existing subscription and unsubscribe if it exists
+      const existingSubscription = await this.registration.pushManager.getSubscription()
+      if (existingSubscription) {
+        console.log('Unsubscribing from existing subscription...')
+        await existingSubscription.unsubscribe()
+      }
+
       // Subscribe to push manager
       const subscription = await this.registration.pushManager.subscribe({
         userVisibleOnly: true,
@@ -243,6 +250,13 @@ export class PushManager {
         }
       }
 
+      // Check for existing subscription and unsubscribe if it exists
+      const existingSubscription = await this.registration.pushManager.getSubscription()
+      if (existingSubscription) {
+        console.log('Unsubscribing from existing subscription...')
+        await existingSubscription.unsubscribe()
+      }
+
       // Subscribe to push manager
       const subscription = await this.registration.pushManager.subscribe({
         userVisibleOnly: true,
@@ -294,13 +308,30 @@ export class PushManager {
       }
 
       const subscription = await this.registration.pushManager.getSubscription()
+      
       if (!subscription) {
-        return { success: true } // Already unsubscribed
+        // Still notify server to clean up any orphaned subscriptions
+        const response = await fetch(`${this.apiBaseUrl}/push/admin/unsubscribe`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            // No endpoint, server will clean up all subscriptions
+          }),
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          console.error('Failed to notify server of admin unsubscription:', errorData)
+          throw new Error(errorData.error || 'Server notification failed')
+        }
+        return { success: true }
       }
 
       // Unsubscribe from push manager
       await subscription.unsubscribe()
-
       // Notify server (admin endpoint)
       const response = await fetch(`${this.apiBaseUrl}/push/admin/unsubscribe`, {
         method: 'POST',
@@ -314,10 +345,10 @@ export class PushManager {
       })
 
       if (!response.ok) {
-        console.warn('Failed to notify server of admin unsubscription')
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Failed to notify server of admin unsubscription:', errorData)
+        throw new Error(errorData.error || 'Server notification failed')
       }
-
-      console.log('Successfully unsubscribed admin from push notifications')
       return { success: true }
     } catch (error) {
       console.error('Failed to unsubscribe admin from push notifications:', error)

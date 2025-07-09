@@ -13,11 +13,12 @@ hooks.use('*', async (c, next) => {
   if (!c.env.DB) {
     return c.json({ error: 'Database not configured' }, 500)
   }
-  c.set('hookManager', new HookManager(c.env.DB))
+  c.set('hookManager', new HookManager(c.env.DB, c.env.WORKER_DOMAIN))
   c.set(
     'tableManager',
     new TableManager(c.env.DB, c.env.SYSTEM_STORAGE, c.executionCtx, {
       REALTIME: c.env.REALTIME as CustomDurableObjectNamespace,
+      WORKER_DOMAIN: c.env.WORKER_DOMAIN,
     })
   )
   await next()

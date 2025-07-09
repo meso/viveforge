@@ -98,14 +98,14 @@ export class NotificationManager {
         .prepare(
           'UPDATE push_subscriptions SET active = 0, updated_at = ? WHERE user_id = ? AND endpoint = ?'
         )
-        .bind(userId, getCurrentDateTimeISO(), endpoint)
+        .bind(getCurrentDateTimeISO(), userId, endpoint)
         .run()
     } else if (fcmToken) {
       await this.db
         .prepare(
           'UPDATE push_subscriptions SET active = 0, updated_at = ? WHERE user_id = ? AND fcm_token = ?'
         )
-        .bind(userId, getCurrentDateTimeISO(), fcmToken)
+        .bind(getCurrentDateTimeISO(), userId, fcmToken)
         .run()
     }
   }

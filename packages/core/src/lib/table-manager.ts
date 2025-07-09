@@ -23,6 +23,7 @@ import { TableValidator } from './table-validator'
 
 interface TableManagerEnvironment {
   REALTIME?: CustomDurableObjectNamespace
+  WORKER_DOMAIN?: string
 }
 
 /**

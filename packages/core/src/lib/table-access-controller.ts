@@ -11,6 +11,7 @@ import { generateId } from './utils'
 
 interface TableAccessControllerEnvironment {
   REALTIME?: CustomDurableObjectNamespace
+  WORKER_DOMAIN?: string
 }
 
 /**

@@ -158,13 +158,19 @@ export class VapidStorage {
 
     // Export keys in the format expected by VAPID
     const publicKeyArrayBuffer = (await crypto.subtle.exportKey(
-      'spki',
+      'raw',
       keyPair.publicKey
     )) as ArrayBuffer
-    const privateKeyArrayBuffer = (await crypto.subtle.exportKey(
-      'pkcs8',
+    
+    // Export private key as JWK to get the raw 'd' parameter
+    const privateKeyJWK = (await crypto.subtle.exportKey(
+      'jwk',
       keyPair.privateKey
-    )) as ArrayBuffer
+    )) as JsonWebKey
+    
+    if (!privateKeyJWK.d) {
+      throw new Error('Failed to export private key: d parameter missing')
+    }
 
     // Convert to base64url format (VAPID format)
     const publicKeyBase64 = btoa(String.fromCharCode(...new Uint8Array(publicKeyArrayBuffer)))
@@ -172,10 +178,8 @@ export class VapidStorage {
       .replace(/\//g, '_')
       .replace(/=/g, '')
 
-    const privateKeyBase64 = btoa(String.fromCharCode(...new Uint8Array(privateKeyArrayBuffer)))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '')
+    // The 'd' parameter is already in base64url format
+    const privateKeyBase64 = privateKeyJWK.d
 
     const vapidSubject = subject || `mailto:admin@${this.deploymentDomain}`
 

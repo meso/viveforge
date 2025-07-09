@@ -154,8 +154,9 @@ push.post('/initialize', async (c) => {
     // Check if already configured
     console.log('Checking if VAPID is already configured...')
     if (await vapidStorage.isConfigured()) {
-      console.log('VAPID already configured')
-      return c.json({ error: 'VAPID keys are already configured' }, 400)
+      console.log('VAPID already configured, deleting existing keys...')
+      await vapidStorage.delete()
+      console.log('Existing VAPID keys deleted')
     }
 
     // Generate and store keys automatically
@@ -562,7 +563,6 @@ push.post('/admin/subscribe', async (c) => {
 push.post('/admin/unsubscribe', async (c) => {
   try {
     const body = await c.req.json()
-    const validated = unsubscribeSchema.parse(body)
     const authContext = c.get('authContext')
 
     if (!authContext || authContext.type !== 'admin') {
@@ -571,6 +571,7 @@ push.post('/admin/unsubscribe', async (c) => {
 
     const adminUserId = `admin_${authContext.user.id}`
 
+
     const vapidConfig = await getVapidConfig(c.env)
     if (!vapidConfig.valid || !vapidConfig.config) {
       return c.json({ error: vapidConfig.error }, 500)
@@ -578,7 +579,18 @@ push.post('/admin/unsubscribe', async (c) => {
 
     const manager = new NotificationManager(vapidConfig.config.db, vapidConfig.config.vapidConfig)
 
-    await manager.unsubscribe(adminUserId, validated.endpoint, validated.fcmToken)
+    // If endpoint is provided, unsubscribe by endpoint
+    if (body.endpoint) {
+      await manager.unsubscribe(adminUserId, body.endpoint)
+    } else {
+      // If no endpoint provided (browser subscription already removed), 
+      // unsubscribe all active subscriptions for the admin user
+      const subscriptions = await manager.getUserSubscriptions(adminUserId)
+      
+      for (const subscription of subscriptions) {
+        await manager.unsubscribe(adminUserId, subscription.endpoint, subscription.fcmToken)
+      }
+    }
 
     return c.json({
       success: true,
@@ -643,6 +655,7 @@ push.get('/admin/subscription', async (c) => {
 
   const adminUserId = `admin_${authContext.user.id}`
 
+
   const vapidConfig = await getVapidConfig(c.env)
   if (!vapidConfig.valid || !vapidConfig.config) {
     return c.json({ error: vapidConfig.error }, 500)
@@ -651,6 +664,7 @@ push.get('/admin/subscription', async (c) => {
   const manager = new NotificationManager(vapidConfig.config.db, vapidConfig.config.vapidConfig)
 
   const subscriptions = await manager.getUserSubscriptions(adminUserId)
+
 
   return c.json({
     subscriptions,

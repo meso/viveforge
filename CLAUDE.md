@@ -176,7 +176,7 @@ vibebase/
 pnpm dev         # 全ての開発サーバーを並列起動
 pnpm build       # 全てのパッケージをビルド
 pnpm run deploy  # プロジェクト全体をデプロイ（推奨：ダッシュボードビルド→アセットクリーンアップ・コピー→coreのCloudflareデプロイまで全自動実行）
-pnpm test run    # 全てのテストを実行（watchモードを無効化）
+pnpm test        # 全てのテストを実行
 pnpm lint        # 全てのパッケージでリンティング実行
 pnpm typecheck   # 全てのパッケージで型チェック実行
 ```
@@ -186,7 +186,7 @@ pnpm typecheck   # 全てのパッケージで型チェック実行
 pnpm dev         # Wrangler開発サーバーを起動
 pnpm run deploy  # Cloudflareにデプロイ
 pnpm db:init     # D1データベースを初期化
-pnpm test run    # Vitestテストを実行（watchモードを無効化）
+pnpm test        # Vitestテストを実行
 pnpm typecheck   # TypeScript型チェックを実行
 ```
 
@@ -331,7 +331,7 @@ curl -X POST https://vibebase.mesongo.workers.dev/api/push/send \
 - **✅ リンティングエラー**: 0個（`pnpm lint`で確認）
 - **✅ リンティング警告**: 0個（`pnpm lint`で確認）
 - **✅ TypeScript エラー**: 0個（`pnpm typecheck`で確認）
-- **✅ 全テスト**: 100%成功（`pnpm test run`で確認）
+- **✅ 全テスト**: 100%成功（`pnpm test`で確認）
 
 **重要**: コード変更を行う際は、必ず上記4つのチェックを実行し、全てがクリーンな状態であることを確認してからコミットすること。1つでもエラーや警告がある場合は、必ず修正してから作業を完了すること。
 

@@ -16,6 +16,7 @@ import { SYSTEM_TABLES } from './table-manager'
 
 interface DataManagerEnvironment {
   REALTIME?: CustomDurableObjectNamespace
+  WORKER_DOMAIN?: string
 }
 
 export class DataManager {
@@ -26,7 +27,7 @@ export class DataManager {
     private env?: DataManagerEnvironment,
     private executionCtx?: ExecutionContext
   ) {
-    this.hookManager = new HookManager(db)
+    this.hookManager = new HookManager(db, env?.WORKER_DOMAIN)
   }
 
   private async enableForeignKeys(): Promise<void> {

@@ -20,6 +20,7 @@ snapshots.use('*', async (c, next) => {
     console.log('Snapshots middleware: Creating TableManager')
     const tableManager = new TableManager(env.DB, env.SYSTEM_STORAGE, c.executionCtx, {
       REALTIME: env.REALTIME as CustomDurableObjectNamespace,
+      WORKER_DOMAIN: env.WORKER_DOMAIN,
     })
     console.log('Snapshots middleware: Creating Database')
     const db = new Database(env.DB)
