@@ -106,19 +106,19 @@ export function getOrGenerateJWTSecret(
     // Check if this is a Deploy Button deployment
     const deployMode = env.VIBEBASE_DEPLOY_MODE
     if (deployMode === 'deploy-button') {
-      // For Deploy Button deployments, use a deterministic secret based on app name
-      // This ensures consistent JWT validation across restarts while maintaining security
-      const appName = env.CF_PAGES_BRANCH || env.CF_WORKER_NAME || 'vibebase'
-      const deployButtonSecret = `vibebase-deploy-${appName}-${Buffer.from(appName).toString('base64')}-secret-key-v1`
+      // For Deploy Button deployments, use a fixed but instance-specific secret
+      // Note: This is for convenience only. For production use, set JWT_SECRET manually
+      const deployButtonSecret = 'vibebase-deploy-button-demo-secret-please-change-for-production-use-v1'
       
       console.warn(
-        '⚠️  DEPLOY BUTTON MODE: Using deterministic JWT secret for consistency. ' +
-          'For production use, set a permanent secret with: wrangler secret put JWT_SECRET'
+        '🔑 DEPLOY BUTTON MODE: Using demo JWT secret. ' +
+          'For production use, set a secure secret with: wrangler secret put JWT_SECRET'
       )
+      
       return {
         secret: deployButtonSecret,
         warnings: [
-          'Using deterministic JWT secret for Deploy Button deployment. Set a permanent secret for production use.',
+          'Using demo JWT secret for Deploy Button deployment. Set a secure secret for production use.',
         ],
         isGenerated: true,
       }
