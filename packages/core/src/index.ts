@@ -4,6 +4,7 @@ import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { AppSettingsManager } from './lib/app-settings-manager'
 import { VibebaseAuthClient } from './lib/auth-client'
+import { ensureDatabaseReady } from './lib/migration-manager'
 import { getOrGenerateJWTSecret, logSecurityWarnings } from './lib/security-utils'
 import { multiAuth } from './middleware/auth'
 import { securityHeaders } from './middleware/security-headers'
@@ -53,8 +54,25 @@ app.use('*', securityHeaders())
 
 app.use('/api/*', cors())
 
-// Initialize JWT_SECRET with security validation
+// Initialize database and JWT_SECRET
 app.use('*', async (c, next) => {
+  // Ensure database is ready (Deploy Button auto-migration)
+  if (c.env.DB) {
+    try {
+      await ensureDatabaseReady(c.env.DB)
+    } catch (error) {
+      console.error('Database initialization failed:', error)
+      return c.json(
+        {
+          error: 'Database Initialization Failed',
+          message: 'Failed to initialize database schema. This may be a Deploy Button deployment issue.',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        },
+        503
+      )
+    }
+  }
+
   // Initialize and validate JWT_SECRET
   const jwtSecretResult = await getOrGenerateJWTSecret(c.env.JWT_SECRET, c.env.ENVIRONMENT, c.env)
 
