@@ -77,18 +77,18 @@ describe('Security Utils', () => {
   })
 
   describe('getOrGenerateJWTSecret', () => {
-    it('should return provided secret if valid', async () => {
+    it('should return provided secret if valid', () => {
       const validSecret = generateSecureJWTSecret()
-      const result = await getOrGenerateJWTSecret(validSecret, 'development')
+      const result = getOrGenerateJWTSecret(validSecret, 'development')
 
       expect(result.secret).toBe(validSecret)
       expect(result.isGenerated).toBe(false)
       expect(result.warnings).toHaveLength(0)
     })
 
-    it('should return provided secret with warnings if invalid', async () => {
+    it('should return provided secret with warnings if invalid', () => {
       const invalidSecret = 'weak'
-      const result = await getOrGenerateJWTSecret(invalidSecret, 'development')
+      const result = getOrGenerateJWTSecret(invalidSecret, 'development')
 
       expect(result.secret).toBe(invalidSecret)
       expect(result.isGenerated).toBe(false)
@@ -96,14 +96,14 @@ describe('Security Utils', () => {
       expect(result.warnings[0]).toContain('JWT_SECRET validation failed')
     })
 
-    it('should throw error in production when no secret provided', async () => {
-      await expect(async () => {
-        await getOrGenerateJWTSecret(undefined, 'production')
-      }).rejects.toThrow('JWT_SECRET environment variable is required in production')
+    it('should throw error in production when no secret provided', () => {
+      expect(() => {
+        getOrGenerateJWTSecret(undefined, 'production')
+      }).toThrow('JWT_SECRET environment variable is required in production')
     })
 
-    it('should generate secret in development when none provided', async () => {
-      const result = await getOrGenerateJWTSecret(undefined, 'development')
+    it('should generate secret in development when none provided', () => {
+      const result = getOrGenerateJWTSecret(undefined, 'development')
 
       expect(result.secret).toBeDefined()
       expect(result.secret.length).toBeGreaterThanOrEqual(32)
@@ -112,9 +112,9 @@ describe('Security Utils', () => {
       expect(result.warnings[0]).toContain('JWT_SECRET not found - generated temporary secret')
     })
 
-    it('should generate different secrets on multiple calls', async () => {
-      const result1 = await getOrGenerateJWTSecret(undefined, 'development')
-      const result2 = await getOrGenerateJWTSecret(undefined, 'development')
+    it('should generate different secrets on multiple calls', () => {
+      const result1 = getOrGenerateJWTSecret(undefined, 'development')
+      const result2 = getOrGenerateJWTSecret(undefined, 'development')
 
       expect(result1.secret).not.toBe(result2.secret)
     })
