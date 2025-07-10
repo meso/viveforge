@@ -84,9 +84,9 @@ async function main() {
     log('Generating secure JWT secret...')
     const jwtSecret = await generateSecureSecret(64)
     
-    // Set the JWT secret using wrangler
+    // Set the JWT secret using wrangler (secrets are always remote)
     runCommand(
-      `echo "${jwtSecret}" | wrangler secret put JWT_SECRET --remote`,
+      `echo "${jwtSecret}" | wrangler secret put JWT_SECRET`,
       'JWT secret configuration'
     )
     
