@@ -56,7 +56,7 @@ app.use('/api/*', cors())
 // Initialize JWT_SECRET with security validation
 app.use('*', async (c, next) => {
   // Initialize and validate JWT_SECRET
-  const jwtSecretResult = getOrGenerateJWTSecret(c.env.JWT_SECRET, c.env.ENVIRONMENT)
+  const jwtSecretResult = await getOrGenerateJWTSecret(c.env.JWT_SECRET, c.env.ENVIRONMENT, c.env)
 
   // Log security warnings if any
   if (jwtSecretResult.warnings.length > 0) {

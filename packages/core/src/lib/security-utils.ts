@@ -3,6 +3,8 @@
  * Handles secure secret generation and validation
  */
 
+import type { Env } from '../types'
+
 /**
  * Generate a cryptographically secure random JWT secret
  * @param length The length of the secret in bytes (default: 32)
@@ -75,14 +77,15 @@ export function validateJWTSecret(secret: string): {
  * @param environment The current environment ('development' | 'production')
  * @returns A valid JWT secret with security warnings if needed
  */
-export function getOrGenerateJWTSecret(
+export async function getOrGenerateJWTSecret(
   envSecret: string | undefined,
-  environment: string = 'development'
-): {
+  environment: string = 'development',
+  env?: Env
+): Promise<{
   secret: string
   warnings: string[]
   isGenerated: boolean
-} {
+}> {
   const warnings: string[] = []
 
   // If secret is provided, validate it
@@ -103,31 +106,58 @@ export function getOrGenerateJWTSecret(
 
   // No secret provided - handle based on environment
   if (environment === 'production') {
-    // Check if this is a Deploy Button deployment
-    const deployMode = env.VIBEBASE_DEPLOY_MODE
-    if (deployMode === 'deploy-button') {
-      // For Deploy Button deployments, use a fixed but instance-specific secret
-      // Note: This is for convenience only. For production use, set JWT_SECRET manually
-      const deployButtonSecret = 'vibebase-deploy-button-demo-secret-please-change-for-production-use-v1'
+    // For production deployments, try to generate or retrieve a persistent secret from KV
+    if (!env || !env.SESSIONS) {
+      throw new Error(
+        'JWT_SECRET environment variable is required in production. ' +
+          'Please set a secure JWT secret using: wrangler secret put JWT_SECRET'
+      )
+    }
+    
+    const secretKey = 'vibebase-production-jwt-secret'
+    
+    try {
+      // Try to get existing secret from KV
+      const existingSecret = await env.SESSIONS.get(secretKey)
+      if (existingSecret) {
+        console.log('📦 Using existing production JWT secret from KV storage')
+        return {
+          secret: existingSecret,
+          warnings: [
+            'Using persistent JWT secret from KV storage for production deployment.',
+          ],
+          isGenerated: false,
+        }
+      }
+      
+      // Generate new secret with random data + timestamp for uniqueness
+      const randomData = crypto.randomUUID() + Date.now().toString() + Math.random().toString()
+      const hashedSecret = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(randomData))
+      const secretBase64 = btoa(String.fromCharCode(...new Uint8Array(hashedSecret)))
+      const productionSecret = `vibebase-prod-${secretBase64.slice(0, 32)}-secret-key-v1`
+      
+      // Store in KV with no expiration
+      await env.SESSIONS.put(secretKey, productionSecret)
       
       console.warn(
-        '🔑 DEPLOY BUTTON MODE: Using demo JWT secret. ' +
-          'For production use, set a secure secret with: wrangler secret put JWT_SECRET'
+        '🔑 PRODUCTION: Generated new unique JWT secret and stored in KV storage'
       )
       
       return {
-        secret: deployButtonSecret,
+        secret: productionSecret,
         warnings: [
-          'Using demo JWT secret for Deploy Button deployment. Set a secure secret for production use.',
+          'Generated new unique JWT secret for production deployment and stored in KV storage.',
+          'For better security, consider setting JWT_SECRET environment variable manually.',
         ],
         isGenerated: true,
       }
+    } catch (error) {
+      console.error('Failed to access KV storage for JWT secret:', error)
+      throw new Error(
+        'JWT_SECRET environment variable is required in production. ' +
+          'Please set a secure JWT secret using: wrangler secret put JWT_SECRET'
+      )
     }
-    
-    throw new Error(
-      'JWT_SECRET environment variable is required in production. ' +
-        'Please set a secure JWT secret using: wrangler secret put JWT_SECRET'
-    )
   }
 
   // Development environment - generate a secure temporary secret
