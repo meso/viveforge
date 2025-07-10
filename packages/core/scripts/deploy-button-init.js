@@ -69,10 +69,14 @@ async function main() {
       return
     }
     
+    // Log current working directory and environment for debugging
+    log(`Working directory: ${process.cwd()}`)
+    log('Proceeding with Deploy Button initialization for remote Cloudflare environment')
+    
     // 1. Initialize database schema
     log('Initializing database schema...')
     runCommand(
-      'wrangler d1 execute DB --file=./migrations/consolidated_schema.sql',
+      'wrangler d1 execute DB --file=./migrations/consolidated_schema.sql --remote',
       'Database schema initialization'
     )
     
@@ -82,7 +86,7 @@ async function main() {
     
     // Set the JWT secret using wrangler
     runCommand(
-      `echo "${jwtSecret}" | wrangler secret put JWT_SECRET`,
+      `echo "${jwtSecret}" | wrangler secret put JWT_SECRET --remote`,
       'JWT secret configuration'
     )
     
