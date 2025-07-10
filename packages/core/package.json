@@ -5,10 +5,11 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
+  "packageManager": "npm@10.9.2",
   "scripts": {
     "dev": "wrangler dev -c wrangler.local.toml",
     "deploy": "test -f wrangler.local.toml && wrangler deploy -c wrangler.local.toml || wrangler deploy",
-    "build": "pwd && ls -la && ls -la node_modules && echo 'Dependencies already installed by Cloudflare'",
+    "build": "pwd && ls -la && ls -la node_modules | head -20 && echo 'Dependencies already installed by Cloudflare'",
     "deploy:local": "wrangler deploy -c wrangler.local.toml",
     "db:init": "wrangler d1 execute DB --file=./migrations/consolidated_schema.sql",
     "test": "vitest run",
