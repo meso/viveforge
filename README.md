@@ -10,7 +10,7 @@ Vibebaseは、Cloudflare上で動作する、AIを活用してコードを書く
 
 ## ✨ 特徴
 
-- 🚀 **ワンクリックデプロイ** - GitHubから1クリックでCloudflareアカウントにデプロイ
+- 🚀 **ツークリックデプロイ** - GitHubから最短2クリックでCloudflareアカウントにデプロイ
 - 💪 **フルスタックTypeScript** - 型安全性と開発体験の向上
 - ☁️ **Cloudflareエコシステム** - Workers、D1、R2などのCloudflareサービスをフル活用
 - 🎯 **個人開発者フレンドリー** - 複雑な設定不要で、すぐに使い始められる
