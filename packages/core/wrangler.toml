@@ -37,7 +37,7 @@ class_name = "RealtimeConnectionManager"
 
 [[migrations]]
 tag = "v1"
-new_classes = [ "RealtimeConnectionManager" ]
+new_sqlite_classes = [ "RealtimeConnectionManager" ]
 
 # Cron Triggers for realtime event processing
 [triggers]
