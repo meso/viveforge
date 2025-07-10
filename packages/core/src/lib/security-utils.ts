@@ -103,6 +103,24 @@ export function getOrGenerateJWTSecret(
 
   // No secret provided - handle based on environment
   if (environment === 'production') {
+    // Check if this is a Deploy Button deployment
+    const deployMode = env.VIBEBASE_DEPLOY_MODE
+    if (deployMode === 'deploy-button') {
+      // For Deploy Button deployments, auto-generate a secret with warning
+      const generatedSecret = generateSecureJWTSecret()
+      console.warn(
+        '⚠️  AUTO-GENERATED JWT SECRET: For Deploy Button convenience, a temporary JWT secret was auto-generated. ' +
+          'For production use, set a permanent secret with: wrangler secret put JWT_SECRET'
+      )
+      return {
+        secret: generatedSecret,
+        warnings: [
+          'Auto-generated JWT secret for Deploy Button deployment. Set a permanent secret for production use.',
+        ],
+        isGenerated: true,
+      }
+    }
+    
     throw new Error(
       'JWT_SECRET environment variable is required in production. ' +
         'Please set a secure JWT secret using: wrangler secret put JWT_SECRET'
