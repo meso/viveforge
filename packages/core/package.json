@@ -7,8 +7,8 @@
   "types": "./src/index.ts",
   "scripts": {
     "dev": "wrangler dev -c wrangler.local.toml",
-    "deploy": "test -f wrangler.local.toml && wrangler deploy -c wrangler.local.toml || (test -d node_modules || npm install) && wrangler deploy",
-    "build": "test -d node_modules || npm install",
+    "deploy": "test -f wrangler.local.toml && wrangler deploy -c wrangler.local.toml || wrangler deploy",
+    "build": "npm install",
     "deploy:local": "wrangler deploy -c wrangler.local.toml",
     "db:init": "wrangler d1 execute DB --file=./migrations/consolidated_schema.sql",
     "test": "vitest run",
