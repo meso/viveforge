@@ -25,6 +25,15 @@ export interface ApiResponse<T = unknown> {
   status: number
 }
 
+// List response type - for list operations with pagination info
+export interface ListResponse<T = unknown> {
+  data: T[]
+  total: number
+  error?: string
+  success: boolean
+  status: number
+}
+
 export interface ApiError {
   message: string
   status?: number

@@ -64,7 +64,11 @@
       "Bash(npm test:*)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "WebFetch(domain:www.npmjs.com)"
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(npx tsx:*)",
+      "Bash(npm run seed:*)",
+      "Bash(npm run setup:*)",
+      "Bash(npm run:*)"
     ],
     "deny": []
   }

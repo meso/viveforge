@@ -146,9 +146,40 @@ export class DataManager {
     sortBy?: string,
     sortOrder: 'ASC' | 'DESC' = 'DESC'
   ): Promise<TableDataResult> {
+    return this.getTableDataWithSortAndFilter(tableName, limit, offset, sortBy, sortOrder)
+  }
+
+  // Get data from table with custom sorting and WHERE filtering
+  async getTableDataWithSortAndFilter(
+    tableName: string,
+    limit = 100,
+    offset = 0,
+    sortBy?: string,
+    sortOrder: 'ASC' | 'DESC' = 'DESC',
+    whereClause?: Record<string, any>
+  ): Promise<TableDataResult> {
     const safeTableName = validateAndEscapeTableName(tableName)
+    
+    // Build WHERE clause
+    let whereSQL = ''
+    let bindParams: any[] = []
+    
+    if (whereClause && Object.keys(whereClause).length > 0) {
+      const conditions: string[] = []
+      
+      for (const [key, value] of Object.entries(whereClause)) {
+        const safeColumn = validateAndEscapeColumnName(key)
+        conditions.push(`${safeColumn} = ?`)
+        bindParams.push(value)
+      }
+      
+      whereSQL = ' WHERE ' + conditions.join(' AND ')
+    }
+
+    // Count total with filters
     const countResult = await this.db
-      .prepare(`SELECT COUNT(*) as total FROM ${safeTableName}`)
+      .prepare(`SELECT COUNT(*) as total FROM ${safeTableName}${whereSQL}`)
+      .bind(...bindParams)
       .first()
 
     // Determine sortBy if not provided
@@ -161,15 +192,16 @@ export class DataManager {
     // Validate sortBy column name if provided
     const safeSortBy = sortBy && sortBy !== 'ROWID' ? validateAndEscapeColumnName(sortBy) : sortBy
 
+    // Query data with filters and pagination
     const dataResult = await this.db
       .prepare(
-        `SELECT * FROM ${safeTableName} ORDER BY ${safeSortBy === 'ROWID' ? 'ROWID' : safeSortBy} ${sortOrder} LIMIT ? OFFSET ?`
+        `SELECT * FROM ${safeTableName}${whereSQL} ORDER BY ${safeSortBy === 'ROWID' ? 'ROWID' : safeSortBy} ${sortOrder} LIMIT ? OFFSET ?`
       )
-      .bind(limit, offset)
+      .bind(...bindParams, limit, offset)
       .all()
 
     return {
-      data: dataResult.results as Record<string, unknown>[],
+      data: (dataResult.results as Array<Record<string, unknown>>) || [],
       total: (countResult as { total: number })?.total || 0,
     }
   }
@@ -229,6 +261,70 @@ export class DataManager {
     }
   }
 
+  // Get table data with access control and WHERE filtering
+  async getTableDataWithAccessControlAndFilter(
+    tableName: string,
+    accessPolicy: 'public' | 'private',
+    userId?: string,
+    limit = 100,
+    offset = 0,
+    sortBy?: string,
+    sortOrder: 'ASC' | 'DESC' = 'DESC',
+    whereClause?: Record<string, any>
+  ): Promise<TableDataResult> {
+    const safeTableName = validateAndEscapeTableName(tableName)
+
+    // Build WHERE clause combining access control and user filters
+    const conditions: string[] = []
+    const bindings: (string | number | boolean | null)[] = []
+
+    // Add access control condition for private tables
+    if (accessPolicy === 'private' && userId) {
+      conditions.push('owner_id = ?')
+      bindings.push(userId)
+    }
+
+    // Add user-provided WHERE conditions
+    if (whereClause && Object.keys(whereClause).length > 0) {
+      for (const [key, value] of Object.entries(whereClause)) {
+        const safeColumn = validateAndEscapeColumnName(key)
+        conditions.push(`${safeColumn} = ?`)
+        bindings.push(value)
+      }
+    }
+
+    const whereSQL = conditions.length > 0 ? ' WHERE ' + conditions.join(' AND ') : ''
+
+    // Get total count with access control and filters
+    const countResult = await this.db
+      .prepare(`SELECT COUNT(*) as total FROM ${safeTableName}${whereSQL}`)
+      .bind(...bindings)
+      .first()
+
+    // Determine sortBy if not provided
+    if (!sortBy) {
+      const columns = await this.getTableColumns(tableName)
+      const hasCreatedAt = columns.some((col) => col.name === 'created_at')
+      sortBy = hasCreatedAt ? 'created_at' : 'ROWID'
+    }
+
+    // Validate sortBy column name if provided
+    const safeSortBy = sortBy && sortBy !== 'ROWID' ? validateAndEscapeColumnName(sortBy) : sortBy
+
+    // Get data with access control, filters and sorting
+    const dataResult = await this.db
+      .prepare(
+        `SELECT * FROM ${safeTableName}${whereSQL} ORDER BY ${safeSortBy === 'ROWID' ? 'ROWID' : safeSortBy} ${sortOrder} LIMIT ? OFFSET ?`
+      )
+      .bind(...bindings, limit, offset)
+      .all()
+
+    return {
+      data: dataResult.results as Record<string, unknown>[],
+      total: (countResult as { total: number })?.total || 0,
+    }
+  }
+
   // Get single record by ID
   async getRecordById(tableName: string, id: string): Promise<Record<string, unknown> | null> {
     const safeTableName = validateAndEscapeTableName(tableName)
@@ -262,6 +358,17 @@ export class DataManager {
       .first()
 
     return (result as Record<string, unknown>) || null
+  }
+
+  // Check if table has a specific column
+  async hasColumn(tableName: string, columnName: string): Promise<boolean> {
+    try {
+      const columns = await this.getTableColumns(tableName)
+      return columns.some(col => col.name === columnName)
+    } catch (error) {
+      console.error(`Error checking column ${columnName} in table ${tableName}:`, error)
+      return false
+    }
   }
 
   // Create record and return the generated ID

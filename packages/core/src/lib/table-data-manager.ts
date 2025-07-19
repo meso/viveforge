@@ -66,6 +66,38 @@ export class TableDataManager {
   }
 
   /**
+   * Get data from table with custom sorting and WHERE filtering
+   */
+  async getTableDataWithSortAndFilter(
+    tableName: string,
+    limit = 100,
+    offset = 0,
+    sortBy?: string,
+    sortOrder: 'ASC' | 'DESC' = 'DESC',
+    whereClause?: Record<string, any>
+  ): Promise<TableDataResult> {
+    return this.dataManager.getTableDataWithSortAndFilter(tableName, limit, offset, sortBy, sortOrder, whereClause)
+  }
+
+  /**
+   * Get data from table with access control and WHERE filtering
+   */
+  async getTableDataWithAccessControlAndFilter(
+    tableName: string,
+    accessPolicy: 'public' | 'private',
+    userId?: string,
+    limit = 100,
+    offset = 0,
+    sortBy?: string,
+    sortOrder: 'ASC' | 'DESC' = 'DESC',
+    whereClause?: Record<string, any>
+  ): Promise<TableDataResult> {
+    return this.dataManager.getTableDataWithAccessControlAndFilter(
+      tableName, accessPolicy, userId, limit, offset, sortBy, sortOrder, whereClause
+    )
+  }
+
+  /**
    * Get a specific record by ID
    */
   async getRecordById(tableName: string, id: string): Promise<Record<string, unknown> | null> {

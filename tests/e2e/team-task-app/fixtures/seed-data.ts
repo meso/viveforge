@@ -6,27 +6,27 @@ import type { Team, TeamMember, Project, Task, TaskComment, User } from './types
 // テストユーザー
 export const testUsers: Omit<User, 'id' | 'created_at' | 'updated_at'>[] = [
   {
-    email: 'alice@test.com',
+    email: 'alice@example.com',
     name: 'Alice Johnson',
     avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=alice'
   },
   {
-    email: 'bob@test.com',
+    email: 'bob@example.com',
     name: 'Bob Smith',
     avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=bob'
   },
   {
-    email: 'charlie@test.com',
+    email: 'charlie@example.com',
     name: 'Charlie Brown',
     avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=charlie'
   },
   {
-    email: 'diana@test.com',
+    email: 'diana@example.com',
     name: 'Diana Prince',
     avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=diana'
   },
   {
-    email: 'eve@test.com',
+    email: 'eve@example.com',
     name: 'Eve Wilson',
     avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=eve'
   }

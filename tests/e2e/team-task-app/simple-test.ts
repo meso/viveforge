@@ -2,7 +2,7 @@
 import { createClient } from '@vibebase/sdk';
 
 const apiUrl = process.env.VIBEBASE_API_URL || 'http://localhost:8787';
-const apiKey = process.env.VIBEBASE_API_KEY || 'test-admin-key-123456';
+const apiKey = process.env.VIBEBASE_API_KEY || 'vb_live_test123456789012345678901234567890';
 
 console.log('Testing connection to:', apiUrl);
 console.log('Using API key:', apiKey.substring(0, 10) + '...');

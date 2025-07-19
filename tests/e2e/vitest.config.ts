@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => {
       globals: true,
       testTimeout: 30000,
       hookTimeout: 30000,
-      setupFiles: ['./setup.ts'],
+      setupFiles: [],
       sequence: {
         shuffle: false, // E2Eテストは順序に依存する場合があるため
       },

@@ -2,12 +2,7 @@
 // Seed Test Data for E2E Tests
 // E2Eテスト用のテストデータ投入スクリプト
 
-import { execSync } from 'child_process';
-import { resolve, dirname } from 'path';
-import { writeFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { createClient } from '@vibebase/sdk';
 import {
   testUsers,
   generateTeams,
@@ -19,123 +14,187 @@ import {
   generateActivityLogs
 } from './fixtures/seed-data';
 
+const apiUrl = process.env.VIBEBASE_API_URL || 'http://localhost:8787';
+const apiKey = process.env.VIBEBASE_API_KEY || 'vb_live_test123456789012345678901234567890';
+
 console.log('🌱 Seeding test data for E2E tests...\n');
 
-const rootDir = resolve(process.cwd(), '../..');
-const coreDir = resolve(rootDir, 'packages/core');
+// Vibebaseクライアントの初期化
+const vibebase = createClient({
+  apiUrl,
+  apiKey
+});
 
-console.log('🔧 Paths:');
-console.log(`   Root: ${rootDir}`);
-console.log(`   Core: ${coreDir}`);
-
-// データ投入の実行
 async function seedData() {
   try {
-    // SQLファイルを生成
-    const sqlStatements = [];
-    
-    // 1. 管理者の作成
-    console.log('\n👑 Creating admin user...');
-    const adminId = `admin-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    sqlStatements.push(`INSERT INTO admins (id, github_username, github_id, is_root, created_at) VALUES ('${adminId}', 'e2e-test-admin', '123456789', 1, datetime('now'));`);
-    console.log(`   ✅ Generated admin user: ${adminId}`);
-
-    // 2. APIキーの作成（管理者による）
-    console.log('\n🔑 Creating API keys...');
-    const apiKeys = generateAPIKeys([adminId]);
-    for (const apiKeyData of apiKeys) {
-      const expiresAt = apiKeyData.expires_at === null ? 'NULL' : `'${apiKeyData.expires_at}'`;
-      const lastUsedAt = apiKeyData.last_used_at === null ? 'NULL' : `'${apiKeyData.last_used_at}'`;
-      sqlStatements.push(`INSERT INTO api_keys (id, name, key_hash, key_prefix, scopes, created_by, created_at, expires_at, last_used_at, is_active) VALUES ('${apiKeyData.id}', '${apiKeyData.name}', '${apiKeyData.key_hash}', '${apiKeyData.key_prefix}', '${apiKeyData.scopes}', '${adminId}', '${apiKeyData.created_at}', ${expiresAt}, ${lastUsedAt}, ${apiKeyData.is_active});`);
-    }
-    console.log(`   ✅ Generated ${apiKeys.length} API keys`);
-
-    // 3. ユーザーの作成
-    console.log('\n👥 Creating users...');
+    console.log('📝 Creating test users...');
     const userIds: string[] = [];
-    for (const userData of testUsers) {
-      const userId = `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      userIds.push(userId);
-      sqlStatements.push(`INSERT INTO users (id, email, name, avatar_url, created_at) VALUES ('${userId}', '${userData.email}', '${(userData.name || '').replace(/'/g, "''")}', '${userData.avatar_url}', datetime('now'));`);
-    }
-    console.log(`   ✅ Generated ${userIds.length} users`);
-
-    // 5. チームの作成
-    console.log('\n👥 Creating teams...');
-    const teamData = generateTeams(userIds);
-    const teamIds: string[] = [];
-    for (const team of teamData) {
-      const teamId = `team-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      teamIds.push(teamId);
-      sqlStatements.push(`INSERT INTO teams (id, name, description, created_by, created_at) VALUES ('${teamId}', '${team.name.replace(/'/g, "''")}', '${(team.description || '').replace(/'/g, "''")}', '${team.created_by}', datetime('now'));`);
-    }
-    console.log(`   ✅ Generated ${teamIds.length} teams`);
-
-    // 5. チームメンバーの作成
-    console.log('\n🤝 Creating team memberships...');
-    const memberData = generateTeamMembers(teamIds, userIds);
-    for (const member of memberData) {
-      const memberId = `member-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      sqlStatements.push(`INSERT INTO team_members (id, team_id, user_id, role, invited_by, joined_at) VALUES ('${memberId}', '${member.team_id}', '${member.user_id}', '${member.role}', '${member.invited_by}', datetime('now'));`);
-    }
-    console.log(`   ✅ Generated ${memberData.length} team memberships`);
-
-    // 6. プロジェクトの作成
-    console.log('\n📁 Creating projects...');
-    const projectData = generateProjects(teamIds, userIds);
-    const projectIds: string[] = [];
-    for (const project of projectData) {
-      const projectId = `project-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      projectIds.push(projectId);
-      sqlStatements.push(`INSERT INTO projects (id, team_id, name, description, status, due_date, created_by, created_at) VALUES ('${projectId}', '${project.team_id}', '${project.name.replace(/'/g, "''")}', '${(project.description || '').replace(/'/g, "''")}', '${project.status}', '${project.due_date}', '${project.created_by}', datetime('now'));`);
-    }
-    console.log(`   ✅ Generated ${projectIds.length} projects`);
-
-    // 7. タスクの作成
-    console.log('\n📋 Creating tasks...');
-    const taskData = generateTasks(projectIds, userIds);
-    const taskIds: string[] = [];
-    for (const task of taskData) {
-      const taskId = `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      taskIds.push(taskId);
-      sqlStatements.push(`INSERT INTO tasks (id, project_id, title, description, status, priority, assigned_to, due_date, estimated_hours, actual_hours, created_by, completed_at, created_at) VALUES ('${taskId}', '${task.project_id}', '${task.title.replace(/'/g, "''")}', '${(task.description || '').replace(/'/g, "''")}', '${task.status}', '${task.priority}', '${task.assigned_to || ''}', '${task.due_date || ''}', ${task.estimated_hours || 'NULL'}, ${task.actual_hours || 'NULL'}, '${task.created_by}', '${task.completed_at || ''}', datetime('now'));`);
-    }
-    console.log(`   ✅ Generated ${taskIds.length} tasks`);
-
-    // 8. コメントの作成
-    console.log('\n💬 Creating comments...');
-    const commentData = generateTaskComments(taskIds, userIds);
-    for (const comment of commentData) {
-      const commentId = `comment-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      sqlStatements.push(`INSERT INTO task_comments (id, task_id, user_id, comment, is_edited, created_at) VALUES ('${commentId}', '${comment.task_id}', '${comment.user_id}', '${comment.comment.replace(/'/g, "''")}', ${comment.is_edited ? 1 : 0}, datetime('now'));`);
-    }
-    console.log(`   ✅ Generated ${commentData.length} comments`);
-
-    // 9. アクティビティログの作成
-    console.log('\n📊 Creating activity logs...');
-    const activityData = generateActivityLogs(teamIds, projectIds, taskIds, userIds);
-    for (const activity of activityData) {
-      const activityId = `activity-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      sqlStatements.push(`INSERT INTO activity_logs (id, team_id, project_id, task_id, user_id, action, entity_type, entity_id, created_at) VALUES ('${activityId}', '${activity.team_id}', '${activity.project_id || ''}', '${activity.task_id || ''}', '${activity.user_id}', '${activity.action}', '${activity.entity_type}', '${activity.entity_id}', datetime('now'));`);
-    }
-    console.log(`   ✅ Generated ${activityData.length} activity logs`);
-
-    // SQLファイルを作成して実行
-    const sqlFile = resolve(__dirname, '.temp-seed-data.sql');
-    writeFileSync(sqlFile, sqlStatements.join('\n'));
     
-    console.log('\n💾 Executing SQL statements...');
-    execSync(`cd ${coreDir} && wrangler d1 execute vibebase-db --local -c wrangler.local.toml --file=${sqlFile}`, {
-      stdio: 'inherit'
-    });
+    for (const userData of testUsers) {
+      try {
+        // 既存ユーザーがあるかチェック
+        const existing = await vibebase.data.list('users', {
+          where: { email: userData.email }
+        });
+        
+        console.log(`   🔍 Checking existing user ${userData.email}:`, existing);
+        
+        if (existing && existing.data && existing.data.length > 0) {
+          console.log(`   ℹ️  User ${userData.email} already exists`);
+          userIds.push(existing.data[0].id);
+        } else {
+          const user = await vibebase.data.create('users', userData);
+          console.log(`   🔍 Created user response:`, user);
+          userIds.push(user.id);
+          console.log(`   ✅ Created user: ${userData.email}`);
+        }
+      } catch (error) {
+        console.error(`   ❌ Failed to create user ${userData.email}:`, error);
+        console.error(`   📄 Full error:`, JSON.stringify(error, null, 2));
+        throw error;
+      }
+    }
 
-    // 一時ファイルを削除
-    execSync(`rm ${sqlFile}`);
+    console.log('\n🏢 Creating test teams...');
+    const teams = generateTeams(userIds);
+    const teamIds: string[] = [];
+    
+    for (const teamData of teams) {
+      try {
+        const team = await vibebase.data.create('teams', teamData);
+        teamIds.push(team.id);
+        console.log(`   ✅ Created team: ${teamData.name}`);
+      } catch (error) {
+        console.error(`   ❌ Failed to create team ${teamData.name}:`, error);
+        throw error;
+      }
+    }
 
-    console.log('\n✨ Test data seeding complete!');
+    console.log('\n👥 Creating team memberships...');
+    const teamMembers = generateTeamMembers(teamIds, userIds);
+    
+    for (const memberData of teamMembers) {
+      try {
+        await vibebase.data.create('team_members', memberData);
+        console.log(`   ✅ Added member to team`);
+      } catch (error) {
+        console.error(`   ❌ Failed to create team membership:`, error);
+        // チームメンバーシップの失敗は続行可能
+      }
+    }
+
+    console.log('\n📋 Creating test projects...');
+    const projects = generateProjects(teamIds, userIds);
+    const projectIds: string[] = [];
+    
+    for (const projectData of projects) {
+      try {
+        const project = await vibebase.data.create('projects', projectData);
+        projectIds.push(project.id);
+        console.log(`   ✅ Created project: ${projectData.name}`);
+      } catch (error) {
+        console.error(`   ❌ Failed to create project ${projectData.name}:`, error);
+        throw error;
+      }
+    }
+
+    console.log('\n✅ Creating test tasks...');
+    const tasks = generateTasks(projectIds, userIds);
+    const taskIds: string[] = [];
+    
+    for (const taskData of tasks) {
+      try {
+        const task = await vibebase.data.create('tasks', taskData);
+        taskIds.push(task.id);
+        console.log(`   ✅ Created task: ${taskData.title}`);
+      } catch (error) {
+        console.error(`   ❌ Failed to create task ${taskData.title}:`, error);
+        throw error;
+      }
+    }
+
+    console.log('\n💬 Creating task comments...');
+    const comments = generateTaskComments(taskIds, userIds);
+    
+    for (const commentData of comments) {
+      try {
+        await vibebase.data.create('task_comments', commentData);
+        console.log(`   ✅ Created comment`);
+      } catch (error) {
+        console.error(`   ❌ Failed to create comment:`, error);
+        // コメントの失敗は続行可能
+      }
+    }
+
+    console.log('\n🔑 Creating test API keys...');
+    const apiKeys = generateAPIKeys(userIds);
+    
+    for (const apiKeyData of apiKeys) {
+      try {
+        // 既存のキーをチェック
+        const existing = await vibebase.data.list('api_keys', {
+          where: { id: apiKeyData.id }
+        });
+        
+        if (existing.data.length === 0) {
+          await vibebase.data.create('api_keys', apiKeyData);
+          console.log(`   ✅ Created API key: ${apiKeyData.name}`);
+        } else {
+          console.log(`   ℹ️  API key ${apiKeyData.name} already exists`);
+        }
+      } catch (error) {
+        console.error(`   ❌ Failed to create API key:`, error);
+        // API キーの失敗は続行可能
+      }
+    }
+
+    console.log('\n📊 Creating activity logs...');
+    const activities = generateActivityLogs(teamIds, projectIds, taskIds, userIds);
+    
+    // アクティビティログは一括作成
+    try {
+      await vibebase.data.bulkInsert('activity_logs', activities);
+      console.log(`   ✅ Created ${activities.length} activity logs`);
+    } catch (error) {
+      console.error(`   ❌ Failed to create activity logs:`, error);
+      // アクティビティログの失敗は続行可能
+    }
+
+    // テストIDを保存（後でクリーンアップ用）
+    const testData = {
+      userIds,
+      teamIds,
+      projectIds,
+      taskIds,
+      seedDate: new Date().toISOString()
+    };
+
+    try {
+      await vibebase.storage.upload(
+        'test-data/e2e-test-ids.json',
+        JSON.stringify(testData, null, 2),
+        {
+          contentType: 'application/json'
+        }
+      );
+      console.log('\n💾 Saved test data IDs to storage');
+    } catch (error) {
+      console.log('\n⚠️  Could not save test IDs to storage:', error);
+    }
+
+    console.log('\n✨ Seed data creation complete!\n');
+    console.log('📊 Summary:');
+    console.log(`   Users: ${userIds.length}`);
+    console.log(`   Teams: ${teamIds.length}`);
+    console.log(`   Projects: ${projectIds.length}`);
+    console.log(`   Tasks: ${taskIds.length}`);
+    console.log(`   Comments: ${comments.length}`);
+    console.log(`   Activities: ${activities.length}`);
+    console.log('');
+    console.log('🚀 Ready to run E2E tests!');
 
   } catch (error) {
-    console.error('\n❌ Error seeding data:', error);
+    console.error('\n❌ Error during seeding:', error);
     throw error;
   }
 }

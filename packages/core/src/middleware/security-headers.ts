@@ -129,8 +129,8 @@ export const DEVELOPMENT_CSP_OVERRIDES: NonNullable<
 > = {
   directives: {
     'default-src': ["'self'"],
-    'script-src': ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'localhost:*', 'ws:', 'wss:'], // Allow localhost for dev
-    'style-src': ["'self'", "'unsafe-inline'", 'localhost:*'],
+    'script-src': ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'localhost:*', 'ws:', 'wss:', 'https://cdn.tailwindcss.com'], // Allow CDN for dev
+    'style-src': ["'self'", "'unsafe-inline'", 'localhost:*', 'https://cdn.tailwindcss.com'],
     'img-src': ["'self'", 'data:', 'https:', 'http:', 'blob:'], // Allow HTTP in dev
     'font-src': ["'self'", 'data:', 'https:', 'http:'],
     'connect-src': ["'self'", 'https:', 'http:', 'ws:', 'wss:', 'localhost:*'], // Allow localhost connections

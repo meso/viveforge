@@ -4,6 +4,7 @@
 
 import type {
   ApiResponse,
+  ListResponse,
   CreateOptions,
   QueryOptions,
   TableRow,
@@ -28,7 +29,7 @@ export class DataClient {
   async list<T extends TableRow = TableRow>(
     tableName: string,
     options?: QueryOptions
-  ): Promise<ApiResponse<{ data: T[]; total: number }>> {
+  ): Promise<ListResponse<T>> {
     const params: Record<string, string> = {}
 
     if (options?.limit) params.limit = String(options.limit)
@@ -37,14 +38,48 @@ export class DataClient {
     if (options?.orderDirection) params.order_direction = options.orderDirection
     if (options?.where) params.where = JSON.stringify(options.where)
 
-    return this.http.get<{ data: T[]; total: number }>(`/api/tables/${tableName}/data`, params)
+    const response = await this.http.get<{ data: T[]; total: number; pagination?: any }>(`/api/data/${tableName}`, params)
+    
+    // Transform the response to flatten the data structure
+    if (response.success && response.data) {
+      // Handle the actual API response format which includes pagination
+      if ('pagination' in response.data && response.data.pagination) {
+        return {
+          ...response,
+          data: response.data.data,
+          total: response.data.pagination.total
+        }
+      }
+      // Handle older format
+      return {
+        ...response,
+        data: response.data.data || response.data,
+        total: response.data.total || 0
+      }
+    }
+    
+    return {
+      ...response,
+      data: [],
+      total: 0
+    }
   }
 
   /**
    * Get a single record by ID
    */
   async get<T extends TableRow = TableRow>(tableName: string, id: string): Promise<ApiResponse<T>> {
-    return this.http.get<T>(`/api/data/${tableName}/${id}`)
+    const response = await this.http.get(`/api/data/${tableName}/${id}`)
+    
+    // Handle response format from API
+    if (response.success && response.data && typeof response.data === 'object' && 'data' in response.data) {
+      return {
+        ...response,
+        data: (response.data as any).data
+      } as ApiResponse<T>
+    }
+    
+    return response as ApiResponse<T>
   }
 
   /**
@@ -59,7 +94,17 @@ export class DataClient {
       ...data,
       ...(options?.select && { select: options.select }),
     }
-    return this.http.post<T>(`/api/tables/${tableName}/data`, payload)
+    const response = await this.http.post(`/api/data/${tableName}`, payload)
+    
+    // Handle nested response format from API
+    if (response.success && response.data && typeof response.data === 'object' && 'data' in response.data) {
+      return {
+        ...response,
+        data: (response.data as any).data
+      } as ApiResponse<T>
+    }
+    
+    return response as ApiResponse<T>
   }
 
   /**
@@ -75,7 +120,17 @@ export class DataClient {
       ...data,
       ...(options?.select && { select: options.select }),
     }
-    return this.http.put<T>(`/api/data/${tableName}/${id}`, payload)
+    const response = await this.http.put(`/api/data/${tableName}/${id}`, payload)
+    
+    // Handle nested response format from API
+    if (response.success && response.data && typeof response.data === 'object' && 'data' in response.data) {
+      return {
+        ...response,
+        data: (response.data as any).data
+      } as ApiResponse<T>
+    }
+    
+    return response as ApiResponse<T>
   }
 
   /**

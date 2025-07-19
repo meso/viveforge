@@ -56,6 +56,7 @@ async function handleUserJWTAuth(
       return null // Let other auth methods handle this
     }
 
+
     const userAuthManager = new UserAuthManager(
       c.env.DB,
       c.env.JWT_SECRET,

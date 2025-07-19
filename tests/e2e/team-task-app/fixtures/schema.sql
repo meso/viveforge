@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS team_members (
   role TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'member')),
   joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   invited_by TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
   UNIQUE(team_id, user_id)
 );

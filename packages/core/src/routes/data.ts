@@ -85,27 +85,44 @@ data.get('/:tableName', async (c) => {
       )
     }
 
+    // Parse WHERE clause from query parameter
+    let whereClause: Record<string, any> | undefined
+    const whereParam = c.req.query('where')
+    if (whereParam) {
+      try {
+        whereClause = JSON.parse(whereParam)
+      } catch (error) {
+        return c.json(
+          {
+            error: 'Invalid WHERE clause format. Must be valid JSON.',
+          },
+          400
+        )
+      }
+    }
+
     let result: TableDataResult
 
     // Apply access control based on authentication type and table policy
     if (authContext?.type === 'admin') {
       // Admins can access all data
-      result = await tm.getTableDataWithSort(tableName, limit, offset, sortBy, sortOrder)
+      result = await tm.getTableDataWithSortAndFilter(tableName, limit, offset, sortBy, sortOrder, whereClause)
     } else if (authContext?.type === 'user' && currentUser) {
       // Users get access control applied
-      result = await tm.getTableDataWithAccessControl(
+      result = await tm.getTableDataWithAccessControlAndFilter(
         tableName,
         currentUser.id,
         limit,
         offset,
         sortBy,
-        sortOrder
+        sortOrder,
+        whereClause
       )
     } else if (authContext?.type === 'api_key') {
       // API keys can access data based on scopes and table policy
       // For now, treat API keys as admin-level access
       // TODO: Implement proper API key scoping
-      result = await tm.getTableDataWithSort(tableName, limit, offset, sortBy, sortOrder)
+      result = await tm.getTableDataWithSortAndFilter(tableName, limit, offset, sortBy, sortOrder, whereClause)
     } else {
       return c.json({ error: 'Authentication required' }, 401)
     }

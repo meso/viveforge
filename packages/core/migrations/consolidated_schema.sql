@@ -30,16 +30,6 @@ CREATE TABLE api_keys (
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Sessions table for admin authentication
-CREATE TABLE sessions (
-  id TEXT PRIMARY KEY,
-  email TEXT NOT NULL,
-  expires_at DATETIME NOT NULL,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (email) REFERENCES admins(email) ON DELETE CASCADE
-);
-
 -- OAuth provider configuration
 CREATE TABLE oauth_providers (
   id TEXT PRIMARY KEY,
@@ -304,7 +294,6 @@ CREATE TABLE items (
 -- ============================
 
 -- Admin and auth indexes
-CREATE INDEX idx_sessions_expires_at ON sessions(expires_at);
 CREATE UNIQUE INDEX idx_users_provider_id ON users(provider, provider_id);
 CREATE INDEX idx_user_sessions_user_id ON user_sessions(user_id);
 CREATE INDEX idx_user_sessions_expires_at ON user_sessions(expires_at);

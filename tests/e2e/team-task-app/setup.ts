@@ -19,7 +19,7 @@ const envTestPath = resolve(testDir, '.env.test');
 if (!existsSync(envTestPath)) {
   const envContent = `# E2E Test Environment Variables
 VIBEBASE_API_URL=http://localhost:8787
-VIBEBASE_API_KEY=test-admin-key-123456
+VIBEBASE_API_KEY=vb_live_test123456789012345678901234567890
 VIBEBASE_TEST_USER_TOKEN=test-user-token-123456
 CLEANUP_BEFORE_TEST=true
 `;
@@ -178,7 +178,44 @@ try {
   }
 }
 
-// Step 7: セットアップ完了メッセージ
+// Step 7: テスト用APIキーをデータベースに追加
+console.log('\n🔑 Adding test API key to database...');
+const testApiKeySQL = `
+INSERT OR REPLACE INTO api_keys (
+  id, name, key_hash, key_prefix, scopes, created_by, created_at, expires_at, last_used_at, is_active
+) VALUES (
+  'test-api-key-1',
+  'E2E Test API Key',
+  'a596136871752b2d32b9c4fc198e0d033f49d7818a792e52647b99cb77853568',
+  'vb_live_test123456...',
+  '["data:read","data:write","data:delete","tables:read","admin:read","admin:write"]',
+  NULL,
+  datetime('now'),
+  NULL,
+  NULL,
+  1
+);
+`;
+
+const tempApiKeyFile = resolve(__dirname, '.temp-api-key.sql');
+writeFileSync(tempApiKeyFile, testApiKeySQL);
+
+try {
+  execSync(
+    `cd ${rootDir}/packages/core && wrangler d1 execute ${dbName} --local -c wrangler.local.toml --file=${tempApiKeyFile}`,
+    { stdio: 'inherit' }
+  );
+  console.log('   ✅ Test API key added successfully');
+} catch (error) {
+  console.error('   ❌ Failed to add test API key');
+  throw error;
+} finally {
+  if (existsSync(tempApiKeyFile)) {
+    execSync(`rm ${tempApiKeyFile}`);
+  }
+}
+
+// Step 8: セットアップ完了メッセージ
 console.log('\n✨ E2E test environment setup complete!\n');
 console.log('📋 Next steps:');
 console.log('   1. Start the local Vibebase server:');
