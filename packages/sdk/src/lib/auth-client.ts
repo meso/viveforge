@@ -33,15 +33,20 @@ export class AuthClient {
    */
   async getCurrentUser(): Promise<ApiResponse<User>> {
     const response = await this.http.get('/api/auth/me')
-    
+
     // Handle the API response format which wraps user in a user field
-    if (response.success && response.data && typeof response.data === 'object' && 'user' in response.data) {
+    if (
+      response.success &&
+      response.data &&
+      typeof response.data === 'object' &&
+      'user' in response.data
+    ) {
       return {
         ...response,
-        data: (response.data as any).user
+        data: (response.data as { user: User }).user,
       } as ApiResponse<User>
     }
-    
+
     return response as ApiResponse<User>
   }
 

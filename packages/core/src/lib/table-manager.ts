@@ -8,6 +8,7 @@ import type {
   TableDataResult,
   ValidationResult,
 } from '../types/cloudflare'
+import type { WhereClause } from '../types/database'
 import { ErrorHandler } from './error-handler'
 import type { IndexInfo } from './index-manager'
 import { IndexManager } from './index-manager'
@@ -148,9 +149,16 @@ export class TableManager {
     offset = 0,
     sortBy?: string,
     sortOrder: 'ASC' | 'DESC' = 'DESC',
-    whereClause?: Record<string, any>
+    whereClause?: WhereClause
   ): Promise<TableDataResult> {
-    return this.tableDataManager.getTableDataWithSortAndFilter(tableName, limit, offset, sortBy, sortOrder, whereClause)
+    return this.tableDataManager.getTableDataWithSortAndFilter(
+      tableName,
+      limit,
+      offset,
+      sortBy,
+      sortOrder,
+      whereClause
+    )
   }
 
   /**
@@ -163,13 +171,20 @@ export class TableManager {
     offset = 0,
     sortBy?: string,
     sortOrder: 'ASC' | 'DESC' = 'DESC',
-    whereClause?: Record<string, any>
+    whereClause?: WhereClause
   ): Promise<TableDataResult> {
     // Get table access policy
     const accessPolicy = await this.tableAccessController.getTableAccessPolicy(tableName)
-    
+
     return this.tableDataManager.getTableDataWithAccessControlAndFilter(
-      tableName, accessPolicy, userId, limit, offset, sortBy, sortOrder, whereClause
+      tableName,
+      accessPolicy,
+      userId,
+      limit,
+      offset,
+      sortBy,
+      sortOrder,
+      whereClause
     )
   }
 

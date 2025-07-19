@@ -4,7 +4,7 @@ import type {
   ExecutionContext,
   TableDataResult,
 } from '../types/cloudflare'
-import type { CountResult, IndexColumnInfo } from '../types/database'
+import type { CountResult, IndexColumnInfo, WhereClause } from '../types/database'
 import { DataManager } from './data-manager'
 import { ErrorHandler } from './error-handler'
 import type { IndexInfo } from './index-manager'
@@ -74,9 +74,16 @@ export class TableDataManager {
     offset = 0,
     sortBy?: string,
     sortOrder: 'ASC' | 'DESC' = 'DESC',
-    whereClause?: Record<string, any>
+    whereClause?: WhereClause
   ): Promise<TableDataResult> {
-    return this.dataManager.getTableDataWithSortAndFilter(tableName, limit, offset, sortBy, sortOrder, whereClause)
+    return this.dataManager.getTableDataWithSortAndFilter(
+      tableName,
+      limit,
+      offset,
+      sortBy,
+      sortOrder,
+      whereClause
+    )
   }
 
   /**
@@ -90,10 +97,17 @@ export class TableDataManager {
     offset = 0,
     sortBy?: string,
     sortOrder: 'ASC' | 'DESC' = 'DESC',
-    whereClause?: Record<string, any>
+    whereClause?: WhereClause
   ): Promise<TableDataResult> {
     return this.dataManager.getTableDataWithAccessControlAndFilter(
-      tableName, accessPolicy, userId, limit, offset, sortBy, sortOrder, whereClause
+      tableName,
+      accessPolicy,
+      userId,
+      limit,
+      offset,
+      sortBy,
+      sortOrder,
+      whereClause
     )
   }
 

@@ -3,6 +3,7 @@ import { TableManager } from '../lib/table-manager'
 import { getAuthContext, getCurrentEndUser } from '../middleware/auth'
 import type { Env, Variables } from '../types'
 import type { CustomDurableObjectNamespace, TableDataResult } from '../types/cloudflare'
+import type { WhereClause } from '../types/database'
 
 export const data = new Hono<{ Bindings: Env; Variables: Variables }>()
 
@@ -86,12 +87,12 @@ data.get('/:tableName', async (c) => {
     }
 
     // Parse WHERE clause from query parameter
-    let whereClause: Record<string, any> | undefined
+    let whereClause: WhereClause | undefined
     const whereParam = c.req.query('where')
     if (whereParam) {
       try {
         whereClause = JSON.parse(whereParam)
-      } catch (error) {
+      } catch (_error) {
         return c.json(
           {
             error: 'Invalid WHERE clause format. Must be valid JSON.',
@@ -106,7 +107,14 @@ data.get('/:tableName', async (c) => {
     // Apply access control based on authentication type and table policy
     if (authContext?.type === 'admin') {
       // Admins can access all data
-      result = await tm.getTableDataWithSortAndFilter(tableName, limit, offset, sortBy, sortOrder, whereClause)
+      result = await tm.getTableDataWithSortAndFilter(
+        tableName,
+        limit,
+        offset,
+        sortBy,
+        sortOrder,
+        whereClause
+      )
     } else if (authContext?.type === 'user' && currentUser) {
       // Users get access control applied
       result = await tm.getTableDataWithAccessControlAndFilter(
@@ -122,7 +130,14 @@ data.get('/:tableName', async (c) => {
       // API keys can access data based on scopes and table policy
       // For now, treat API keys as admin-level access
       // TODO: Implement proper API key scoping
-      result = await tm.getTableDataWithSortAndFilter(tableName, limit, offset, sortBy, sortOrder, whereClause)
+      result = await tm.getTableDataWithSortAndFilter(
+        tableName,
+        limit,
+        offset,
+        sortBy,
+        sortOrder,
+        whereClause
+      )
     } else {
       return c.json({ error: 'Authentication required' }, 401)
     }

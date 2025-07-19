@@ -28,12 +28,18 @@ describe('DataClient', () => {
         data: { data: [{ id: '1', title: 'Test' }], total: 1 },
       }
 
+      const expectedResult = {
+        success: true,
+        data: [{ id: '1', title: 'Test' }],
+        total: 1,
+      }
+
       vi.mocked(mockHttpClient.get).mockResolvedValueOnce(mockResponse)
 
       const result = await dataClient.list('todos')
 
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/api/tables/todos/data', {})
-      expect(result).toEqual(mockResponse)
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/api/data/todos', {})
+      expect(result).toEqual(expectedResult)
     })
 
     it('should list records with query options', async () => {
@@ -52,14 +58,20 @@ describe('DataClient', () => {
 
       vi.mocked(mockHttpClient.get).mockResolvedValueOnce(mockResponse)
 
-      await dataClient.list('todos', options)
+      const result = await dataClient.list('todos', options)
 
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/api/tables/todos/data', {
+      expect(mockHttpClient.get).toHaveBeenCalledWith('/api/data/todos', {
         limit: '10',
         offset: '20',
         order_by: 'created_at',
         order_direction: 'desc',
         where: JSON.stringify({ completed: false }),
+      })
+
+      expect(result).toEqual({
+        success: true,
+        data: [],
+        total: 0,
       })
     })
   })
@@ -92,7 +104,7 @@ describe('DataClient', () => {
 
       const result = await dataClient.create('todos', data)
 
-      expect(mockHttpClient.post).toHaveBeenCalledWith('/api/tables/todos/data', data)
+      expect(mockHttpClient.post).toHaveBeenCalledWith('/api/data/todos', data)
       expect(result).toEqual(mockResponse)
     })
 
@@ -104,7 +116,7 @@ describe('DataClient', () => {
 
       await dataClient.create('todos', data, options)
 
-      expect(mockHttpClient.post).toHaveBeenCalledWith('/api/tables/todos/data', {
+      expect(mockHttpClient.post).toHaveBeenCalledWith('/api/data/todos', {
         ...data,
         select: ['id', 'title'],
       })

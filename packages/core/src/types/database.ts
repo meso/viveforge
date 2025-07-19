@@ -1,4 +1,8 @@
 // Database result types for Vibebase
+
+// Type for WHERE clause filters
+export type WhereClause = Record<string, string | number | boolean | null>
+
 export interface TableInfo {
   name: string
   sql: string

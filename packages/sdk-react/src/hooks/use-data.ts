@@ -28,7 +28,7 @@ export function useData<T extends TableRow = TableRow>(
       if (!response.success) {
         throw new Error(response.error || 'Failed to fetch data')
       }
-      return response.data
+      return response
     },
     { refetchOnWindowFocus: false }
   )

@@ -4,6 +4,7 @@ import type {
   ExecutionContext,
   TableDataResult,
 } from '../types/cloudflare'
+import type { WhereClause } from '../types/database'
 import { createTimestamps, getCurrentDateTimeISO } from './datetime-utils'
 import { HookManager } from './hook-manager'
 import {
@@ -156,24 +157,24 @@ export class DataManager {
     offset = 0,
     sortBy?: string,
     sortOrder: 'ASC' | 'DESC' = 'DESC',
-    whereClause?: Record<string, any>
+    whereClause?: WhereClause
   ): Promise<TableDataResult> {
     const safeTableName = validateAndEscapeTableName(tableName)
-    
+
     // Build WHERE clause
     let whereSQL = ''
-    let bindParams: any[] = []
-    
+    const bindParams: Array<string | number | boolean | null> = []
+
     if (whereClause && Object.keys(whereClause).length > 0) {
       const conditions: string[] = []
-      
+
       for (const [key, value] of Object.entries(whereClause)) {
         const safeColumn = validateAndEscapeColumnName(key)
         conditions.push(`${safeColumn} = ?`)
         bindParams.push(value)
       }
-      
-      whereSQL = ' WHERE ' + conditions.join(' AND ')
+
+      whereSQL = ` WHERE ${conditions.join(' AND ')}`
     }
 
     // Count total with filters
@@ -270,7 +271,7 @@ export class DataManager {
     offset = 0,
     sortBy?: string,
     sortOrder: 'ASC' | 'DESC' = 'DESC',
-    whereClause?: Record<string, any>
+    whereClause?: WhereClause
   ): Promise<TableDataResult> {
     const safeTableName = validateAndEscapeTableName(tableName)
 
@@ -293,7 +294,7 @@ export class DataManager {
       }
     }
 
-    const whereSQL = conditions.length > 0 ? ' WHERE ' + conditions.join(' AND ') : ''
+    const whereSQL = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : ''
 
     // Get total count with access control and filters
     const countResult = await this.db
@@ -364,7 +365,7 @@ export class DataManager {
   async hasColumn(tableName: string, columnName: string): Promise<boolean> {
     try {
       const columns = await this.getTableColumns(tableName)
-      return columns.some(col => col.name === columnName)
+      return columns.some((col) => col.name === columnName)
     } catch (error) {
       console.error(`Error checking column ${columnName} in table ${tableName}:`, error)
       return false
