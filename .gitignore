@@ -15,3 +15,6 @@ coverage/
 *.tsbuildinfo
 .vitest/
 *.timestamp-*.mjs
+
+# E2E test artifacts
+tests/e2e/.setup-info.json
