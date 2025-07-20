@@ -34,30 +34,137 @@ activity_logs
 
 ## 🚀 セットアップ
 
-### 1. 環境設定
+### 前提条件
+
+1. **Node.js v18以上** と **pnpm** がインストールされていること
+2. **Cloudflare Wrangler** がインストールされていること（`npm install -g wrangler`）
+3. GitHubからリポジトリをクローンしていること
+
+### ⚠️ 初回実行時の注意事項
+
+GitHubからクローンした直後は、以下の手順を **必ず順番通りに** 実行してください：
+
+1. **依存関係のインストール** （プロジェクトルートで）
+2. **Wrangler設定ファイルの作成**
+3. **環境変数の設定**
+4. **データベースの初期化**
+5. **サーバーの起動**
+6. **テストの実行**
+
+これらの手順をスキップすると、エラーが発生する可能性があります。
+
+### 🚀 クイックスタート（初回のみ）
+
+```bash
+# 1. リポジトリをクローン
+git clone https://github.com/your-username/vibebase.git
+cd vibebase
+
+# 2. 依存関係をインストール
+pnpm install
+
+# 3. Wrangler設定をコピー
+cd packages/core
+cp wrangler.toml wrangler.local.toml
+
+# 4. wrangler.local.tomlを編集
+# database_id と kv_namespaces.id を "local" に変更
+
+# 5. データベースを初期化
+pnpm db:init
+
+# 6. 開発サーバーを起動（別ターミナルで）
+pnpm dev
+
+# 7. E2Eテストを実行（別ターミナルで）
+cd ../../tests/e2e
+pnpm setup
+pnpm seed
+pnpm test
+```
+
+### 1. プロジェクト全体の依存関係インストール
+
+```bash
+# プロジェクトルートで実行
+pnpm install
+```
+
+### 2. ローカル開発環境の準備
+
+#### a. Wrangler設定ファイルの作成
+
+```bash
+# packages/core ディレクトリで実行
+cd packages/core
+cp wrangler.toml wrangler.local.toml
+```
+
+`wrangler.local.toml` を編集して、以下の値を設定：
+- `database_id = "placeholder"` → `database_id = "local"` に変更
+- `id = "placeholder"` (kv_namespaces内) → `id = "local"` に変更
+
+注：`"local"`を指定すると、Wranglerはローカルファイルシステムを使用します。
+Cloudflareアカウントなしで開発できます。
+
+#### b. ローカル環境変数の設定
+
+```bash
+# packages/core/.dev.vars ファイルを作成（存在しない場合）
+cd packages/core
+touch .dev.vars
+```
+
+`.dev.vars` ファイルに以下を設定：
+```
+# JWT Secret for E2E testing
+# 任意の複雑な文字列（32文字以上推奨）
+JWT_SECRET="your-secret-key-here-make-it-long-and-random"
+```
+
+#### c. データベースの初期化
+
+```bash
+# packages/core ディレクトリで実行
+pnpm db:init
+```
+
+### 3. E2Eテスト環境の設定
 
 ```bash
 # E2Eテストディレクトリに移動
 cd tests/e2e
 
-# 依存関係をインストール
+# E2Eテストの依存関係をインストール（既にルートでインストール済みの場合はスキップ可）
 pnpm install
-
-# 環境設定を実行
-pnpm setup
 ```
 
-### 2. Vibebaseサーバーの起動
+### 4. Vibebaseサーバーの起動
 
 ```bash
-# 別のターミナルで
+# 別のターミナルで packages/core ディレクトリから実行
 cd packages/core
 pnpm dev
 ```
 
 サーバーが `http://localhost:8787` で起動することを確認してください。
 
-### 3. テストデータの投入
+### 5. テストの初期セットアップ
+
+```bash
+# tests/e2e ディレクトリで実行
+# .env.test ファイルの自動生成とテスト用テーブルの作成
+pnpm setup
+```
+
+このコマンドは以下を実行します：
+- `.env.test` ファイルの自動生成（存在しない場合）
+- 既存のテーブルとインデックスの削除
+- コアスキーマの適用
+- テスト用スキーマの適用
+- テスト用APIキーの登録
+
+### 6. テストデータの投入
 
 ```bash
 # テストデータを投入
@@ -126,10 +233,10 @@ pnpm teardown
 ## 🔧 設定ファイル
 
 ### `.env.test`
+`pnpm setup` 実行時に自動生成されます。内容は以下の通り：
 ```env
 VIBEBASE_API_URL=http://localhost:8787
-VIBEBASE_API_KEY=test-admin-key-123456
-VIBEBASE_TEST_USER_TOKEN=test-user-token-123456
+VIBEBASE_API_KEY=vb_live_test123456789012345678901234567890
 CLEANUP_BEFORE_TEST=true
 ```
 
@@ -214,6 +321,10 @@ pnpm dev:e2e
    # D1データベースの初期化
    cd packages/core
    pnpm db:init
+   
+   # wrangler.local.tomlが存在しない場合
+   cp wrangler.toml wrangler.local.toml
+   # database_id と kv_namespaces.id を "local" に変更
    ```
 
 2. **テストデータが見つからない**
@@ -234,6 +345,31 @@ pnpm dev:e2e
 4. **権限エラー**
    - `.env.test`のAPIキーを確認
    - Vibebaseの認証設定を確認
+   - JWT_SECRETが`.dev.vars`に設定されているか確認
+
+5. **"Cannot find module '@vibebase/sdk'"エラー**
+   ```bash
+   # プロジェクトルートで実行
+   pnpm install
+   pnpm build
+   ```
+
+6. **ポート8787が既に使用中**
+   ```bash
+   # 既存のプロセスを確認
+   lsof -i :8787
+   # プロセスを終了
+   kill -9 <PID>
+   ```
+
+7. **データベース関連のエラー**
+   ```bash
+   # Wranglerのデータをクリア
+   rm -rf .wrangler
+   # データベースを再初期化
+   cd packages/core
+   pnpm db:init
+   ```
 
 ### ログ確認
 

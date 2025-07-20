@@ -20,7 +20,6 @@ if (!existsSync(envTestPath)) {
   const envContent = `# E2E Test Environment Variables
 VIBEBASE_API_URL=http://localhost:8787
 VIBEBASE_API_KEY=vb_live_test123456789012345678901234567890
-VIBEBASE_TEST_USER_TOKEN=test-user-token-123456
 CLEANUP_BEFORE_TEST=true
 `;
   writeFileSync(envTestPath, envContent);
