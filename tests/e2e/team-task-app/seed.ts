@@ -43,9 +43,13 @@ async function seedData() {
           console.log(`   ℹ️  User ${userData.email} already exists`);
           userIds.push(existing.data[0].id);
         } else {
-          const user = await vibebase.data.create('users', userData);
-          console.log(`   🔍 Created user response:`, user);
-          userIds.push(user.id);
+          const response = await vibebase.data.create('users', userData);
+          if (!response.success) {
+            console.error(`   ❌ Failed to create user ${userData.email}:`, response.error);
+            throw new Error(`Failed to create user: ${response.error}`);
+          }
+          console.log(`   🔍 Created user response:`, response);
+          userIds.push(response.data.id);
           console.log(`   ✅ Created user: ${userData.email}`);
         }
       } catch (error) {
@@ -61,8 +65,12 @@ async function seedData() {
     
     for (const teamData of teams) {
       try {
-        const team = await vibebase.data.create('teams', teamData);
-        teamIds.push(team.id);
+        const response = await vibebase.data.create('teams', teamData);
+        if (!response.success) {
+          console.error(`   ❌ Failed to create team ${teamData.name}:`, response.error);
+          throw new Error(`Failed to create team: ${response.error}`);
+        }
+        teamIds.push(response.data.id);
         console.log(`   ✅ Created team: ${teamData.name}`);
       } catch (error) {
         console.error(`   ❌ Failed to create team ${teamData.name}:`, error);
@@ -75,8 +83,13 @@ async function seedData() {
     
     for (const memberData of teamMembers) {
       try {
-        await vibebase.data.create('team_members', memberData);
-        console.log(`   ✅ Added member to team`);
+        const response = await vibebase.data.create('team_members', memberData);
+        if (!response.success) {
+          console.error(`   ❌ Failed to add team member:`, response.error);
+          // チームメンバーシップの失敗は続行可能
+        } else {
+          console.log(`   ✅ Added member to team`);
+        }
       } catch (error) {
         console.error(`   ❌ Failed to create team membership:`, error);
         // チームメンバーシップの失敗は続行可能
@@ -89,8 +102,12 @@ async function seedData() {
     
     for (const projectData of projects) {
       try {
-        const project = await vibebase.data.create('projects', projectData);
-        projectIds.push(project.id);
+        const response = await vibebase.data.create('projects', projectData);
+        if (!response.success) {
+          console.error(`   ❌ Failed to create project ${projectData.name}:`, response.error);
+          throw new Error(`Failed to create project: ${response.error}`);
+        }
+        projectIds.push(response.data.id);
         console.log(`   ✅ Created project: ${projectData.name}`);
       } catch (error) {
         console.error(`   ❌ Failed to create project ${projectData.name}:`, error);
@@ -104,8 +121,12 @@ async function seedData() {
     
     for (const taskData of tasks) {
       try {
-        const task = await vibebase.data.create('tasks', taskData);
-        taskIds.push(task.id);
+        const response = await vibebase.data.create('tasks', taskData);
+        if (!response.success) {
+          console.error(`   ❌ Failed to create task ${taskData.title}:`, response.error);
+          throw new Error(`Failed to create task: ${response.error}`);
+        }
+        taskIds.push(response.data.id);
         console.log(`   ✅ Created task: ${taskData.title}`);
       } catch (error) {
         console.error(`   ❌ Failed to create task ${taskData.title}:`, error);
@@ -118,8 +139,13 @@ async function seedData() {
     
     for (const commentData of comments) {
       try {
-        await vibebase.data.create('task_comments', commentData);
-        console.log(`   ✅ Created comment`);
+        const response = await vibebase.data.create('task_comments', commentData);
+        if (!response.success) {
+          console.error(`   ❌ Failed to create comment:`, response.error);
+          // コメントの失敗は続行可能
+        } else {
+          console.log(`   ✅ Created comment`);
+        }
       } catch (error) {
         console.error(`   ❌ Failed to create comment:`, error);
         // コメントの失敗は続行可能
@@ -137,7 +163,11 @@ async function seedData() {
         });
         
         if (existing.data.length === 0) {
-          await vibebase.data.create('api_keys', apiKeyData);
+          const response = await vibebase.data.create('api_keys', apiKeyData);
+          if (!response.success) {
+            console.error(`   ❌ Failed to create API key ${apiKeyData.name}:`, response.error);
+            throw new Error(`Failed to create API key: ${response.error}`);
+          }
           console.log(`   ✅ Created API key: ${apiKeyData.name}`);
         } else {
           console.log(`   ℹ️  API key ${apiKeyData.name} already exists`);
@@ -153,8 +183,13 @@ async function seedData() {
     
     // アクティビティログは一括作成
     try {
-      await vibebase.data.bulkInsert('activity_logs', activities);
-      console.log(`   ✅ Created ${activities.length} activity logs`);
+      const response = await vibebase.data.bulkInsert('activity_logs', activities);
+      if (!response.success) {
+        console.error(`   ❌ Failed to create activity logs:`, response.error);
+        // アクティビティログの失敗は続行可能
+      } else {
+        console.log(`   ✅ Created ${activities.length} activity logs`);
+      }
     } catch (error) {
       console.error(`   ❌ Failed to create activity logs:`, error);
       // アクティビティログの失敗は続行可能
