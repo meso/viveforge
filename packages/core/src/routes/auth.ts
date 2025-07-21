@@ -114,14 +114,18 @@ auth.get('/callback', async (c) => {
     const expires = 24 * 60 * 60 // 24時間
     const refreshExpires = 30 * 24 * 60 * 60 // 30日
 
+    // 開発環境ではSecureフラグを無効にする
+    const isLocalhost = c.req.header('host')?.includes('localhost') || false
+    const secureFlag = isLocalhost ? '' : ' Secure;'
+
     // 複数のSet-Cookieヘッダーを正しく設定するため、個別に追加
     c.res.headers.append(
       'Set-Cookie',
-      `access_token=${token}; HttpOnly; Secure; SameSite=Strict; Max-Age=${expires}; Path=/`
+      `access_token=${token}; HttpOnly;${secureFlag} SameSite=Strict; Max-Age=${expires}; Path=/`
     )
     c.res.headers.append(
       'Set-Cookie',
-      `refresh_token=${refresh_token}; HttpOnly; Secure; SameSite=Strict; Max-Age=${refreshExpires}; Path=/`
+      `refresh_token=${refresh_token}; HttpOnly;${secureFlag} SameSite=Strict; Max-Age=${refreshExpires}; Path=/`
     )
 
     // リダイレクト先を取得
@@ -149,8 +153,16 @@ auth.post('/logout', async (c) => {
     }
 
     // Cookieを削除
-    c.header('Set-Cookie', 'access_token=; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Path=/')
-    c.header('Set-Cookie', 'refresh_token=; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Path=/')
+    const isLocalhost = c.req.header('host')?.includes('localhost') || false
+    const secureFlag = isLocalhost ? '' : ' Secure;'
+    c.header(
+      'Set-Cookie',
+      `access_token=; HttpOnly;${secureFlag} SameSite=Strict; Max-Age=0; Path=/`
+    )
+    c.header(
+      'Set-Cookie',
+      `refresh_token=; HttpOnly;${secureFlag} SameSite=Strict; Max-Age=0; Path=/`
+    )
 
     return c.json({ success: true, message: 'Logged out successfully' })
   } catch (error) {
@@ -173,8 +185,16 @@ auth.get('/logout', async (c) => {
     }
 
     // Cookieを削除
-    c.header('Set-Cookie', 'access_token=; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Path=/')
-    c.header('Set-Cookie', 'refresh_token=; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Path=/')
+    const isLocalhost = c.req.header('host')?.includes('localhost') || false
+    const secureFlag = isLocalhost ? '' : ' Secure;'
+    c.header(
+      'Set-Cookie',
+      `access_token=; HttpOnly;${secureFlag} SameSite=Strict; Max-Age=0; Path=/`
+    )
+    c.header(
+      'Set-Cookie',
+      `refresh_token=; HttpOnly;${secureFlag} SameSite=Strict; Max-Age=0; Path=/`
+    )
 
     return c.html(getLogoutHTML())
   } catch (error) {
@@ -202,13 +222,15 @@ auth.post('/refresh', async (c) => {
     const tokens = await authClient.refreshToken(refreshToken)
 
     // 新しいCookie設定
+    const isLocalhost = c.req.header('host')?.includes('localhost') || false
+    const secureFlag = isLocalhost ? '' : ' Secure;'
     c.header(
       'Set-Cookie',
-      `access_token=${tokens.access_token}; HttpOnly; Secure; SameSite=Strict; Max-Age=${tokens.expires_in}; Path=/`
+      `access_token=${tokens.access_token}; HttpOnly;${secureFlag} SameSite=Strict; Max-Age=${tokens.expires_in}; Path=/`
     )
     c.header(
       'Set-Cookie',
-      `refresh_token=${tokens.refresh_token}; HttpOnly; Secure; SameSite=Strict; Max-Age=${30 * 24 * 60 * 60}; Path=/`
+      `refresh_token=${tokens.refresh_token}; HttpOnly;${secureFlag} SameSite=Strict; Max-Age=${30 * 24 * 60 * 60}; Path=/`
     )
 
     return c.json({

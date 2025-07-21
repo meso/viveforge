@@ -17,8 +17,17 @@ const subscribeSchema = z.object({
 // GET /api/realtime/sse - Server-Sent Events endpoint
 realtime.get('/sse', async (c) => {
   try {
+    // Authentication is now handled by the multiAuth middleware
     const authContext = getAuthContext(c)
     const currentUser = getCurrentEndUser(c)
+
+    console.log('SSE: Authentication context:', authContext?.type)
+
+    // Authentication is required and should be handled by middleware
+    if (!authContext) {
+      console.log('SSE: No auth context, this should not happen')
+      return c.text('Unauthorized', 401)
+    }
 
     // Check if Durable Object binding exists
     if (!c.env.REALTIME) {

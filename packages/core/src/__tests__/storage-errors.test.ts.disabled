@@ -45,7 +45,7 @@ describe('Storage API Error Scenarios', () => {
       )
     })
 
-    app.route('/api/storage', storage)
+    app.route('/api/storage/files', storage)
   })
 
   describe('Missing R2 Bucket Configuration', () => {
@@ -61,7 +61,7 @@ describe('Storage API Error Scenarios', () => {
     })
 
     it('should return 500 for list when bucket not configured', async () => {
-      const res = await app.request('/api/storage')
+      const res = await app.request('/api/storage/files')
       expect(res.status).toBe(500)
 
       const data = (await res.json()) as { error: { message: string } }
@@ -72,7 +72,7 @@ describe('Storage API Error Scenarios', () => {
       const formData = new FormData()
       formData.append('file', new File(['test'], 'test.txt'))
 
-      const res = await app.request('/api/storage/upload', {
+      const res = await app.request('/api/storage/files', {
         method: 'POST',
         body: formData,
       })
@@ -84,7 +84,7 @@ describe('Storage API Error Scenarios', () => {
     })
 
     it('should return 500 for download when bucket not configured', async () => {
-      const res = await app.request('/api/storage/download/test.txt')
+      const res = await app.request('/api/storage/files/download/test.txt')
       expect(res.status).toBe(500)
       expect(((await res.json()) as { error: { message: string } }).error.message).toContain(
         'USER_STORAGE'
@@ -92,7 +92,7 @@ describe('Storage API Error Scenarios', () => {
     })
 
     it('should return 500 for info when bucket not configured', async () => {
-      const res = await app.request('/api/storage/info/test.txt')
+      const res = await app.request('/api/storage/files/info/test.txt')
       expect(res.status).toBe(500)
       expect(((await res.json()) as { error: { message: string } }).error.message).toContain(
         'USER_STORAGE'
@@ -100,7 +100,7 @@ describe('Storage API Error Scenarios', () => {
     })
 
     it('should return 500 for delete when bucket not configured', async () => {
-      const res = await app.request('/api/storage/test.txt', { method: 'DELETE' })
+      const res = await app.request('/api/storage/files/test.txt', { method: 'DELETE' })
       expect(res.status).toBe(500)
       expect(((await res.json()) as { error: { message: string } }).error.message).toContain(
         'USER_STORAGE'
@@ -108,7 +108,7 @@ describe('Storage API Error Scenarios', () => {
     })
 
     it('should return 500 for bulk delete when bucket not configured', async () => {
-      const res = await app.request('/api/storage', {
+      const res = await app.request('/api/storage/files', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ keys: ['test.txt'] }),
@@ -157,7 +157,7 @@ describe('Storage API Error Scenarios', () => {
         await next()
       })
 
-      const res = await app.request('/api/storage')
+      const res = await app.request('/api/storage/files')
       expect(res.status).toBe(500)
       expect(((await res.json()) as { error: { message: string } }).error.message).toContain(
         'USER_STORAGE'
@@ -178,7 +178,7 @@ describe('Storage API Error Scenarios', () => {
       const formData = new FormData()
       formData.append('file', new File(['test'], 'test.txt'))
 
-      const res = await app.request('/api/storage/upload', {
+      const res = await app.request('/api/storage/files', {
         method: 'POST',
         body: formData,
       })
@@ -203,7 +203,7 @@ describe('Storage API Error Scenarios', () => {
       const formData = new FormData()
       formData.append('file', new File(['test'], 'test.txt'))
 
-      const res = await app.request('/api/storage/upload', {
+      const res = await app.request('/api/storage/files', {
         method: 'POST',
         body: formData,
       })
@@ -241,7 +241,7 @@ describe('Storage API Error Scenarios', () => {
     })
 
     it('should validate upload content type', async () => {
-      const res = await app.request('/api/storage/upload', {
+      const res = await app.request('/api/storage/files', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ file: 'not-a-file' }),
@@ -257,7 +257,7 @@ describe('Storage API Error Scenarios', () => {
       const formData = new FormData()
       // No file attached
 
-      const res = await app.request('/api/storage/upload', {
+      const res = await app.request('/api/storage/files', {
         method: 'POST',
         body: formData,
       })
@@ -269,7 +269,7 @@ describe('Storage API Error Scenarios', () => {
     })
 
     it('should validate bulk delete request body', async () => {
-      const res = await app.request('/api/storage', {
+      const res = await app.request('/api/storage/files', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notKeys: ['file1.txt'] }),
@@ -282,7 +282,7 @@ describe('Storage API Error Scenarios', () => {
     })
 
     it('should validate bulk delete keys type', async () => {
-      const res = await app.request('/api/storage', {
+      const res = await app.request('/api/storage/files', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ keys: 'not-an-array' }),
@@ -295,7 +295,7 @@ describe('Storage API Error Scenarios', () => {
     })
 
     it('should validate bulk delete empty array', async () => {
-      const res = await app.request('/api/storage', {
+      const res = await app.request('/api/storage/files', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ keys: [] }),
@@ -308,7 +308,7 @@ describe('Storage API Error Scenarios', () => {
     })
 
     it('should handle malformed JSON in bulk delete', async () => {
-      const res = await app.request('/api/storage', {
+      const res = await app.request('/api/storage/files', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: 'invalid-json{',
@@ -318,7 +318,7 @@ describe('Storage API Error Scenarios', () => {
     })
 
     it('should handle invalid content-type header', async () => {
-      const res = await app.request('/api/storage/upload', {
+      const res = await app.request('/api/storage/files', {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
         body: 'invalid body',
@@ -360,7 +360,7 @@ describe('Storage API Error Scenarios', () => {
       const formData = new FormData()
       formData.append('file', new File(['x'.repeat(1000000)], 'large.txt'))
 
-      const res = await app.request('/api/storage/upload', {
+      const res = await app.request('/api/storage/files', {
         method: 'POST',
         body: formData,
       })
@@ -402,7 +402,7 @@ describe('Storage API Error Scenarios', () => {
     })
 
     it('should propagate HTTP exceptions from list operations', async () => {
-      const res = await app.request('/api/storage')
+      const res = await app.request('/api/storage/files')
       expect(res.status).toBe(500)
       expect(((await res.json()) as { error: { message: string } }).error.message).toContain(
         'USER_STORAGE'
@@ -413,7 +413,7 @@ describe('Storage API Error Scenarios', () => {
       const formData = new FormData()
       formData.append('file', new File(['test'], 'test.txt'))
 
-      const res = await app.request('/api/storage/upload', {
+      const res = await app.request('/api/storage/files', {
         method: 'POST',
         body: formData,
       })
@@ -425,7 +425,7 @@ describe('Storage API Error Scenarios', () => {
     })
 
     it('should propagate HTTP exceptions from download operations', async () => {
-      const res = await app.request('/api/storage/download/test.txt')
+      const res = await app.request('/api/storage/files/download/test.txt')
       expect(res.status).toBe(500)
       expect(((await res.json()) as { error: { message: string } }).error.message).toContain(
         'USER_STORAGE'
@@ -433,7 +433,7 @@ describe('Storage API Error Scenarios', () => {
     })
 
     it('should propagate HTTP exceptions from info operations', async () => {
-      const res = await app.request('/api/storage/info/test.txt')
+      const res = await app.request('/api/storage/files/info/test.txt')
       expect(res.status).toBe(500)
       expect(((await res.json()) as { error: { message: string } }).error.message).toContain(
         'USER_STORAGE'
@@ -441,7 +441,7 @@ describe('Storage API Error Scenarios', () => {
     })
 
     it('should propagate HTTP exceptions from delete operations', async () => {
-      const res = await app.request('/api/storage/test.txt', { method: 'DELETE' })
+      const res = await app.request('/api/storage/files/test.txt', { method: 'DELETE' })
       expect(res.status).toBe(500)
       expect(((await res.json()) as { error: { message: string } }).error.message).toContain(
         'USER_STORAGE'

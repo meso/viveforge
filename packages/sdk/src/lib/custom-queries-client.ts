@@ -29,29 +29,50 @@ export class CustomQueriesClient {
     queryId: string,
     parameters?: Record<string, unknown>
   ): Promise<ApiResponse<CustomQueryResult<T>>> {
-    return this.http.post<CustomQueryResult<T>>(`/api/custom/${queryId}`, parameters)
+    const response = await this.http.post<CustomQueryResult<T>>(
+      `/api/custom-queries/${queryId}/execute`,
+      {
+        parameters: parameters || {},
+      }
+    )
+
+    if (!response.success && response.error) {
+      throw new Error(response.error)
+    }
+
+    return response
   }
 
   /**
-   * Execute a custom query by name/slug
+   * Execute a custom query by slug
    */
-  async executeByName<T = unknown>(
-    queryName: string,
+  async executeBySlug<T = unknown>(
+    slug: string,
     parameters?: Record<string, unknown>
   ): Promise<ApiResponse<CustomQueryResult<T>>> {
-    return this.http.post<CustomQueryResult<T>>(`/api/custom/by-name/${queryName}`, parameters)
+    const response = await this.http.post<CustomQueryResult<T>>(
+      `/api/custom-queries/slug/${slug}/execute`,
+      {
+        parameters: parameters || {},
+      }
+    )
+
+    if (!response.success && response.error) {
+      throw new Error(response.error)
+    }
+
+    return response
   }
 
   /**
    * Test a custom query (admin only)
    */
   async test<T = unknown>(
-    sql: string,
+    queryId: string,
     parameters?: Record<string, unknown>
   ): Promise<ApiResponse<CustomQueryResult<T>>> {
-    return this.http.post<CustomQueryResult<T>>('/api/custom-queries/test', {
-      sql,
-      parameters,
+    return this.http.post<CustomQueryResult<T>>(`/api/custom-queries/${queryId}/test`, {
+      parameters: parameters || {},
     })
   }
 
@@ -59,14 +80,21 @@ export class CustomQueriesClient {
    * Create a new custom query (admin only)
    */
   async create(query: {
+    slug: string
     name: string
+    sql_query: string
     description?: string
-    sql: string
     parameters?: CustomQueryParameter[]
     cache_ttl?: number
     is_enabled?: boolean
   }): Promise<ApiResponse<CustomQuery>> {
-    return this.http.post<CustomQuery>('/api/custom-queries', query)
+    const response = await this.http.post<CustomQuery>('/api/custom-queries', query)
+
+    if (!response.success && response.error) {
+      throw new Error(response.error)
+    }
+
+    return response
   }
 
   /**
@@ -75,15 +103,16 @@ export class CustomQueriesClient {
   async update(
     queryId: string,
     updates: {
+      slug?: string
       name?: string
+      sql_query?: string
       description?: string
-      sql?: string
       parameters?: CustomQueryParameter[]
       cache_ttl?: number
       is_enabled?: boolean
     }
   ): Promise<ApiResponse<CustomQuery>> {
-    return this.http.put<CustomQuery>(`/api/custom-queries/${queryId}`, updates)
+    return this.http.patch<CustomQuery>(`/api/custom-queries/${queryId}`, updates)
   }
 
   /**
@@ -126,24 +155,71 @@ export class CustomQueriesClient {
   }
 
   /**
-   * Clear query cache (admin only)
+   * Get query performance stats (admin only)
    */
-  async clearCache(queryId: string): Promise<ApiResponse<void>> {
-    return this.http.post(`/api/custom-queries/${queryId}/clear-cache`)
+  async getStats(queryId?: string): Promise<
+    ApiResponse<{
+      total_queries?: number
+      enabled_queries?: number
+      total_executions: number
+      average_execution_time: number
+      cache_hit_rate: number
+      most_used_queries?: Array<{
+        id: string
+        name: string
+        execution_count: number
+      }>
+    }>
+  > {
+    if (queryId) {
+      return this.http.get(`/api/custom-queries/${queryId}/stats`)
+    }
+    return this.http.get('/api/custom-queries/stats')
   }
 
   /**
-   * Get query performance stats (admin only)
+   * Get execution history for a query
    */
-  async getStats(queryId: string): Promise<
+  async getExecutionHistory(
+    queryId: string,
+    options?: {
+      limit?: number
+      offset?: number
+    }
+  ): Promise<
     ApiResponse<{
-      total_executions: number
-      avg_execution_time: number
-      cache_hit_rate: number
-      last_executed: string
-      error_rate: number
+      executions: Array<{
+        id: string
+        query_id: string
+        parameters: Record<string, unknown>
+        execution_time: number
+        result_count: number
+        cached: boolean
+        executed_at: string
+      }>
+      total: number
     }>
   > {
-    return this.http.get(`/api/custom-queries/${queryId}/stats`)
+    const params: Record<string, string> = {}
+    if (options?.limit !== undefined) params.limit = String(options.limit)
+    if (options?.offset !== undefined) params.offset = String(options.offset)
+
+    return this.http.get(`/api/custom-queries/${queryId}/history`, params)
+  }
+
+  /**
+   * Clear query cache
+   */
+  async clearCache(queryId?: string): Promise<
+    ApiResponse<{
+      cleared_entries: number
+      cache_size_before: number
+      cache_size_after: number
+    }>
+  > {
+    if (queryId) {
+      return this.http.delete(`/api/custom-queries/${queryId}/cache`)
+    }
+    return this.http.delete('/api/custom-queries/cache')
   }
 }

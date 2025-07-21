@@ -84,12 +84,29 @@ export function useCRUD<T extends BaseResource>(
 
     const response = await fetch(url, defaultOptions)
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`)
+    // Always try to parse the response to check for API success format
+    const responseData = await response.json().catch(() => ({}))
+
+    if (!response.ok || responseData.success === false) {
+      let errorMessage = `HTTP ${response.status}`
+
+      if (responseData.error) {
+        errorMessage =
+          typeof responseData.error === 'object'
+            ? responseData.error.message || JSON.stringify(responseData.error)
+            : responseData.error
+      } else if (responseData.message) {
+        errorMessage = responseData.message
+      }
+
+      throw new Error(errorMessage)
     }
 
-    return response
+    // Return a mock response with the parsed data for consistency
+    return {
+      ...response,
+      json: () => Promise.resolve(responseData),
+    } as Response
   }
 
   // Data operations
@@ -99,7 +116,9 @@ export function useCRUD<T extends BaseResource>(
     try {
       const response = await makeApiCall(apiConfig.listEndpoint)
       const data = await response.json()
-      const items = transformResponse(data)
+
+      // Handle both old and new response formats
+      const items = data.success ? transformResponse(data.data || data) : transformResponse(data)
 
       setState((prev) => ({
         ...prev,
@@ -138,7 +157,10 @@ export function useCRUD<T extends BaseResource>(
       })
 
       const responseData = await response.json()
-      const newItem = transformItem(responseData)
+      // Handle both old and new response formats
+      const newItem = responseData.success
+        ? transformItem(responseData.data || responseData)
+        : transformItem(responseData)
 
       setState((prev) => ({
         ...prev,
@@ -180,7 +202,10 @@ export function useCRUD<T extends BaseResource>(
       })
 
       const responseData = await response.json()
-      const updatedItem = transformItem(responseData)
+      // Handle both old and new response formats
+      const updatedItem = responseData.success
+        ? transformItem(responseData.data || responseData)
+        : transformItem(responseData)
 
       setState((prev) => ({
         ...prev,

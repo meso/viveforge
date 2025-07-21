@@ -119,13 +119,21 @@ export function useCustomQueries() {
         body: JSON.stringify({ parameters: testParams }),
       })
 
+      const data = await response.json()
+
       if (!response.ok) {
-        const data = await response.json().catch(() => ({ error: 'Failed to test query' }))
-        throw new Error(data.error || 'Failed to test query')
+        const errorMessage =
+          data.success === false && data.error
+            ? typeof data.error === 'object'
+              ? data.error.message || JSON.stringify(data.error)
+              : data.error
+            : 'Failed to test query'
+        throw new Error(errorMessage)
       }
 
-      const data = await response.json()
-      setTestResult(data)
+      // Handle both old and new response formats
+      const result = data.success ? data.data : data
+      setTestResult(result)
     } catch (err) {
       setTestError(err instanceof Error ? err.message : 'Failed to test query')
     } finally {
@@ -143,7 +151,16 @@ export function useCustomQueries() {
         body: JSON.stringify({ is_enabled: enabled }),
       })
 
-      if (!response.ok) throw new Error('Failed to toggle query')
+      const data = await response.json()
+
+      if (!response.ok || data.success === false) {
+        const errorMessage = data.error
+          ? typeof data.error === 'object'
+            ? data.error.message || JSON.stringify(data.error)
+            : data.error
+          : 'Failed to toggle query'
+        throw new Error(errorMessage)
+      }
 
       await crud.refreshData()
     } catch (err) {

@@ -8,6 +8,15 @@ export { CustomQueriesClient } from './lib/custom-queries-client'
 export { DataClient } from './lib/data-client'
 // Individual clients
 export { HttpClient } from './lib/http-client'
+export type {
+  DeviceInfo,
+  NotificationLog,
+  NotificationPayload,
+  PushRule,
+  PushSubscription,
+  PushSubscriptionData,
+} from './lib/push-client'
+export { PushClient } from './lib/push-client'
 export { RealtimeClient, RealtimeManager } from './lib/realtime-client'
 export { StorageClient } from './lib/storage-client'
 // Types

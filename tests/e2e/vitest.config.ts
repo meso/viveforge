@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => {
         VIBEBASE_TEST_USER_TOKEN: env.VIBEBASE_TEST_USER_TOKEN || '',
         CLEANUP_BEFORE_TEST: env.CLEANUP_BEFORE_TEST || 'true',
       },
-      environment: 'node',
+      environment: 'jsdom',
       globals: true,
       testTimeout: 30000,
       hookTimeout: 30000,

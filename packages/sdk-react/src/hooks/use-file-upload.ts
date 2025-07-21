@@ -46,7 +46,7 @@ export function useFileUpload(): UseFileUploadResult {
         }, 100)
 
         const finalFileName = fileName || file.name
-        const response = await client.storage.upload(file, finalFileName, options)
+        const response = await client.storage.upload(finalFileName, file, options)
 
         clearInterval(progressInterval)
 
@@ -90,7 +90,7 @@ export function useFileUpload(): UseFileUploadResult {
         const results: FileInfo[] = []
 
         for (const file of files) {
-          const response = await client.storage.upload(file, file.name, options)
+          const response = await client.storage.upload(file.name, file, options)
 
           if (!response.success) {
             throw new Error(response.error || `Failed to upload ${file.name}`)

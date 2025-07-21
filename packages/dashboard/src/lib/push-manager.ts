@@ -147,8 +147,24 @@ export class PushManager {
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Subscription failed')
+        const errorData = await response.json().catch(() => ({}))
+        const errorMessage = errorData.error
+          ? typeof errorData.error === 'object'
+            ? errorData.error.message || JSON.stringify(errorData.error)
+            : errorData.error
+          : 'Subscription failed'
+        throw new Error(errorMessage)
+      }
+
+      // Handle new API response format
+      const responseData = await response.json()
+      if (responseData.success === false) {
+        const errorMessage = responseData.error
+          ? typeof responseData.error === 'object'
+            ? responseData.error.message || JSON.stringify(responseData.error)
+            : responseData.error
+          : 'Subscription failed'
+        throw new Error(errorMessage)
       }
 
       console.log('Successfully subscribed to push notifications')
@@ -191,6 +207,12 @@ export class PushManager {
 
       if (!response.ok) {
         console.warn('Failed to notify server of unsubscription')
+      } else {
+        // Handle new API response format
+        const responseData = await response.json().catch(() => ({}))
+        if (responseData.success === false) {
+          console.warn('Server returned error for unsubscription:', responseData.error)
+        }
       }
 
       console.log('Successfully unsubscribed from push notifications')
@@ -299,8 +321,24 @@ export class PushManager {
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Admin subscription failed')
+        const errorData = await response.json().catch(() => ({}))
+        const errorMessage = errorData.error
+          ? typeof errorData.error === 'object'
+            ? errorData.error.message || JSON.stringify(errorData.error)
+            : errorData.error
+          : 'Admin subscription failed'
+        throw new Error(errorMessage)
+      }
+
+      // Handle new API response format
+      const responseData = await response.json()
+      if (responseData.success === false) {
+        const errorMessage = responseData.error
+          ? typeof responseData.error === 'object'
+            ? responseData.error.message || JSON.stringify(responseData.error)
+            : responseData.error
+          : 'Admin subscription failed'
+        throw new Error(errorMessage)
       }
 
       console.log('Successfully subscribed admin to push notifications')
@@ -385,8 +423,24 @@ export class PushManager {
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Admin test notification failed')
+        const errorData = await response.json().catch(() => ({}))
+        const errorMessage = errorData.error
+          ? typeof errorData.error === 'object'
+            ? errorData.error.message || JSON.stringify(errorData.error)
+            : errorData.error
+          : 'Admin test notification failed'
+        throw new Error(errorMessage)
+      }
+
+      // Handle new API response format
+      const responseData = await response.json()
+      if (responseData.success === false) {
+        const errorMessage = responseData.error
+          ? typeof responseData.error === 'object'
+            ? responseData.error.message || JSON.stringify(responseData.error)
+            : responseData.error
+          : 'Admin test notification failed'
+        throw new Error(errorMessage)
       }
 
       return { success: true }
@@ -417,8 +471,24 @@ export class PushManager {
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Test notification failed')
+        const errorData = await response.json().catch(() => ({}))
+        const errorMessage = errorData.error
+          ? typeof errorData.error === 'object'
+            ? errorData.error.message || JSON.stringify(errorData.error)
+            : errorData.error
+          : 'Test notification failed'
+        throw new Error(errorMessage)
+      }
+
+      // Handle new API response format
+      const responseData = await response.json()
+      if (responseData.success === false) {
+        const errorMessage = responseData.error
+          ? typeof responseData.error === 'object'
+            ? responseData.error.message || JSON.stringify(responseData.error)
+            : responseData.error
+          : 'Test notification failed'
+        throw new Error(errorMessage)
       }
 
       return { success: true }
@@ -446,7 +516,8 @@ export class PushManager {
       }
 
       const data = await response.json()
-      this.vapidPublicKey = data.publicKey
+      // Handle new API response format
+      this.vapidPublicKey = data.success ? data.data?.publicKey || data.publicKey : data.publicKey
     } catch (_error) {
       // Silently ignore errors when VAPID is not configured
       this.vapidPublicKey = null

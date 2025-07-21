@@ -6,6 +6,21 @@ import type { Env, Variables } from '../types'
 
 export const customQueries = new Hono<{ Bindings: Env; Variables: Variables }>()
 
+// Simple in-memory cache for query results
+const queryCache = new Map<string, { data: unknown[]; execution_time: number; timestamp: number }>()
+
+function getCachedResult(cacheKey: string, cacheTtl: number) {
+  const cached = queryCache.get(cacheKey)
+  if (cached && Date.now() - cached.timestamp < cacheTtl * 1000) {
+    return cached
+  }
+  return null
+}
+
+function setCachedResult(cacheKey: string, data: unknown[], executionTime: number) {
+  queryCache.set(cacheKey, { data, execution_time: executionTime, timestamp: Date.now() })
+}
+
 // Type definitions
 interface Parameter {
   name: string
@@ -95,7 +110,7 @@ customQueries.get('/', async (c) => {
       parameters: JSON.parse((query.parameters as string) || '[]'),
     }))
 
-    return c.json({ queries })
+    return c.json(queries)
   } catch (error) {
     console.error('Error fetching custom queries:', error)
 
@@ -139,7 +154,7 @@ customQueries.get('/:id', async (c) => {
       parameters: JSON.parse((result.parameters as string) || '[]'),
     }
 
-    return c.json({ query })
+    return c.json(query)
   } catch (error) {
     console.error('Error fetching custom query:', error)
     return c.json({ error: 'Failed to fetch custom query' }, 500)
@@ -173,6 +188,11 @@ customQueries.post(
       // Automatically determine method and readonly status based on SQL
       const method = determineHttpMethod(data.sql_query)
       const is_readonly = isReadonlyQuery(data.sql_query)
+
+      // Reject non-SELECT queries for security
+      if (!is_readonly) {
+        return c.json({ error: 'Only SELECT queries are allowed' }, 400)
+      }
 
       // Check if slug already exists
       const existing = await c.env.DB.prepare('SELECT id FROM custom_queries WHERE slug = ?')
@@ -242,7 +262,7 @@ customQueries.post(
         updated_at: new Date().toISOString(),
       }
 
-      return c.json({ query: createdQuery }, 201)
+      return c.json(createdQuery, 201)
     } catch (error) {
       console.error('Error creating custom query:', error)
       return c.json(
@@ -394,7 +414,7 @@ customQueries.put(
         parameters: JSON.parse((updatedQuery.parameters as string) || '[]'),
       }
 
-      return c.json({ query })
+      return c.json(query)
     } catch (error) {
       console.error('Error updating custom query:', error)
       return c.json(
@@ -546,7 +566,7 @@ customQueries.patch(
         parameters: JSON.parse((updatedQuery.parameters as string) || '[]'),
       }
 
-      return c.json({ query })
+      return c.json(query)
     } catch (error) {
       console.error('Error updating custom query:', error)
       return c.json(
@@ -639,8 +659,8 @@ customQueries.post('/:id/test', zValidator('json', testQuerySchema), async (c) =
 
     // Log the execution
     await c.env.DB.prepare(`
-      INSERT INTO custom_query_logs (id, query_id, execution_time, row_count, parameters, error)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO custom_query_logs (id, query_id, execution_time, row_count, parameters)
+      VALUES (?, ?, ?, ?, ?)
     `)
       .bind(
         generateId(),
@@ -667,6 +687,207 @@ customQueries.post('/:id/test', zValidator('json', testQuerySchema), async (c) =
     return c.json(
       {
         error: error instanceof Error ? error.message : 'Failed to test custom query',
+      },
+      500
+    )
+  }
+})
+
+// Execute custom query
+customQueries.post('/:id/execute', zValidator('json', testQuerySchema), async (c) => {
+  try {
+    if (!c.env.DB) {
+      return c.json({ error: 'Database not configured' }, 500)
+    }
+
+    const id = c.req.param('id')
+    const { parameters } = c.req.valid('json')
+
+    // Fetch the query
+    const query = await c.env.DB.prepare(
+      'SELECT * FROM custom_queries WHERE id = ? AND is_enabled = 1'
+    )
+      .bind(id)
+      .first()
+
+    if (!query) {
+      return c.json({ error: 'Custom query not found or disabled' }, 404)
+    }
+
+    const queryDef = {
+      ...query,
+      parameters: JSON.parse((query.parameters as string) || '[]'),
+    } as CustomQuery
+
+    // Check if query is read-only for non-GET methods
+    if (!query.is_readonly) {
+      return c.json(
+        { error: 'This query is not read-only and cannot be executed via this endpoint' },
+        403
+      )
+    }
+
+    // Validate and prepare parameters
+    const preparedParams = prepareQueryParameters(queryDef.parameters, parameters)
+
+    // Check cache if enabled
+    const cacheKey = `${queryDef.id}:${JSON.stringify(preparedParams)}`
+    const cachedResult =
+      queryDef.cache_ttl > 0 ? getCachedResult(cacheKey, queryDef.cache_ttl) : null
+
+    if (cachedResult) {
+      return c.json({
+        data: cachedResult.data,
+        parameters: preparedParams,
+        execution_time: cachedResult.execution_time,
+        cached: true,
+      })
+    }
+
+    const startTime = Date.now()
+
+    // Build parameterized query
+    let sqlQuery = queryDef.sql_query
+    const sqlParams: unknown[] = []
+
+    // Replace named parameters with ?
+    const paramRegex = /:(\w+)/g
+    sqlQuery = sqlQuery.replace(paramRegex, (_match, paramName) => {
+      if (!(paramName in preparedParams)) {
+        throw new Error(`Parameter '${paramName}' not found in prepared parameters`)
+      }
+      sqlParams.push(preparedParams[paramName])
+      return '?'
+    })
+
+    // Execute the query
+    const stmt = c.env.DB.prepare(sqlQuery)
+    const results = await stmt.bind(...sqlParams).all()
+
+    const executionTime = Date.now() - startTime
+
+    // Cache the result if cache_ttl > 0
+    if (queryDef.cache_ttl > 0) {
+      setCachedResult(cacheKey, results.results || [], executionTime)
+    }
+
+    // Log execution
+    const logId = generateId()
+    await c.env.DB.prepare(`
+      INSERT INTO custom_query_logs (id, query_id, execution_time, row_count, parameters)
+      VALUES (?, ?, ?, ?, ?)
+    `)
+      .bind(
+        logId,
+        queryDef.id,
+        executionTime,
+        results.results?.length || 0,
+        JSON.stringify(preparedParams)
+      )
+      .run()
+
+    return c.json({
+      data: results.results || [],
+      parameters: preparedParams,
+      execution_time: executionTime,
+      cached: false,
+    })
+  } catch (error) {
+    console.error('Error executing custom query:', error)
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to execute query',
+      },
+      500
+    )
+  }
+})
+
+// Execute custom query by slug
+customQueries.post('/slug/:slug/execute', zValidator('json', testQuerySchema), async (c) => {
+  try {
+    if (!c.env.DB) {
+      return c.json({ error: 'Database not configured' }, 500)
+    }
+
+    const slug = c.req.param('slug')
+    const { parameters } = c.req.valid('json')
+
+    // Fetch the query by slug
+    const query = await c.env.DB.prepare(
+      'SELECT * FROM custom_queries WHERE slug = ? AND is_enabled = 1'
+    )
+      .bind(slug)
+      .first()
+
+    if (!query) {
+      return c.json({ error: 'Custom query not found or disabled' }, 404)
+    }
+
+    const queryDef = {
+      ...query,
+      parameters: JSON.parse((query.parameters as string) || '[]'),
+    } as CustomQuery
+
+    // Check if query is read-only for non-GET methods
+    if (!query.is_readonly) {
+      return c.json(
+        { error: 'This query is not read-only and cannot be executed via this endpoint' },
+        403
+      )
+    }
+
+    // Validate and prepare parameters
+    const preparedParams = prepareQueryParameters(queryDef.parameters, parameters)
+
+    const startTime = Date.now()
+
+    // Build parameterized query
+    let sqlQuery = queryDef.sql_query
+    const sqlParams: unknown[] = []
+
+    // Replace named parameters with ?
+    const paramRegex = /:(\w+)/g
+    sqlQuery = sqlQuery.replace(paramRegex, (_match, paramName) => {
+      if (!(paramName in preparedParams)) {
+        throw new Error(`Parameter '${paramName}' not found in prepared parameters`)
+      }
+      sqlParams.push(preparedParams[paramName])
+      return '?'
+    })
+
+    // Execute the query
+    const stmt = c.env.DB.prepare(sqlQuery)
+    const results = await stmt.bind(...sqlParams).all()
+
+    const executionTime = Date.now() - startTime
+
+    // Log execution
+    const logId = generateId()
+    await c.env.DB.prepare(`
+      INSERT INTO custom_query_logs (id, query_id, execution_time, row_count, parameters)
+      VALUES (?, ?, ?, ?, ?)
+    `)
+      .bind(
+        logId,
+        queryDef.id,
+        executionTime,
+        results.results?.length || 0,
+        JSON.stringify(preparedParams)
+      )
+      .run()
+
+    return c.json({
+      data: results.results || [],
+      parameters: preparedParams,
+      execution_time: executionTime,
+      cached: false,
+    })
+  } catch (error) {
+    console.error('Error executing custom query by slug:', error)
+    return c.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to execute query',
       },
       500
     )

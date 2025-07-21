@@ -292,7 +292,7 @@ describe('useCustomQueries (refactored)', () => {
         })
         .mockResolvedValueOnce({
           ok: false,
-          json: () => Promise.resolve({ error: 'SQL syntax error' }),
+          json: () => Promise.resolve({ success: false, error: 'SQL syntax error' }),
         })
 
       const { result } = renderHook(() => useCustomQueries())

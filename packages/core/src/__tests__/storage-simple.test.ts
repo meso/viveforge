@@ -111,12 +111,16 @@ describe('Storage API - Basic Tests', () => {
 
   describe('Basic functionality', () => {
     it('should list empty files initially', async () => {
-      const res = await app.request('/api/storage')
+      const res = await app.request('/api/storage/files')
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as { objects: unknown[]; truncated: boolean }
-      expect(data.objects).toEqual([])
-      expect(data.truncated).toBe(false)
+      const data = (await res.json()) as {
+        success: boolean
+        data: { files: unknown[]; truncated: boolean }
+      }
+      expect(data.success).toBe(true)
+      expect(data.data.files).toEqual([])
+      expect(data.data.truncated).toBe(false)
     })
 
     it('should upload a file successfully', async () => {
@@ -124,16 +128,17 @@ describe('Storage API - Basic Tests', () => {
       const file = new File(['test content'], 'test.txt', { type: 'text/plain' })
       formData.append('file', file)
 
-      const res = await app.request('/api/storage/upload', {
+      const res = await app.request('/api/storage/files', {
         method: 'POST',
         body: formData,
       })
 
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as { key: string; size: number }
-      expect(data.key).toBe('test.txt')
-      expect(data.size).toBe(12)
+      const data = (await res.json()) as { success: boolean; data: { name: string; size: number } }
+      expect(data.success).toBe(true)
+      expect(data.data.name).toBe('test.txt')
+      expect(data.data.size).toBe(12)
     })
 
     it('should download uploaded file', async () => {
@@ -143,7 +148,7 @@ describe('Storage API - Basic Tests', () => {
         httpMetadata: { contentType: 'text/plain' },
       })
 
-      const res = await app.request('/api/storage/download/test.txt')
+      const res = await app.request('/api/storage/files/test.txt/content')
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('text/plain')
 
@@ -156,7 +161,7 @@ describe('Storage API - Basic Tests', () => {
       const testData = new TextEncoder().encode('test content')
       await mockBucket.put('delete-me.txt', testData)
 
-      const res = await app.request('/api/storage/delete-me.txt', {
+      const res = await app.request('/api/storage/files/delete-me.txt', {
         method: 'DELETE',
       })
 
@@ -178,17 +183,21 @@ describe('Storage API - Basic Tests', () => {
         customMetadata: { uploadedBy: 'test' },
       })
 
-      const res = await app.request('/api/storage/info/info-test.txt')
+      const res = await app.request('/api/storage/files/info-test.txt')
       expect(res.status).toBe(200)
 
       const data = (await res.json()) as {
-        key: string
-        size: number
-        customMetadata: { uploadedBy: string }
+        success: boolean
+        data: {
+          name: string
+          size: number
+          metadata: { uploadedBy: string }
+        }
       }
-      expect(data.key).toBe('info-test.txt')
-      expect(data.size).toBe(12)
-      expect(data.customMetadata.uploadedBy).toBe('test')
+      expect(data.success).toBe(true)
+      expect(data.data.name).toBe('info-test.txt')
+      expect(data.data.size).toBe(12)
+      expect(data.data.metadata.uploadedBy).toBe('test')
     })
 
     it('should list uploaded files', async () => {
@@ -196,13 +205,14 @@ describe('Storage API - Basic Tests', () => {
       await mockBucket.put('file1.txt', new ArrayBuffer(10))
       await mockBucket.put('file2.txt', new ArrayBuffer(20))
 
-      const res = await app.request('/api/storage')
+      const res = await app.request('/api/storage/files')
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as { objects: { key: string }[] }
-      expect(data.objects).toHaveLength(2)
-      expect(data.objects.map((obj) => obj.key)).toContain('file1.txt')
-      expect(data.objects.map((obj) => obj.key)).toContain('file2.txt')
+      const data = (await res.json()) as { success: boolean; data: { files: { name: string }[] } }
+      expect(data.success).toBe(true)
+      expect(data.data.files).toHaveLength(2)
+      expect(data.data.files.map((obj) => obj.name)).toContain('file1.txt')
+      expect(data.data.files.map((obj) => obj.name)).toContain('file2.txt')
     })
 
     it('should handle bulk delete', async () => {
@@ -211,7 +221,7 @@ describe('Storage API - Basic Tests', () => {
       await mockBucket.put('bulk2.txt', new ArrayBuffer(20))
       await mockBucket.put('keep.txt', new ArrayBuffer(30))
 
-      const res = await app.request('/api/storage', {
+      const res = await app.request('/api/storage/files', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ keys: ['bulk1.txt', 'bulk2.txt'] }),
@@ -232,19 +242,19 @@ describe('Storage API - Basic Tests', () => {
 
   describe('Error cases', () => {
     it('should return 404 for non-existent file download', async () => {
-      const res = await app.request('/api/storage/download/non-existent.txt')
+      const res = await app.request('/api/storage/files/non-existent.txt/content')
       expect(res.status).toBe(404)
     })
 
     it('should return 404 for non-existent file info', async () => {
-      const res = await app.request('/api/storage/info/non-existent.txt')
+      const res = await app.request('/api/storage/files/non-existent.txt')
       expect(res.status).toBe(404)
     })
 
     it('should handle upload without file gracefully', async () => {
       const formData = new FormData()
 
-      const res = await app.request('/api/storage/upload', {
+      const res = await app.request('/api/storage/files', {
         method: 'POST',
         body: formData,
       })
@@ -253,7 +263,7 @@ describe('Storage API - Basic Tests', () => {
     })
 
     it('should handle invalid content type for upload', async () => {
-      const res = await app.request('/api/storage/upload', {
+      const res = await app.request('/api/storage/files', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),

@@ -245,8 +245,10 @@ export class VibebaseAuthClient {
    * ログインURLを生成
    */
   getLoginUrl(redirectTo: string = '/'): string {
+    // 開発環境ではhttpを使用
+    const protocol = this.deploymentDomain.includes('localhost') ? 'http' : 'https'
     const params = new URLSearchParams({
-      origin: `https://${this.deploymentDomain}`,
+      origin: `${protocol}://${this.deploymentDomain}`,
       redirect_to: redirectTo,
     })
 
@@ -329,24 +331,38 @@ export class VibebaseAuthClient {
         try {
           const tokens = await this.refreshToken(refreshToken)
 
-          // 新しいCookieを設定（本番環境用セキュア設定）
+          // 新しいCookieを設定
           const expires = tokens.expires_in
           const refreshExpires = 30 * 24 * 60 * 60 // 30日
 
+          // 開発環境ではSecureフラグを無効にする
+          const host = c.req.header('host')
+          const isLocalhost = host?.includes('localhost') || false
+          const secureFlag = isLocalhost ? '' : ' Secure;'
+
           c.res.headers.append(
             'Set-Cookie',
-            `access_token=${tokens.access_token}; HttpOnly; Secure; SameSite=Strict; Max-Age=${expires}; Path=/`
+            `access_token=${tokens.access_token}; HttpOnly;${secureFlag} SameSite=Strict; Max-Age=${expires}; Path=/`
           )
           c.res.headers.append(
             'Set-Cookie',
-            `refresh_token=${tokens.refresh_token}; HttpOnly; Secure; SameSite=Strict; Max-Age=${refreshExpires}; Path=/`
+            `refresh_token=${tokens.refresh_token}; HttpOnly;${secureFlag} SameSite=Strict; Max-Age=${refreshExpires}; Path=/`
           )
 
           return await this.verifyToken(tokens.access_token)
         } catch (_error) {
           // リフレッシュ失敗時はクッキーをクリア
-          c.res.headers.append('Set-Cookie', `access_token=; HttpOnly; Secure; Max-Age=0; Path=/`)
-          c.res.headers.append('Set-Cookie', `refresh_token=; HttpOnly; Secure; Max-Age=0; Path=/`)
+          const host = c.req.header('host')
+          const isLocalhost = host?.includes('localhost') || false
+          const secureFlag = isLocalhost ? '' : ' Secure;'
+          c.res.headers.append(
+            'Set-Cookie',
+            `access_token=; HttpOnly;${secureFlag} Max-Age=0; Path=/`
+          )
+          c.res.headers.append(
+            'Set-Cookie',
+            `refresh_token=; HttpOnly;${secureFlag} Max-Age=0; Path=/`
+          )
           return null
         }
       }

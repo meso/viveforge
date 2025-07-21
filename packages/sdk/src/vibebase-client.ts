@@ -6,6 +6,7 @@ import { AuthClient } from './lib/auth-client'
 import { CustomQueriesClient } from './lib/custom-queries-client'
 import { DataClient } from './lib/data-client'
 import { HttpClient } from './lib/http-client'
+import { PushClient } from './lib/push-client'
 import { RealtimeClient, RealtimeManager } from './lib/realtime-client'
 import { StorageClient } from './lib/storage-client'
 import type { ApiResponse, VibebaseConfig } from './types'
@@ -20,6 +21,7 @@ export class VibebaseClient {
   public readonly realtime: RealtimeClient
   public readonly realtimeManager: RealtimeManager
   public readonly customQueries: CustomQueriesClient
+  public readonly push: PushClient
 
   constructor(config: VibebaseConfig) {
     // Validate config
@@ -45,6 +47,7 @@ export class VibebaseClient {
     this.realtime = new RealtimeClient(config.apiUrl)
     this.realtimeManager = new RealtimeManager(this.httpClient)
     this.customQueries = new CustomQueriesClient(this.httpClient)
+    this.push = new PushClient(this.httpClient)
 
     // Set auth token for realtime if available
     if (config.userToken) {

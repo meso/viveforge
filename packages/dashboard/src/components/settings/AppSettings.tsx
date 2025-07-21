@@ -21,16 +21,26 @@ export function AppSettings({ onError }: AppSettingsProps) {
         credentials: 'include',
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to load app settings')
+      const data = await response.json()
+
+      if (!response.ok || data.success === false) {
+        const errorMessage = data.error
+          ? typeof data.error === 'object'
+            ? data.error.message || JSON.stringify(data.error)
+            : data.error
+          : 'Failed to load app settings'
+        throw new Error(errorMessage)
       }
 
-      const data = await response.json()
-      setAppSettings(data.settings)
+      // Handle both old and new response formats
+      const settings = data.success
+        ? data.data?.settings || data.data || data.settings
+        : data.settings
+      setAppSettings(settings)
 
       // Initialize form data
       const formData: Record<string, string> = {}
-      data.settings.forEach((setting: AppSetting) => {
+      settings.forEach((setting: AppSetting) => {
         formData[setting.key] = setting.value
       })
       setForm(formData)
@@ -60,9 +70,15 @@ export function AppSettings({ onError }: AppSettingsProps) {
         body: JSON.stringify(formWithoutUserAgent),
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to save app settings')
+      const data = await response.json()
+
+      if (!response.ok || data.success === false) {
+        const errorMessage = data.error
+          ? typeof data.error === 'object'
+            ? data.error.message || JSON.stringify(data.error)
+            : data.error
+          : 'Failed to save app settings'
+        throw new Error(errorMessage)
       }
 
       setEditing(false)

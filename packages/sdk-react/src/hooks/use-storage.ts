@@ -32,7 +32,7 @@ export function useStorage(): UseStorageResult {
       fileName: string
       options?: FileUploadOptions
     }) => {
-      const response = await client.storage.upload(file, fileName, options)
+      const response = await client.storage.upload(fileName, file, options)
       if (!response.success) {
         throw new Error(response.error || 'Failed to upload file')
       }
@@ -91,7 +91,7 @@ export function useStorage(): UseStorageResult {
     if (!response.success) {
       throw new Error(response.error || 'Failed to list files')
     }
-    return response.data?.files || []
+    return response.data || []
   }, [client])
 
   return {

@@ -23,7 +23,11 @@ export class HttpClient {
    */
   async request<T = unknown>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
     const url = `${this.config.baseUrl}${endpoint}`
-    const headers = this.buildHeaders(options.headers)
+    console.log('[HTTP-CLIENT] HTTP Request:', options.method || 'GET', url)
+
+    // Check if body is FormData to handle headers appropriately
+    const isFormData = options.body instanceof FormData
+    const headers = this.buildHeaders(options.headers, isFormData)
 
     const requestOptions: RequestInit = {
       ...options,
@@ -31,23 +35,55 @@ export class HttpClient {
       signal: this.createTimeoutSignal(),
     }
 
+    // Debug FormData requests and handle Node.js specific issues
+    if (isFormData && options.body instanceof FormData) {
+      console.log('[HTTP-CLIENT] FormData request details:', {
+        url,
+        method: options.method,
+        headers: Object.fromEntries(headers.entries()),
+        bodyType: options.body?.constructor.name,
+        formDataEntries: Array.from((options.body as FormData).entries()).map(([key, value]) => ({
+          key,
+          valueType: value.constructor.name,
+          valueName: value instanceof File ? value.name : 'N/A',
+        })),
+      })
+
+      // Handle Node.js form-data library boundary
+      const bodyAsUnknown = options.body as unknown as { getBoundary?: () => string }
+      if (typeof window === 'undefined' && bodyAsUnknown?.getBoundary) {
+        const boundary = bodyAsUnknown.getBoundary()
+        headers.set('Content-Type', `multipart/form-data; boundary=${boundary}`)
+        console.log('[HTTP-CLIENT] Set Node.js form-data boundary:', boundary)
+      } else {
+        console.log('[HTTP-CLIENT] FormData detected, letting fetch handle Content-Type')
+      }
+    }
+
     let lastError: Error | null = null
     const maxRetries = this.config.retries ?? 3
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
+        console.log(`[HTTP-CLIENT] Attempt ${attempt + 1} of ${maxRetries + 1}: Fetching ${url}`)
         const response = await fetch(url, requestOptions)
-        return await this.handleResponse<T>(response)
+        console.log(`Response status: ${response.status} ${response.statusText}`)
+        const result = await this.handleResponse<T>(response)
+        console.log('Response handled successfully:', result.success ? 'SUCCESS' : 'ERROR')
+        return result
       } catch (error) {
+        console.error(`Request attempt ${attempt + 1} failed:`, error)
         lastError = error instanceof Error ? error : new Error(String(error))
 
         // Don't retry on client errors (4xx)
         if (error instanceof Error && error.message.includes('4')) {
+          console.log('Client error detected, not retrying')
           break
         }
 
         // Wait before retry (exponential backoff)
         if (attempt < maxRetries) {
+          console.log(`Retrying in ${2 ** attempt * 1000}ms...`)
           await this.delay(2 ** attempt * 1000)
         }
       }
@@ -119,11 +155,16 @@ export class HttpClient {
   /**
    * Build request headers
    */
-  private buildHeaders(customHeaders?: HeadersInit): Headers {
-    const headers = new Headers({
-      'Content-Type': 'application/json',
-      'User-Agent': 'vibebase-sdk/0.1.0',
-    })
+  private buildHeaders(customHeaders?: HeadersInit, isFormData = false): Headers {
+    const headers = new Headers()
+
+    // Handle Content-Type based on request type
+    if (!isFormData) {
+      headers.set('Content-Type', 'application/json')
+    }
+    // For FormData requests, don't set Content-Type - let fetch handle boundary
+
+    headers.set('User-Agent', 'vibebase-sdk/0.1.0')
 
     // Add custom headers
     if (customHeaders) {
@@ -133,7 +174,12 @@ export class HttpClient {
           : (customHeaders as Record<string, string>)
 
       Object.entries(customHeadersObj).forEach(([key, value]) => {
-        headers.set(key, value)
+        if (value === '') {
+          // Remove header if value is empty string
+          headers.delete(key)
+        } else {
+          headers.set(key, value)
+        }
       })
     }
 
@@ -160,9 +206,24 @@ export class HttpClient {
       if (text) {
         const parsed = JSON.parse(text)
         if (response.ok) {
-          data = parsed
+          // Check if the response already has the ApiResponse structure
+          if (parsed && typeof parsed === 'object' && 'success' in parsed && 'data' in parsed) {
+            // Storage API and other endpoints that return { success: true, data: {...} }
+            data = parsed.data
+          } else {
+            // Regular endpoints that return data directly
+            data = parsed
+          }
         } else {
-          error = parsed.error || parsed.message || `HTTP ${response.status}`
+          // Error response handling
+          if (parsed && typeof parsed === 'object' && 'error' in parsed) {
+            error =
+              typeof parsed.error === 'object'
+                ? parsed.error.message || JSON.stringify(parsed.error)
+                : parsed.error
+          } else {
+            error = parsed.message || `HTTP ${response.status}`
+          }
         }
       }
     } catch {

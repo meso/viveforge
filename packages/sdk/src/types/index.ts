@@ -140,18 +140,25 @@ export interface UserSession {
 // Custom SQL types
 export interface CustomQuery {
   id: string
+  slug: string
   name: string
-  query: string
+  description?: string
+  sql_query: string
   parameters: CustomQueryParameter[]
-  cache_ttl?: number
+  method: string
+  is_readonly: boolean
+  cache_ttl: number
   is_enabled: boolean
+  created_at: string
+  updated_at: string
 }
 
 export interface CustomQueryParameter {
   name: string
   type: 'string' | 'number' | 'boolean' | 'date'
   required: boolean
-  default_value?: unknown
+  description?: string
+  default?: string | number | boolean
 }
 
 export interface CustomQueryResult<T = unknown> {

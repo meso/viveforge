@@ -11,6 +11,59 @@ import { storage } from '../routes/storage'
 import type { Env, Variables } from '../types'
 import { createMockEnv } from './helpers/mock-env'
 
+// Type definitions for test responses
+interface StorageListResponse {
+  success: boolean
+  data: {
+    files: Array<{
+      name: string
+      size: number
+      contentType: string
+      lastModified?: string
+      metadata?: Record<string, string>
+    }>
+    truncated?: boolean
+    cursor?: string
+  }
+}
+
+interface StorageFileResponse {
+  success: boolean
+  data: {
+    name: string
+    size: number
+    contentType: string
+    lastModified?: string
+    uploaded_at?: string
+    etag?: string
+    metadata?: Record<string, string>
+  }
+}
+
+interface StorageErrorResponse {
+  success: false
+  error: {
+    code: string
+    message: string
+  }
+}
+
+// interface StorageUrlResponse {
+//   success: boolean
+//   data: {
+//     url: string
+//   }
+// }
+
+interface StorageSuccessResponse {
+  success: boolean
+  data?: {
+    message?: string
+  }
+  message?: string
+  deletedKeys?: string[]
+}
+
 // Enhanced R2 mock for storage tests
 interface MockR2Object {
   key: string
@@ -175,18 +228,13 @@ describe('Storage API', () => {
 
   describe('GET /', () => {
     it('should return empty list when no files exist', async () => {
-      const res = await app.request('/api/storage')
+      const res = await app.request('/api/storage/files')
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as {
-        objects: unknown[]
-        truncated: boolean
-        delimitedPrefixes: unknown[]
-        cursor?: string
-      }
-      expect(data.objects).toEqual([])
-      expect(data.truncated).toBe(false)
-      expect(data.delimitedPrefixes).toEqual([])
+      const data = (await res.json()) as StorageListResponse
+      expect(data.success).toBe(true)
+      expect(data.data.files).toEqual([])
+      expect(data.data.truncated).toBe(false)
     })
 
     it('should list files when they exist', async () => {
@@ -197,18 +245,14 @@ describe('Storage API', () => {
         customMetadata: { originalName: 'test.txt' },
       })
 
-      const res = await app.request('/api/storage')
+      const res = await app.request('/api/storage/files')
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as {
-        objects: Array<{ key: string; size: number; contentType?: string }>
-        truncated: boolean
-        delimitedPrefixes: unknown[]
-        cursor?: string
-      }
-      expect(data.objects).toHaveLength(1)
-      expect(data.objects[0]).toMatchObject({
-        key: 'test.txt',
+      const data = (await res.json()) as StorageListResponse
+      expect(data.success).toBe(true)
+      expect(data.data.files).toHaveLength(1)
+      expect(data.data.files[0]).toMatchObject({
+        name: 'test.txt',
         size: testData.byteLength,
         contentType: 'text/plain',
       })
@@ -220,17 +264,13 @@ describe('Storage API', () => {
       await mockR2Bucket.put('images/photo2.jpg', new ArrayBuffer(200))
       await mockR2Bucket.put('documents/doc1.pdf', new ArrayBuffer(300))
 
-      const res = await app.request('/api/storage?prefix=images/')
+      const res = await app.request('/api/storage/files?prefix=images/')
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as {
-        objects: Array<{ key: string }>
-        truncated: boolean
-        delimitedPrefixes: unknown[]
-        cursor?: string
-      }
-      expect(data.objects).toHaveLength(2)
-      expect(data.objects.every((obj) => obj.key.startsWith('images/'))).toBe(true)
+      const data = (await res.json()) as StorageListResponse
+      expect(data.success).toBe(true)
+      expect(data.data.files).toHaveLength(2)
+      expect(data.data.files.every((obj) => obj.name.startsWith('images/'))).toBe(true)
     })
 
     it('should handle pagination with limit and cursor', async () => {
@@ -239,18 +279,14 @@ describe('Storage API', () => {
         await mockR2Bucket.put(`file${i}.txt`, new ArrayBuffer(100))
       }
 
-      const res = await app.request('/api/storage?limit=2')
+      const res = await app.request('/api/storage/files?limit=2')
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as {
-        objects: unknown[]
-        truncated: boolean
-        delimitedPrefixes: unknown[]
-        cursor?: string
-      }
-      expect(data.objects).toHaveLength(2)
-      expect(data.truncated).toBe(true)
-      expect(data.cursor).toBeDefined()
+      const data = (await res.json()) as StorageListResponse
+      expect(data.success).toBe(true)
+      expect(data.data.files).toHaveLength(2)
+      expect(data.data.truncated).toBe(true)
+      expect(data.data.cursor).toBeDefined()
     })
 
     it('should return 500 when R2 bucket not configured', async () => {
@@ -261,12 +297,11 @@ describe('Storage API', () => {
       })
       tempApp.route('/api/storage', storage)
 
-      const res = await tempApp.request('/api/storage')
+      const res = await tempApp.request('/api/storage/files')
       expect(res.status).toBe(500)
 
-      const data = (await res.json()) as {
-        error: { message: string }
-      }
+      const data = (await res.json()) as StorageErrorResponse
+      expect(data.success).toBe(false)
       expect(data.error.message).toBe('R2 bucket not configured')
     })
   })
@@ -277,20 +312,17 @@ describe('Storage API', () => {
       const file = new File(['test content'], 'test.txt', { type: 'text/plain' })
       formData.append('file', file)
 
-      const res = await app.request('/api/storage/upload', {
+      const res = await app.request('/api/storage/files', {
         method: 'POST',
         body: formData,
       })
 
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as {
-        key: string
-        size: number
-        etag: string
-      }
-      expect(data).toMatchObject({
-        key: 'test.txt',
+      const data = (await res.json()) as StorageListResponse
+      expect(data.success).toBe(true)
+      expect(data.data).toMatchObject({
+        name: 'test.txt',
         size: 12, // 'test content'.length
         etag: expect.any(String),
       })
@@ -307,23 +339,22 @@ describe('Storage API', () => {
       formData.append('file', file)
       formData.append('path', 'uploads/documents')
 
-      const res = await app.request('/api/storage/upload', {
+      const res = await app.request('/api/storage/files', {
         method: 'POST',
         body: formData,
       })
 
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as {
-        key: string
-      }
-      expect(data.key).toBe('uploads/documents/test.txt')
+      const data = (await res.json()) as StorageFileResponse
+      expect(data.success).toBe(true)
+      expect(data.data.name).toBe('uploads/documents/test.txt')
     })
 
     it('should return 400 when no file provided', async () => {
       const formData = new FormData()
 
-      const res = await app.request('/api/storage/upload', {
+      const res = await app.request('/api/storage/files', {
         method: 'POST',
         body: formData,
       })
@@ -331,9 +362,8 @@ describe('Storage API', () => {
       expect(res.status).toBe(400)
 
       try {
-        const data = (await res.json()) as {
-          error: { message: string }
-        }
+        const data = (await res.json()) as StorageErrorResponse
+        expect(data.success).toBe(false)
         expect(data.error.message).toBe('No file provided')
       } catch {
         // Response might not be JSON in error cases
@@ -343,7 +373,7 @@ describe('Storage API', () => {
     })
 
     it('should return 400 for invalid content type', async () => {
-      const res = await app.request('/api/storage/upload', {
+      const res = await app.request('/api/storage/files', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({}),
@@ -351,9 +381,8 @@ describe('Storage API', () => {
 
       expect(res.status).toBe(400)
 
-      const data = (await res.json()) as {
-        error: { message: string }
-      }
+      const data = (await res.json()) as StorageErrorResponse
+      expect(data.success).toBe(false)
       expect(data.error.message).toBe('Content-Type must be multipart/form-data')
     })
 
@@ -369,7 +398,7 @@ describe('Storage API', () => {
       const file = new File(['test'], 'test.txt')
       formData.append('file', file)
 
-      const res = await tempApp.request('/api/storage/upload', {
+      const res = await tempApp.request('/api/storage/files', {
         method: 'POST',
         body: formData,
       })
@@ -392,7 +421,7 @@ describe('Storage API', () => {
     })
 
     it('should download file successfully', async () => {
-      const res = await app.request('/api/storage/download/test-download.txt')
+      const res = await app.request('/api/storage/files/test-download.txt/content')
       expect(res.status).toBe(200)
 
       expect(res.headers.get('Content-Type')).toBe('text/plain')
@@ -405,12 +434,11 @@ describe('Storage API', () => {
     })
 
     it('should return 404 for non-existent file', async () => {
-      const res = await app.request('/api/storage/download/non-existent.txt')
+      const res = await app.request('/api/storage/files/non-existent.txt/content')
       expect(res.status).toBe(404)
 
-      const data = (await res.json()) as {
-        error: { message: string }
-      }
+      const data = (await res.json()) as StorageErrorResponse
+      expect(data.success).toBe(false)
       expect(data.error.message).toBe('File not found')
     })
 
@@ -420,7 +448,7 @@ describe('Storage API', () => {
       await mockR2Bucket.put(specialKey, testData)
 
       const encodedKey = encodeURIComponent(specialKey)
-      const res = await app.request(`/api/storage/download/${encodedKey}`)
+      const res = await app.request(`/api/storage/files/${encodedKey}/content`)
       expect(res.status).toBe(200)
 
       const content = await res.text()
@@ -438,30 +466,28 @@ describe('Storage API', () => {
     })
 
     it('should return file info successfully', async () => {
-      const res = await app.request('/api/storage/info/info-test.txt')
+      const res = await app.request('/api/storage/files/info-test.txt')
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as {
-        key: string
-        size: number
-        contentType?: string
-        customMetadata?: Record<string, string>
-        uploaded: string
-        etag: string
-      }
-      expect(data).toMatchObject({
-        key: 'info-test.txt',
+      const data = (await res.json()) as StorageFileResponse
+      expect(data.success).toBe(true)
+      expect(data.data).toMatchObject({
+        name: 'info-test.txt',
         size: 12,
         contentType: 'text/plain',
-        customMetadata: { uploadedBy: 'test-user' },
+        metadata: { uploadedBy: 'test-user' },
       })
-      expect(data.uploaded).toBeDefined()
-      expect(data.etag).toBeDefined()
+      expect(data.data.lastModified).toBeDefined()
+      expect(data.data.etag).toBeDefined()
     })
 
     it('should return 404 for non-existent file', async () => {
-      const res = await app.request('/api/storage/info/non-existent.txt')
+      const res = await app.request('/api/storage/files/non-existent.txt')
       expect(res.status).toBe(404)
+
+      const data = (await res.json()) as StorageErrorResponse
+      expect(data.success).toBe(false)
+      expect(data.error.message).toBe('File not found')
     })
   })
 
@@ -472,18 +498,15 @@ describe('Storage API', () => {
     })
 
     it('should delete file successfully', async () => {
-      const res = await app.request('/api/storage/delete-test.txt', {
+      const res = await app.request('/api/storage/files/delete-test.txt', {
         method: 'DELETE',
       })
 
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as {
-        success: boolean
-        message: string
-      }
-      expect(data).toMatchObject({
-        success: true,
+      const data = (await res.json()) as StorageListResponse
+      expect(data.success).toBe(true)
+      expect(data.data).toMatchObject({
         message: 'File deleted successfully',
       })
 
@@ -493,11 +516,15 @@ describe('Storage API', () => {
     })
 
     it('should handle deletion of non-existent file gracefully', async () => {
-      const res = await app.request('/api/storage/non-existent.txt', {
+      const res = await app.request('/api/storage/files/non-existent.txt', {
         method: 'DELETE',
       })
 
-      expect(res.status).toBe(200) // R2 delete is idempotent
+      expect(res.status).toBe(404) // File not found
+
+      const data = (await res.json()) as StorageErrorResponse
+      expect(data.success).toBe(false)
+      expect(data.error.message).toBe('File not found')
     })
   })
 
@@ -513,7 +540,7 @@ describe('Storage API', () => {
     it('should delete multiple files successfully', async () => {
       const keys = ['bulk-test-1.txt', 'bulk-test-2.txt']
 
-      const res = await app.request('/api/storage', {
+      const res = await app.request('/api/storage/files', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ keys }),
@@ -521,16 +548,10 @@ describe('Storage API', () => {
 
       expect(res.status).toBe(200)
 
-      const data = (await res.json()) as {
-        success: boolean
-        message: string
-        deletedKeys: string[]
-      }
-      expect(data).toMatchObject({
-        success: true,
-        message: '2 files deleted successfully',
-        deletedKeys: keys,
-      })
+      const data = (await res.json()) as StorageSuccessResponse
+      expect(data.success).toBe(true)
+      expect(data.message).toBe('2 files deleted successfully')
+      expect(data.deletedKeys).toEqual(keys)
 
       // Verify files were deleted
       for (const key of keys) {
@@ -544,7 +565,7 @@ describe('Storage API', () => {
     })
 
     it('should return 400 when keys array is empty', async () => {
-      const res = await app.request('/api/storage', {
+      const res = await app.request('/api/storage/files', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ keys: [] }),
@@ -552,14 +573,13 @@ describe('Storage API', () => {
 
       expect(res.status).toBe(400)
 
-      const data = (await res.json()) as {
-        error: { message: string }
-      }
+      const data = (await res.json()) as StorageErrorResponse
+      expect(data.success).toBe(false)
       expect(data.error.message).toBe('Keys array is required')
     })
 
     it('should return 400 when keys is not an array', async () => {
-      const res = await app.request('/api/storage', {
+      const res = await app.request('/api/storage/files', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ keys: 'not-an-array' }),
@@ -569,7 +589,7 @@ describe('Storage API', () => {
     })
 
     it('should return 400 when keys is missing', async () => {
-      const res = await app.request('/api/storage', {
+      const res = await app.request('/api/storage/files', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),

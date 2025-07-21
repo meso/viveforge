@@ -18,3 +18,4 @@ coverage/
 
 # E2E test artifacts
 tests/e2e/.setup-info.json
+tests/e2e/.env.test

@@ -2,18 +2,20 @@ import { useEffect, useState } from 'preact/hooks'
 import { formatDateTime } from '../utils/database'
 
 interface StorageObject {
-  key: string
+  name: string // Changed from 'key' to match new API
   size: number
-  uploaded: string
+  lastModified: string // Changed from 'uploaded' to match new API
   contentType?: string
-  customMetadata?: Record<string, string>
+  metadata?: Record<string, string> // Changed from 'customMetadata' to match new API
 }
 
 interface StorageListResponse {
-  objects: StorageObject[]
-  truncated: boolean
-  cursor?: string
-  delimitedPrefixes: string[]
+  success: boolean
+  data: {
+    files: StorageObject[] // Changed from 'objects' to match new API
+    truncated: boolean
+    cursor?: string
+  }
 }
 
 export function StoragePage() {
@@ -34,11 +36,12 @@ export function StoragePage() {
       if (prefix) params.set('prefix', prefix)
       if (cursor) params.set('cursor', cursor)
 
-      const response = await fetch(`/api/storage?${params}`)
+      const response = await fetch(`/api/storage/files?${params}`)
       if (!response.ok) throw new Error('Failed to load files')
 
       const data: StorageListResponse = await response.json()
-      setObjects(cursor ? [...objects, ...data.objects] : data.objects)
+      if (!data.success) throw new Error('API returned error')
+      setObjects(cursor ? [...objects, ...data.data.files] : data.data.files)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
@@ -57,12 +60,15 @@ export function StoragePage() {
         const formData = new FormData()
         formData.append('file', file)
 
-        const response = await fetch('/api/storage/upload', {
+        const response = await fetch('/api/storage/files', {
           method: 'POST',
           body: formData,
         })
 
         if (!response.ok) throw new Error(`Failed to upload ${file.name}`)
+
+        const result = await response.json()
+        if (!result.success) throw new Error(`Failed to upload ${file.name}: ${result.error}`)
       }
 
       await loadObjects()
@@ -78,13 +84,16 @@ export function StoragePage() {
     if (!confirm(`Delete ${key}?`)) return
 
     try {
-      const response = await fetch(`/api/storage/${encodeURIComponent(key)}`, {
+      const response = await fetch(`/api/storage/files/${encodeURIComponent(key)}`, {
         method: 'DELETE',
       })
 
       if (!response.ok) throw new Error('Failed to delete file')
 
-      setObjects(objects.filter((obj) => obj.key !== key))
+      const result = await response.json()
+      if (!result.success) throw new Error('Failed to delete file')
+
+      setObjects(objects.filter((obj) => obj.name !== key))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Delete failed')
     }
@@ -95,7 +104,7 @@ export function StoragePage() {
     if (!confirm(`Delete ${selectedFiles.size} files?`)) return
 
     try {
-      const response = await fetch('/api/storage', {
+      const response = await fetch('/api/storage/files', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ keys: Array.from(selectedFiles) }),
@@ -103,7 +112,10 @@ export function StoragePage() {
 
       if (!response.ok) throw new Error('Failed to delete files')
 
-      setObjects(objects.filter((obj) => !selectedFiles.has(obj.key)))
+      const result = await response.json()
+      if (!result.success) throw new Error('Failed to delete files')
+
+      setObjects(objects.filter((obj) => !selectedFiles.has(obj.name)))
       setSelectedFiles(new Set())
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Bulk delete failed')
@@ -187,7 +199,7 @@ export function StoragePage() {
                   onChange={(e) => {
                     const target = e.target as HTMLInputElement
                     if (target.checked) {
-                      setSelectedFiles(new Set(objects.map((obj) => obj.key)))
+                      setSelectedFiles(new Set(objects.map((obj) => obj.name)))
                     } else {
                       setSelectedFiles(new Set())
                     }
@@ -220,16 +232,16 @@ export function StoragePage() {
               </tr>
             ) : (
               objects.map((obj) => (
-                <tr key={obj.key} class="hover:bg-gray-50">
+                <tr key={obj.name} class="hover:bg-gray-50">
                   <td class="px-6 py-4">
                     <input
                       type="checkbox"
-                      checked={selectedFiles.has(obj.key)}
-                      onChange={() => toggleFileSelection(obj.key)}
+                      checked={selectedFiles.has(obj.name)}
+                      onChange={() => toggleFileSelection(obj.name)}
                     />
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm font-medium text-gray-900">{obj.key}</div>
+                    <div class="text-sm font-medium text-gray-900">{obj.name}</div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <div class="text-sm text-gray-900">{formatFileSize(obj.size)}</div>
@@ -238,11 +250,11 @@ export function StoragePage() {
                     <div class="text-sm text-gray-900">{obj.contentType || 'Unknown'}</div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm text-gray-900">{formatDateTime(obj.uploaded)}</div>
+                    <div class="text-sm text-gray-900">{formatDateTime(obj.lastModified)}</div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <a
-                      href={`/api/storage/download/${encodeURIComponent(obj.key)}`}
+                      href={`/api/storage/files/${encodeURIComponent(obj.name)}/content`}
                       class="text-blue-600 hover:text-blue-900 mr-4"
                       download
                       target="_blank"
@@ -251,7 +263,7 @@ export function StoragePage() {
                     </a>
                     <button
                       type="button"
-                      onClick={() => handleDelete(obj.key)}
+                      onClick={() => handleDelete(obj.name)}
                       class="text-red-600 hover:text-red-900"
                     >
                       Delete

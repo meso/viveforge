@@ -72,15 +72,26 @@ custom.all('/:slug', async (c) => {
     let error = null
 
     try {
+      // Build parameterized query
+      let sqlQuery = query.sql_query as string
+      const sqlParams: unknown[] = []
+
+      // Replace named parameters with ?
+      const paramRegex = /:(\w+)/g
+      sqlQuery = sqlQuery.replace(paramRegex, (_match, paramName) => {
+        if (!(paramName in preparedParams)) {
+          throw new Error(`Parameter '${paramName}' not found in prepared parameters`)
+        }
+        sqlParams.push(preparedParams[paramName])
+        return '?'
+      })
+
       // Execute the query
+      const stmt = c.env.DB.prepare(sqlQuery)
       if (query.is_readonly) {
-        result = await c.env.DB.prepare(query.sql_query as string)
-          .bind(...Object.values(preparedParams))
-          .all()
+        result = await stmt.bind(...sqlParams).all()
       } else {
-        result = await c.env.DB.prepare(query.sql_query as string)
-          .bind(...Object.values(preparedParams))
-          .run()
+        result = await stmt.bind(...sqlParams).run()
       }
     } catch (queryError) {
       error = queryError instanceof Error ? queryError.message : 'Query execution failed'

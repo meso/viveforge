@@ -23,10 +23,20 @@ declare module 'hono' {
 export async function multiAuth(c: Context<{ Bindings: Env; Variables: Variables }>, next: Next) {
   const authHeader = c.req.header('Authorization')
 
-  // Try API Key authentication first if Bearer token is present
-  if (authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.substring(7)
+  // For SSE endpoints, also check URL token parameter (EventSource can't set headers)
+  const urlToken = c.req.query('token')
 
+  let token: string | undefined
+
+  if (authHeader?.startsWith('Bearer ')) {
+    token = authHeader.substring(7)
+  } else if (urlToken && c.req.path.startsWith('/api/realtime/sse')) {
+    // Only allow URL token for SSE endpoints for security reasons
+    token = urlToken
+  }
+
+  // Try API Key authentication first if token is present
+  if (token) {
     // Check if it's an API key (starts with vb_)
     if (token.startsWith('vb_')) {
       return await handleAPIKeyAuth(c, next, token)
