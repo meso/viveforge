@@ -104,14 +104,30 @@ export class RealtimeClient {
       url.searchParams.set('token', this.authToken)
     }
 
+    console.log('Creating EventSource with URL:', url.toString())
     this.eventSource = new EventSource(url.toString())
 
     this.eventSource.onmessage = (event) => {
       try {
-        const data: RealtimeEvent = JSON.parse(event.data)
-        this.handleRealtimeEvent(data)
+        console.log('Received SSE event:', event.data)
+        const data = JSON.parse(event.data)
+        console.log('Parsed event:', data)
+
+        // Skip connection events
+        if (data.type === 'connected') {
+          console.log('Skipping connection event')
+          return
+        }
+
+        // Only handle realtime events
+        if (data.type && data.table && data.record) {
+          console.log('Processing realtime event')
+          this.handleRealtimeEvent(data as RealtimeEvent)
+        } else {
+          console.log('Ignoring non-realtime event:', data)
+        }
       } catch (error) {
-        console.error('Failed to parse realtime event:', error)
+        console.error('Failed to parse realtime event:', error, 'Raw data:', event.data)
       }
     }
 
@@ -127,7 +143,7 @@ export class RealtimeClient {
     }
 
     this.eventSource.onopen = () => {
-      console.debug('Realtime connection established')
+      console.log('Realtime connection established')
     }
   }
 
@@ -135,17 +151,30 @@ export class RealtimeClient {
    * Handle incoming realtime events
    */
   private handleRealtimeEvent(event: RealtimeEvent): void {
+    console.log('Handling realtime event:', event, 'subscriptions:', this.subscriptions.size)
     for (const subscription of this.subscriptions.values()) {
+      console.log(
+        'Checking subscription:',
+        subscription.tableName,
+        subscription.eventType,
+        'vs',
+        event.table,
+        event.type
+      )
+
       // Match table name
       if (subscription.tableName !== event.table && subscription.tableName !== '*') {
+        console.log('Table name mismatch')
         continue
       }
 
       // Match event type
       if (subscription.eventType !== event.type && subscription.eventType !== '*') {
+        console.log('Event type mismatch')
         continue
       }
 
+      console.log('Calling subscription callback')
       try {
         subscription.callback(event)
       } catch (error) {

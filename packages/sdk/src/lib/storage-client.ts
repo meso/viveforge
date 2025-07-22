@@ -296,11 +296,11 @@ export class StorageClient {
     }
 
     // Debug storage client request
-    const httpAsUnknown = this.http as unknown as { 
-      config?: { 
+    const httpAsUnknown = this.http as unknown as {
+      config?: {
         baseUrl?: string
-        auth?: { apiKey?: string; userToken?: string } 
-      } 
+        auth?: { apiKey?: string; userToken?: string }
+      }
     }
     const httpConfig = httpAsUnknown.config
     console.log('[STORAGE-CLIENT] Upload request debug:', {

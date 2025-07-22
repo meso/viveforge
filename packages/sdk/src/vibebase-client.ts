@@ -49,11 +49,11 @@ export class VibebaseClient {
     this.customQueries = new CustomQueriesClient(this.httpClient)
     this.push = new PushClient(this.httpClient)
 
-    // Set auth token for realtime if available
-    if (config.userToken) {
-      this.realtime.setAuth(config.userToken)
-    } else if (config.apiKey) {
+    // Set auth for realtime client
+    if (config.apiKey) {
       this.realtime.setAuth(config.apiKey)
+    } else if (config.userToken) {
+      this.realtime.setAuth(config.userToken)
     }
   }
 
