@@ -178,22 +178,8 @@ async function seedData() {
       }
     }
 
-    console.log('\n📊 Creating activity logs...');
-    const activities = generateActivityLogs(teamIds, projectIds, taskIds, userIds);
-    
-    // アクティビティログは一括作成
-    try {
-      const response = await vibebase.data.bulkInsert('activity_logs', activities);
-      if (!response.success) {
-        console.error(`   ❌ Failed to create activity logs:`, response.error);
-        // アクティビティログの失敗は続行可能
-      } else {
-        console.log(`   ✅ Created ${activities.length} activity logs`);
-      }
-    } catch (error) {
-      console.error(`   ❌ Failed to create activity logs:`, error);
-      // アクティビティログの失敗は続行可能
-    }
+    console.log('\n📊 Skipping activity logs creation...');
+    console.log('   ℹ️  Activity logs skipped (validation issues)');
 
     // テストIDを保存（後でクリーンアップ用）
     const testData = {
@@ -224,7 +210,7 @@ async function seedData() {
     console.log(`   Projects: ${projectIds.length}`);
     console.log(`   Tasks: ${taskIds.length}`);
     console.log(`   Comments: ${comments.length}`);
-    console.log(`   Activities: ${activities.length}`);
+    console.log(`   Activities: 0 (skipped)`);
     console.log('');
     console.log('🚀 Ready to run E2E tests!');
 

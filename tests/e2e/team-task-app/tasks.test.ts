@@ -21,6 +21,47 @@ describe('Task Management E2E Tests', () => {
       apiKey
     });
 
+    // 既存のテストデータクリーンアップ
+    try {
+      // 既存のタスクとコメントをクリーンアップ
+      const existingTasks = await vibebase.data.list<Task>('tasks', { limit: 100 });
+      
+      for (const task of existingTasks.data) {
+        if (task.title && task.title.includes('Task Test')) {
+          // 関連コメントを削除
+          const comments = await vibebase.data.list<TaskComment>('task_comments', {
+            where: { task_id: task.id }
+          });
+          for (const comment of comments.data) {
+            await vibebase.data.delete('task_comments', comment.id);
+          }
+          // タスクを削除
+          await vibebase.data.delete('tasks', task.id);
+        }
+      }
+
+      // テスト用プロジェクトをクリーンアップ
+      const existingProjects = await vibebase.data.list<Project>('projects', { limit: 50 });
+      for (const project of existingProjects.data) {
+        if (project.name && project.name.includes('Task Test')) {
+          await vibebase.data.delete('projects', project.id);
+        }
+      }
+
+      // テスト用チームをクリーンアップ
+      const existingTeams = await vibebase.data.list<Team>('teams', { limit: 50 });
+      for (const team of existingTeams.data) {
+        if (team.name && team.name.includes('Task Test')) {
+          await vibebase.data.delete('teams', team.id);
+        }
+      }
+    } catch (error) {
+      console.warn('Cleanup warning:', error);
+    }
+
+    // 少し待機してデータベースの整合性を確保
+    await new Promise(resolve => setTimeout(resolve, 200));
+
     // テストユーザーを取得
     const userEmails = ['alice@example.com', 'bob@example.com', 'charlie@example.com'];
     for (const email of userEmails) {
@@ -336,14 +377,27 @@ describe('Task Management E2E Tests', () => {
         is_edited: false
       });
       expect(createResult.success).toBe(true);
+      
+      // APIレスポンス構造に対応
       const comment = createResult.data;
+      expect(comment).toBeDefined();
+      expect(comment.id).toBeDefined();
 
       const updateResult = await vibebase.data.update<TaskComment>('task_comments', comment.id, {
         comment: 'Updated comment with more details',
         is_edited: true
       });
+      
+      // 更新が成功することを確認
+      if (!updateResult.success) {
+        console.error('Update failed:', updateResult.error);
+      }
       expect(updateResult.success).toBe(true);
-      const updated = updateResult.data;
+      
+      // 更新後のデータを再取得して確認
+      const verifyResult = await vibebase.data.get<TaskComment>('task_comments', comment.id);
+      expect(verifyResult.success).toBe(true);
+      const updated = verifyResult.data;
 
       expect(updated.comment).toBe('Updated comment with more details');
       // SQLiteではブール値が1/0で返される
@@ -483,29 +537,64 @@ describe('Task Management E2E Tests', () => {
           project_id: testProject.id,
           status: 'todo'
         },
-        limit: 3
+        limit: 10
       });
 
       // Bulk taskから始まるタスクをJavaScriptでフィルタリング
       const tasksToUpdate = allTasks.data.filter(task => 
-        task.title.startsWith('Bulk task')
+        task.title && task.title.startsWith('Bulk task')
       ).slice(0, 3);
 
-      if (tasksToUpdate.length > 0) {
-        // 個別更新（bulkUpdateの代替）
-        for (const task of tasksToUpdate) {
-          const updateResult = await vibebase.data.update<Task>('tasks', task.id, {
-            status: 'in_progress'
-          });
-          expect(updateResult.success).toBe(true);
+      // タスクが見つからない場合の詳細ログ
+      if (tasksToUpdate.length === 0) {
+        console.warn('No bulk tasks found for update test');
+        console.log('Available tasks:', allTasks.data.map(t => ({ id: t.id, title: t.title, status: t.status })));
+        
+        // 代替として、最初の3つのtodoタスクを使用
+        const fallbackTasks = allTasks.data.filter(task => task.status === 'todo').slice(0, 3);
+        if (fallbackTasks.length === 0) {
+          console.warn('No todo tasks available for bulk update test, skipping');
+          return;
         }
+        tasksToUpdate.push(...fallbackTasks);
+        console.log('Using fallback tasks:', fallbackTasks.map(t => ({ id: t.id, title: t.title })));
+      }
 
-        // 更新確認
-        for (const task of tasksToUpdate) {
-          const verifyResult = await vibebase.data.list<Task>('tasks', {
-            where: { id: task.id }
+      console.log(`Found ${tasksToUpdate.length} tasks to update`);
+
+      // 個別更新（bulkUpdateの代替）
+      const updatedTaskIds: string[] = [];
+      for (const task of tasksToUpdate) {
+        const updateResult = await vibebase.data.update<Task>('tasks', task.id, {
+          status: 'in_progress'
+        });
+        if (updateResult.success) {
+          updatedTaskIds.push(task.id);
+        } else {
+          console.error(`Failed to update task ${task.id}:`, updateResult.error);
+        }
+        expect(updateResult.success).toBe(true);
+      }
+
+      // 少し待機してデータベースの整合性を確保
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // 更新確認 - 個別にgetで確認
+      for (const taskId of updatedTaskIds) {
+        const verifyResult = await vibebase.data.get<Task>('tasks', taskId);
+        if (!verifyResult.success) {
+          console.error(`Failed to verify task ${taskId}:`, verifyResult.error);
+          // listで再試行
+          const listResult = await vibebase.data.list<Task>('tasks', {
+            where: { id: taskId }
           });
-          expect(verifyResult.data[0]?.status).toBe('in_progress');
+          expect(listResult.success).toBe(true);
+          expect(listResult.data.length).toBeGreaterThan(0);
+          expect(listResult.data[0]?.status).toBe('in_progress');
+        } else {
+          expect(verifyResult.success).toBe(true);
+          expect(verifyResult.data).toBeDefined();
+          expect(verifyResult.data.status).toBe('in_progress');
         }
       }
     });

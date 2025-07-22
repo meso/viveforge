@@ -387,8 +387,8 @@ export const generateActivityLogs = (teamIds: string[], projectIds: string[], ta
 
     activities.push({
       team_id: teamIds[Math.floor(Math.random() * teamIds.length)],
-      project_id: Math.random() > 0.3 ? projectIds[Math.floor(Math.random() * projectIds.length)] : undefined,
-      task_id: Math.random() > 0.5 ? taskIds[Math.floor(Math.random() * taskIds.length)] : undefined,
+      project_id: Math.random() > 0.3 ? projectIds[Math.floor(Math.random() * projectIds.length)] : null,
+      task_id: Math.random() > 0.5 ? taskIds[Math.floor(Math.random() * taskIds.length)] : null,
       user_id: userIds[Math.floor(Math.random() * userIds.length)],
       action: actions[Math.floor(Math.random() * actions.length)],
       entity_type: entityTypes[Math.floor(Math.random() * entityTypes.length)],

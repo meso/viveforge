@@ -22,6 +22,17 @@ export default defineConfig(({ mode }) => {
       setupFiles: [],
       sequence: {
         shuffle: false, // E2Eテストは順序に依存する場合があるため
+        concurrent: false, // 並列実行を無効化してリソース競合を防ぐ
+      },
+      // ファイル間の並列実行を制限
+      maxConcurrency: 1,
+      // ワーカー数を制限
+      pool: 'threads',
+      poolOptions: {
+        threads: {
+          maxThreads: 1,
+          minThreads: 1,
+        },
       },
     },
   };

@@ -214,7 +214,42 @@ try {
   }
 }
 
-// Step 8: セットアップ完了メッセージ
+// Step 8: VAPIDキー初期化 (Push通知テスト用)
+console.log('\n🔔 Initializing VAPID keys for push notifications...');
+const vapidSQL = `
+INSERT OR REPLACE INTO vapid_config (
+  id, public_key, encrypted_private_key, encryption_iv, subject, created_at, updated_at
+) VALUES (
+  1,
+  'BMgxqujtHG0hhaOMtaEgHDX7TCMIeEF5n8m7S4-nA-tJ6s_1QJ3cHyNvn8LGwKFz5bTmYy1sRZj0PJFGBOaR2Vc',
+  'ZpcHuP1vjpXUalQn2/km3FEWGER00Whl44OlSGeQ9G1KIrBfzdpAKSZu8rz+diJqvQMkvSm843oTwJk=',
+  'W0tI3K7TMX01Q8+K',
+  'mailto:admin@localhost:8787',
+  datetime('now'),
+  datetime('now')
+);
+`;
+
+const tempVapidFile = resolve(__dirname, '.temp-vapid-key.sql');
+writeFileSync(tempVapidFile, vapidSQL);
+
+try {
+  execSync(
+    `cd ${rootDir}/packages/core && wrangler d1 execute ${dbName} --local -c wrangler.local.toml --file=${tempVapidFile}`,
+    { stdio: 'inherit' }
+  );
+  console.log('   ✅ VAPID keys initialized successfully');
+} catch (error) {
+  console.error('   ❌ Failed to initialize VAPID keys');
+  console.warn('   ⚠️  Push notification tests may fail');
+  // VAPIDキー初期化失敗は続行可能
+} finally {
+  if (existsSync(tempVapidFile)) {
+    execSync(`rm ${tempVapidFile}`);
+  }
+}
+
+// Step 9: セットアップ完了メッセージ
 console.log('\n✨ E2E test environment setup complete!\n');
 console.log('📋 Next steps:');
 console.log('   1. Start the local Vibebase server:');
