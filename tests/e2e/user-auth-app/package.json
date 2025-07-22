@@ -1,0 +1,22 @@
+{
+  "name": "@vibebase/e2e-user-auth-tests",
+  "version": "1.0.0",
+  "description": "E2E tests with user authentication for Vibebase",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:access-control": "vitest run access-control.test.ts",
+    "test:user-auth": "vitest run user-auth.test.ts",
+    "test:push-user": "vitest run push-notifications-user.test.ts",
+    "test:realtime-user": "vitest run realtime-user.test.ts"
+  },
+  "dependencies": {
+    "@vibebase/sdk": "workspace:*",
+    "eventsource": "^2.0.2"
+  },
+  "devDependencies": {
+    "@types/eventsource": "^1.1.12",
+    "vitest": "^1.6.1"
+  }
+}
