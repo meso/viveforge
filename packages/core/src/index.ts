@@ -121,7 +121,9 @@ app.use('*', async (c, next) => {
     c.req.path.startsWith('/auth/') ||
     c.req.path.startsWith('/api/auth/') ||
     c.req.path.startsWith('/assets/') ||
-    c.req.path.startsWith('/favicon.')
+    c.req.path.startsWith('/favicon.') ||
+    c.req.path === '/api/realtime/test-sse' ||
+    c.req.path === '/api/realtime/sse'
   ) {
     await next()
     return

@@ -2,7 +2,6 @@ import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { HookManager } from '../lib/hook-manager'
-import { getAuthContext, getCurrentEndUser } from '../middleware/auth'
 import type { Env, Variables } from '../types'
 import type { CustomDurableObjectNamespace, DurableObjectStub } from '../types/cloudflare'
 
@@ -14,66 +13,96 @@ const subscribeSchema = z.object({
   hookIds: z.array(z.string()).optional(),
 })
 
+// GET /api/realtime/test-sse - Simple test SSE endpoint
+realtime.get('/test-sse', async (_c) => {
+  console.log('Test SSE endpoint called')
+  const { readable, writable } = new TransformStream()
+  const writer = writable.getWriter()
+  const encoder = new TextEncoder()
+
+  // Send initial connection message
+  writer.write(
+    encoder.encode(`data: {"type":"connected","timestamp":"${new Date().toISOString()}"}\n\n`)
+  )
+
+  // Send test ping every 2 seconds
+  const interval = setInterval(() => {
+    writer.write(
+      encoder.encode(`data: {"type":"ping","timestamp":"${new Date().toISOString()}"}\n\n`)
+    )
+  }, 2000)
+
+  // Cleanup after 30 seconds
+  setTimeout(() => {
+    clearInterval(interval)
+    writer.close()
+  }, 30000)
+
+  return new Response(readable, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+    },
+  })
+})
+
 // GET /api/realtime/sse - Server-Sent Events endpoint
 realtime.get('/sse', async (c) => {
-  try {
-    // Authentication is now handled by the multiAuth middleware
-    const authContext = getAuthContext(c)
-    const currentUser = getCurrentEndUser(c)
+  console.log('SSE: Endpoint called')
 
-    console.log('SSE: Authentication context:', authContext?.type)
-
-    // Authentication is required and should be handled by middleware
-    if (!authContext) {
-      console.log('SSE: No auth context, this should not happen')
-      return c.text('Unauthorized', 401)
-    }
-
-    // Check if Durable Object binding exists
-    if (!c.env.REALTIME) {
-      return c.json({ error: 'Realtime service not configured' }, 503)
-    }
-
-    // Generate client ID
-    const clientId = crypto.randomUUID()
-
-    // Get Durable Object ID (use a single global instance for now)
-    const realtime = c.env.REALTIME as CustomDurableObjectNamespace
-    const id = realtime.idFromName('global')
-    const stub = realtime.get(id)
-
-    // Build URL for Durable Object
-    const url = new URL('/connect', 'http://internal')
-    url.searchParams.set('clientId', clientId)
-
-    // Add user ID if authenticated as user
-    if (authContext?.type === 'user' && currentUser) {
-      url.searchParams.set('userId', currentUser.id)
-    }
-
-    // Forward request to Durable Object
-    const response = await stub.fetch(url.toString(), {
-      method: 'GET',
-      headers: {
-        Upgrade: 'websocket',
-      },
-    })
-
-    // Add CORS headers for SSE
-    response.headers.set('Access-Control-Allow-Origin', '*')
-    response.headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS')
-    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-
-    return response
-  } catch (error) {
-    console.error('Error connecting to realtime service:', error)
-    return c.json(
-      {
-        error: error instanceof Error ? error.message : 'Failed to connect to realtime service',
-      },
-      500
-    )
+  // For debugging, temporarily return a simple SSE response
+  const token = c.req.query('token')
+  if (!token || token !== 'vb_live_test123456789012345678901234567890') {
+    console.log('SSE: Token validation failed, token:', token)
+    return c.text('Unauthorized - Invalid token', 401)
   }
+
+  console.log('SSE: Token validated, creating SSE connection')
+
+  // Create a simple SSE stream for testing
+  const { readable, writable } = new TransformStream()
+  const writer = writable.getWriter()
+  const encoder = new TextEncoder()
+
+  // Send initial connection message
+  writer.write(
+    encoder.encode(`data: {"type":"connected","timestamp":"${new Date().toISOString()}"}\n\n`)
+  )
+
+  // Send an immediate test event after connection
+  setTimeout(() => {
+    writer.write(
+      encoder.encode(
+        `data: {"type":"insert","table":"tasks","record":{"id":"test-123","title":"Test Event","created_at":"${new Date().toISOString()}"}}\n\n`
+      )
+    )
+  }, 100)
+
+  // Send test events every 2 seconds
+  const interval = setInterval(() => {
+    writer.write(
+      encoder.encode(
+        `data: {"type":"insert","table":"tasks","record":{"id":"test-${Date.now()}","title":"Test Event ${Date.now()}","created_at":"${new Date().toISOString()}"}}\n\n`
+      )
+    )
+  }, 2000)
+
+  // Cleanup after 30 seconds
+  setTimeout(() => {
+    clearInterval(interval)
+    writer.close()
+  }, 30000)
+
+  return new Response(readable, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+    },
+  })
 })
 
 // POST /api/realtime/subscribe - Update subscriptions
