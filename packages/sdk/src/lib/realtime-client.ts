@@ -105,7 +105,15 @@ export class RealtimeClient {
     }
 
     console.log('Creating EventSource with URL:', url.toString())
-    this.eventSource = new EventSource(url.toString())
+
+    // Use polyfilled EventSource if available
+    const EventSourceConstructor =
+      globalThis.EventSource || (globalThis as { EventSource?: typeof EventSource }).EventSource
+    if (!EventSourceConstructor) {
+      throw new Error('EventSource is not available. Please ensure EventSource polyfill is loaded.')
+    }
+
+    this.eventSource = new EventSourceConstructor(url.toString())
 
     this.eventSource.onmessage = (event) => {
       try {

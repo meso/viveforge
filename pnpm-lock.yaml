@@ -113,6 +113,9 @@ importers:
         specifier: ^4.0.4
         version: 4.0.4
     devDependencies:
+      '@types/form-data':
+        specifier: ^2.5.2
+        version: 2.5.2
       '@types/node':
         specifier: ^20.19.0
         version: 20.19.0
@@ -1148,6 +1151,10 @@ packages:
   '@types/eventsource@3.0.0':
     resolution: {integrity: sha512-yEhFj31FTD29DtNeqePu+A+lD6loRef6YOM5XfN1kUwBHyy2DySGlA3jJU+FbQSkrfmlBVluf2Dub/OyReFGKA==}
     deprecated: This is a stub types definition. eventsource provides its own type definitions, so you do not need this installed.
+
+  '@types/form-data@2.5.2':
+    resolution: {integrity: sha512-tfmcyHn1Pp9YHAO5r40+UuZUPAZbUEgqTel3EuEKpmF9hPkXgR4l41853raliXnb4gwyPNoQOfvgGGlHN5WSog==}
+    deprecated: This is a stub types definition. form-data provides its own type definitions, so you do not need this installed.
 
   '@types/jsonwebtoken@9.0.10':
     resolution: {integrity: sha512-asx5hIG9Qmf/1oStypjanR7iKTv0gXQ1Ov/jfrX6kS/EO0OFni8orbmGCn0672NHR3kXHwpAwR+B368ZGN/2rA==}
@@ -3621,6 +3628,10 @@ snapshots:
   '@types/eventsource@3.0.0':
     dependencies:
       eventsource: 4.0.0
+
+  '@types/form-data@2.5.2':
+    dependencies:
+      form-data: 4.0.4
 
   '@types/jsonwebtoken@9.0.10':
     dependencies:

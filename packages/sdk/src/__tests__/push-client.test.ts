@@ -112,7 +112,8 @@ describe('PushClient', () => {
 
       expect(mockHttpClient.post).toHaveBeenCalledWith('/api/push/send', {
         ...notification,
-        ...options,
+        userIds: undefined,
+        recipientType: 'all_users',
       })
       expect(result).toEqual(mockResponse)
     })
@@ -137,7 +138,8 @@ describe('PushClient', () => {
 
       expect(mockHttpClient.post).toHaveBeenCalledWith('/api/push/send', {
         ...notification,
-        ...options,
+        userIds: ['user1', 'user2'],
+        recipientType: 'specific_users',
       })
       expect(result).toEqual(mockResponse)
     })

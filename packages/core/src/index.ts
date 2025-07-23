@@ -123,7 +123,7 @@ app.use('*', async (c, next) => {
     c.req.path.startsWith('/assets/') ||
     c.req.path.startsWith('/favicon.') ||
     c.req.path === '/api/realtime/test-sse' ||
-    c.req.path === '/api/realtime/sse'
+    c.req.path === '/api/push/vapid-public-key'
   ) {
     await next()
     return

@@ -128,13 +128,21 @@ export class PushClient {
       allUsers?: boolean
       roles?: string[]
     }
-  ): Promise<ApiResponse<{ messageId: string; sentCount: number }>> {
-    const response = await this.http.post<{ messageId: string; sentCount: number }>(
+  ): Promise<ApiResponse<{ result: { sent: number; failed: number } }>> {
+    // Convert client options to server format
+    const serverPayload = {
+      ...notification,
+      userIds: options.userIds,
+      recipientType: options.allUsers
+        ? ('all_users' as const)
+        : options.userIds
+          ? ('specific_users' as const)
+          : undefined,
+    }
+
+    const response = await this.http.post<{ result: { sent: number; failed: number } }>(
       '/api/push/send',
-      {
-        ...notification,
-        ...options,
-      }
+      serverPayload
     )
     if (!response.success && response.error) {
       throw new Error(response.error)

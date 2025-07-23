@@ -117,10 +117,12 @@ export class VapidStorage {
 
   // Retrieve and decrypt VAPID keys
   async retrieve(): Promise<VapidKeys | null> {
+    console.log('VapidStorage.retrieve() - deploymentDomain:', this.deploymentDomain)
     const config = await this.db
       .prepare('SELECT * FROM vapid_config WHERE id = 1')
       .first<VapidConfig>()
 
+    console.log('VapidStorage.retrieve() - config found:', !!config)
     if (!config) {
       return null
     }
@@ -133,13 +135,18 @@ export class VapidStorage {
         encryptionKey
       )
 
+      console.log('VapidStorage.retrieve() - decryption successful')
       return {
         publicKey: config.public_key,
         privateKey,
         subject: config.subject,
       }
     } catch (error) {
-      console.error('Failed to decrypt VAPID keys:', error)
+      console.error(
+        'Failed to decrypt VAPID keys - deploymentDomain:',
+        this.deploymentDomain,
+        error
+      )
       return null
     }
   }

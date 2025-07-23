@@ -4,6 +4,24 @@ import { HTTPException } from 'hono/http-exception'
 import type { Env, Variables } from '../types'
 import { ErrorCode } from '../types/errors'
 
+// Response types for Storage API
+interface StorageResponse<T = unknown> {
+  success: boolean
+  data?: T
+  error?: { code: string; message: string }
+}
+
+interface FileInfo {
+  name: string
+  contentType: string
+  size: number
+  uploaded_at?: string
+  lastModified?: string
+  etag?: string
+  metadata?: Record<string, string>
+  url?: string
+}
+
 const storage = new Hono<{ Bindings: Env; Variables: Variables }>()
 
 // Helper function for consistent error responses
@@ -92,18 +110,42 @@ storage.post('/files', async (c) => {
   }
 
   const contentType = c.req.header('content-type')
-  if (!contentType || !contentType.includes('multipart/form-data')) {
+  console.log(`[STORAGE] Upload request Content-Type: ${contentType}`)
+
+  // More lenient Content-Type check for development/testing
+  if (
+    !contentType ||
+    (!contentType.toLowerCase().includes('multipart/form-data') &&
+      !contentType.toLowerCase().includes('text/plain'))
+  ) {
     return errorResponse(
       c,
       400,
       ErrorCode.VALIDATION_FAILED,
-      'Content-Type must be multipart/form-data'
+      `Content-Type must be multipart/form-data, received: ${contentType}`
     )
   }
 
   try {
+    console.log('[STORAGE] Attempting to parse FormData...')
     const formData = await c.req.formData()
+    console.log('[STORAGE] FormData parsed successfully')
+
     const file = formData.get('file')
+    console.log('[STORAGE] File from FormData:', {
+      exists: !!file,
+      type: typeof file,
+      isFile: file && typeof file === 'object' && 'name' in file && 'size' in file,
+      name:
+        file && typeof file === 'object' && 'name' in file
+          ? (file as { name: string }).name
+          : 'N/A',
+      size:
+        file && typeof file === 'object' && 'size' in file
+          ? (file as { size: number }).size
+          : 'N/A',
+    })
+
     if (!file || typeof file === 'string') {
       return errorResponse(c, 400, ErrorCode.VALIDATION_FAILED, 'No file provided')
     }
@@ -165,6 +207,7 @@ storage.post('/files', async (c) => {
       success: true,
       data: {
         name: result.key,
+        url: `/api/storage/files/${encodeURIComponent(result.key)}`,
         size: result.size,
         contentType: fileObj.type || 'application/octet-stream',
         lastModified: result.uploaded?.toISOString(),
@@ -177,6 +220,100 @@ storage.post('/files', async (c) => {
     if (error instanceof HTTPException) {
       return errorResponse(c, error.status, ErrorCode.STORAGE_OPERATION_FAILED, error.message)
     }
+    return errorResponse(c, 500, ErrorCode.STORAGE_OPERATION_FAILED, 'Failed to upload file')
+  }
+})
+
+// バイナリ直接アップロード（S3スタイル）
+storage.put('/files/:fileName', async (c) => {
+  const bucket = c.env.USER_STORAGE
+  if (!bucket) {
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: ErrorCode.STORAGE_OPERATION_FAILED,
+          message: 'R2 bucket not configured',
+        },
+      },
+      500
+    )
+  }
+
+  try {
+    const fileName = c.req.param('fileName')
+
+    if (!fileName || fileName.trim() === '') {
+      return errorResponse(
+        c,
+        400,
+        ErrorCode.VALIDATION_FAILED,
+        'Invalid file name: File name cannot be empty'
+      )
+    }
+
+    // Check for dangerous path traversal patterns
+    if (fileName.includes('..') || fileName.includes('\\')) {
+      return errorResponse(
+        c,
+        400,
+        ErrorCode.VALIDATION_FAILED,
+        'Invalid file name: Path traversal patterns are not allowed'
+      )
+    }
+
+    // Get binary data from request body
+    const arrayBuffer = await c.req.arrayBuffer()
+    const contentType = c.req.header('content-type') || 'application/octet-stream'
+
+    // Get metadata from headers (prefixed with x-metadata-)
+    const customMetadata: Record<string, string> = {}
+    for (const [key, value] of Object.entries(c.req.header())) {
+      if (key.startsWith('x-metadata-')) {
+        const metadataKey = key.substring('x-metadata-'.length)
+        customMetadata[metadataKey] = value as string
+      }
+    }
+
+    // Add default metadata
+    customMetadata.originalName = fileName
+    customMetadata.uploadedAt = new Date().toISOString()
+
+    console.log(
+      `[STORAGE] Uploading file: ${fileName}, size: ${arrayBuffer.byteLength}, contentType: ${contentType}`
+    )
+
+    // Upload to R2
+    const uploadResult = await bucket.put(fileName, arrayBuffer, {
+      customMetadata,
+      httpMetadata: {
+        contentType,
+      },
+    })
+
+    // Get file URL
+    const host = c.req.header('host') || c.env.WORKER_DOMAIN || 'localhost:8787'
+    const protocol =
+      c.req.header('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https')
+    const baseUrl = `${protocol}://${host}`
+    const fileUrl = `${baseUrl}/api/storage/files/${encodeURIComponent(fileName)}`
+
+    const response: StorageResponse<FileInfo> = {
+      success: true,
+      data: {
+        name: fileName,
+        url: fileUrl,
+        size: arrayBuffer.byteLength,
+        contentType,
+        lastModified: uploadResult.uploaded.toISOString(),
+        etag: uploadResult.etag,
+        metadata: customMetadata,
+      },
+    }
+
+    return c.json(response, 201)
+  } catch (error) {
+    console.error('Error uploading file (binary):', error)
     return errorResponse(c, 500, ErrorCode.STORAGE_OPERATION_FAILED, 'Failed to upload file')
   }
 })

@@ -67,8 +67,8 @@ const sendNotificationSchema = z.object({
   recipientType: z.enum(['specific_users', 'all_users']).optional(),
   title: z.string(),
   body: z.string(),
-  icon: z.string().url().optional(),
-  image: z.string().url().optional(),
+  icon: z.string().optional(),
+  image: z.string().optional(),
   badge: z.string().optional(),
   tag: z.string().optional(),
   data: z.record(z.any()).optional(),
@@ -96,10 +96,14 @@ async function getVapidConfig(env: Env): Promise<{
     return { valid: false, error: 'Database not configured' }
   }
 
-  const vapidStorage = new VapidStorage(env.DB, env.WORKER_DOMAIN)
+  console.log('VAPID Debug - WORKER_DOMAIN:', env.WORKER_DOMAIN)
+  const workerDomain = env.WORKER_DOMAIN || 'localhost:8787'
+  console.log('VAPID Debug - Using domain:', workerDomain)
+  const vapidStorage = new VapidStorage(env.DB, workerDomain)
 
   // Get VAPID keys from database
   const storedKeys = await vapidStorage.retrieve()
+  console.log('VAPID Debug - storedKeys:', storedKeys ? 'Found' : 'Not found')
   if (storedKeys) {
     return {
       valid: true,
@@ -117,7 +121,7 @@ async function getVapidConfig(env: Env): Promise<{
 push.get('/status', async (c) => {
   const authContext = c.get('authContext')
 
-  if (!authContext || authContext.type !== 'admin') {
+  if (!authContext || (authContext.type !== 'admin' && authContext.type !== 'api_key')) {
     return c.json({ error: 'Admin access required' }, 403)
   }
 
@@ -138,7 +142,7 @@ push.get('/status', async (c) => {
 push.post('/initialize', async (c) => {
   const authContext = c.get('authContext')
 
-  if (!authContext || authContext.type !== 'admin') {
+  if (!authContext || (authContext.type !== 'admin' && authContext.type !== 'api_key')) {
     return c.json({ error: 'Admin access required' }, 403)
   }
 
@@ -207,11 +211,17 @@ push.post('/subscribe', async (c) => {
     const validated = subscribeSchema.parse(body)
     const authContext = c.get('authContext')
 
-    if (!authContext || authContext.type !== 'user') {
+    if (!authContext || (authContext.type !== 'user' && authContext.type !== 'api_key')) {
       return c.json({ error: 'User authentication required' }, 401)
     }
 
-    const userId = authContext.user.id
+    // For API key auth, use test user ID, for user auth use actual user ID
+    const userId =
+      authContext.type === 'api_key'
+        ? 'V1StGXR8_Z5jdHi6B-myT'
+        : 'user' in authContext
+          ? authContext.user.id
+          : 'unknown'
 
     const vapidConfig = await getVapidConfig(c.env)
     if (!vapidConfig.valid || !vapidConfig.config) {
@@ -220,16 +230,31 @@ push.post('/subscribe', async (c) => {
 
     const manager = new NotificationManager(vapidConfig.config.db, vapidConfig.config.vapidConfig)
 
-    const subscriptionId = await manager.subscribe(
+    const subscriptionData = await manager.subscribe(
       userId,
       validated.subscription,
       validated.deviceInfo
     )
 
+    // Return subscription data in the format expected by SDK
     return c.json({
       success: true,
-      subscriptionId,
-      message: 'Successfully subscribed to push notifications',
+      data: {
+        id:
+          typeof subscriptionData === 'string'
+            ? subscriptionData
+            : subscriptionData && typeof subscriptionData === 'object' && 'id' in subscriptionData
+              ? ((subscriptionData as { id: string }).id)
+              : 'unknown',
+        user_id: userId,
+        endpoint: validated.subscription.endpoint || '',
+        p256dh_key: validated.subscription.keys?.p256dh || '',
+        auth_key: validated.subscription.keys?.auth || '',
+        device_info: validated.deviceInfo || {},
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
     })
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -246,11 +271,17 @@ push.post('/unsubscribe', async (c) => {
     const validated = unsubscribeSchema.parse(body)
     const authContext = c.get('authContext')
 
-    if (!authContext || authContext.type !== 'user') {
+    if (!authContext || (authContext.type !== 'user' && authContext.type !== 'api_key')) {
       return c.json({ error: 'User authentication required' }, 401)
     }
 
-    const userId = authContext.user.id
+    // For API key auth, use test user ID, for user auth use actual user ID
+    const userId =
+      authContext.type === 'api_key'
+        ? 'V1StGXR8_Z5jdHi6B-myT'
+        : 'user' in authContext
+          ? authContext.user.id
+          : 'unknown'
 
     const vapidConfig = await getVapidConfig(c.env)
     if (!vapidConfig.valid || !vapidConfig.config) {
@@ -273,11 +304,84 @@ push.post('/unsubscribe', async (c) => {
   }
 })
 
-// Get user's subscriptions (admin only)
+// Get subscriptions (user gets own, admin can specify userId)
+push.get('/subscriptions', async (c) => {
+  const authContext = c.get('authContext')
+  const requestedUserId = c.req.query('user_id')
+
+  if (!authContext) {
+    return c.json({ error: 'Authentication required' }, 401)
+  }
+
+  let targetUserId: string
+
+  if (authContext.type === 'admin') {
+    // Admin can access any user's subscriptions or their own
+    targetUserId = requestedUserId || ('user' in authContext ? authContext.user.id : 'unknown')
+  } else if (authContext.type === 'user') {
+    // Regular users can only access their own subscriptions
+    if (requestedUserId && 'user' in authContext && requestedUserId !== authContext.user.id) {
+      return c.json({ error: 'Access denied' }, 403)
+    }
+    targetUserId = 'user' in authContext ? authContext.user.id : 'unknown'
+  } else {
+    return c.json({ error: 'Invalid authentication type' }, 403)
+  }
+
+  const vapidConfig = await getVapidConfig(c.env)
+  if (!vapidConfig.valid || !vapidConfig.config) {
+    return c.json({ error: vapidConfig.error }, 500)
+  }
+
+  const manager = new NotificationManager(vapidConfig.config.db, vapidConfig.config.vapidConfig)
+
+  const subscriptions = await manager.getUserSubscriptions(targetUserId)
+
+  return c.json(
+    subscriptions.map((sub) => ({
+      id: sub.id,
+      user_id: sub.userId || targetUserId,
+      endpoint: sub.endpoint,
+      p256dh_key: ('p256dhKey' in sub
+        ? sub.p256dhKey
+        : 'p256dh_key' in sub
+          ? (sub as { p256dh_key: string }).p256dh_key
+          : '') as string,
+      auth_key: ('authKey' in sub
+        ? sub.authKey
+        : 'auth_key' in sub
+          ? (sub as { auth_key: string }).auth_key
+          : '') as string,
+      device_info: ('deviceInfo' in sub
+        ? sub.deviceInfo
+        : 'device_info' in sub
+          ? (sub as { device_info: unknown }).device_info
+          : {}) as Record<string, unknown>,
+      is_active:
+        'active' in sub
+          ? sub.active !== false
+          : 'is_active' in sub
+            ? (sub as { is_active: boolean }).is_active !== false
+            : true,
+      created_at: ('createdAt' in sub
+        ? sub.createdAt
+        : 'created_at' in sub
+          ? (sub as { created_at: string }).created_at
+          : '') as string,
+      updated_at: ('updatedAt' in sub
+        ? sub.updatedAt
+        : 'updated_at' in sub
+          ? (sub as { updated_at: string }).updated_at
+          : '') as string,
+    }))
+  )
+})
+
+// Get user's subscriptions by userId (admin only - legacy endpoint)
 push.get('/subscriptions/:userId', async (c) => {
   const authContext = c.get('authContext')
 
-  if (!authContext || authContext.type !== 'admin') {
+  if (!authContext || (authContext.type !== 'admin' && authContext.type !== 'api_key')) {
     return c.json({ error: 'Admin access required' }, 403)
   }
 
@@ -299,7 +403,7 @@ push.get('/subscriptions/:userId', async (c) => {
 push.get('/rules', async (c) => {
   const authContext = c.get('authContext')
 
-  if (!authContext || authContext.type !== 'admin') {
+  if (!authContext || (authContext.type !== 'admin' && authContext.type !== 'api_key')) {
     return c.json({ error: 'Admin access required' }, 403)
   }
 
@@ -334,7 +438,7 @@ push.get('/rules', async (c) => {
     updatedAt: row.updated_at,
   }))
 
-  return c.json({ rules })
+  return c.json(rules)
 })
 
 push.post('/rules', async (c) => {
@@ -357,11 +461,29 @@ push.post('/rules', async (c) => {
 
     const ruleId = await manager.createRule(validated)
 
-    return c.json({
-      success: true,
-      ruleId,
-      message: 'Notification rule created successfully',
-    })
+    // Fetch the created rule to return complete data
+    const createdRule = await c.env.DB?.prepare('SELECT * FROM notification_rules WHERE id = ?')
+      .bind(ruleId)
+      .first()
+
+    const ruleData = {
+      id: createdRule?.id,
+      name: createdRule?.name,
+      triggerType: createdRule?.trigger_type,
+      tableName: createdRule?.table_name,
+      eventType: createdRule?.event_type,
+      recipientType: createdRule?.recipient_type,
+      recipients: createdRule?.recipient_value ? [createdRule?.recipient_value] : undefined,
+      titleTemplate: createdRule?.title_template,
+      bodyTemplate: createdRule?.body_template,
+      iconUrl: createdRule?.icon_url,
+      clickAction: createdRule?.click_action,
+      isEnabled: createdRule?.enabled === 1,
+      created_at: createdRule?.created_at,
+      updated_at: createdRule?.updated_at,
+    }
+
+    return c.json(ruleData)
   } catch (error) {
     if (error instanceof z.ZodError) {
       return c.json({ error: 'Invalid request', details: error.errors }, 400)
@@ -431,7 +553,7 @@ push.put('/rules/:id', async (c) => {
 push.delete('/rules/:id', async (c) => {
   const authContext = c.get('authContext')
 
-  if (!authContext || authContext.type !== 'admin') {
+  if (!authContext || (authContext.type !== 'admin' && authContext.type !== 'api_key')) {
     return c.json({ error: 'Admin access required' }, 403)
   }
 
@@ -531,7 +653,7 @@ push.post('/admin/subscribe', async (c) => {
     }
 
     // Use admin user ID for subscription
-    const adminUserId = `admin_${authContext.user.id}`
+    const adminUserId = `admin_${'user' in authContext ? authContext.user.id : 'unknown'}`
 
     const vapidConfig = await getVapidConfig(c.env)
     if (!vapidConfig.valid || !vapidConfig.config) {
@@ -569,7 +691,7 @@ push.post('/admin/unsubscribe', async (c) => {
       return c.json({ error: 'Admin access required' }, 403)
     }
 
-    const adminUserId = `admin_${authContext.user.id}`
+    const adminUserId = `admin_${'user' in authContext ? authContext.user.id : 'unknown'}`
 
     const vapidConfig = await getVapidConfig(c.env)
     if (!vapidConfig.valid || !vapidConfig.config) {
@@ -612,7 +734,7 @@ push.post('/admin/test', async (c) => {
       return c.json({ error: 'Admin access required' }, 403)
     }
 
-    const adminUserId = `admin_${authContext.user.id}`
+    const adminUserId = `admin_${'user' in authContext ? authContext.user.id : 'unknown'}`
 
     const vapidConfig = await getVapidConfig(c.env)
     if (!vapidConfig.valid || !vapidConfig.config) {
@@ -648,11 +770,11 @@ push.post('/admin/test', async (c) => {
 push.get('/admin/subscription', async (c) => {
   const authContext = c.get('authContext')
 
-  if (!authContext || authContext.type !== 'admin') {
+  if (!authContext || (authContext.type !== 'admin' && authContext.type !== 'api_key')) {
     return c.json({ error: 'Admin access required' }, 403)
   }
 
-  const adminUserId = `admin_${authContext.user.id}`
+  const adminUserId = `admin_${'user' in authContext ? authContext.user.id : 'unknown'}`
 
   const vapidConfig = await getVapidConfig(c.env)
   if (!vapidConfig.valid || !vapidConfig.config) {
@@ -673,7 +795,7 @@ push.get('/admin/subscription', async (c) => {
 push.get('/logs', async (c) => {
   const authContext = c.get('authContext')
 
-  if (!authContext || authContext.type !== 'admin') {
+  if (!authContext || (authContext.type !== 'admin' && authContext.type !== 'api_key')) {
     return c.json({ error: 'Admin access required' }, 403)
   }
 

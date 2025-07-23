@@ -312,8 +312,23 @@ data.put('/:tableName/:id', async (c) => {
       return c.json({ error: 'Request body must be a valid JSON object' }, 400)
     }
 
-    // Check if record exists
-    const existingRecord = await tm.getRecordById(tableName, id)
+    // Get authentication context
+    const authContext = c.get('authContext')
+    const currentUser = c.get('currentEndUser')
+
+    // Determine authentication type
+    const isAdminOrApiKey = authContext?.type === 'admin' || authContext?.type === 'api_key'
+    const isUser = authContext?.type === 'user' && currentUser
+
+    if (!isAdminOrApiKey && !isUser) {
+      return c.json({ error: 'Authentication required' }, 401)
+    }
+
+    // Check if record exists with proper access control
+    const existingRecord = isAdminOrApiKey
+      ? await tm.getRecordById(tableName, id)
+      : await tm.getRecordByIdWithAccessControl(tableName, id, currentUser?.id)
+
     if (!existingRecord) {
       return c.json({ error: `Record with id '${id}' not found` }, 404)
     }
@@ -326,8 +341,17 @@ data.put('/:tableName/:id', async (c) => {
       return c.json({ error: 'Validation failed', details: errors }, 400)
     }
 
-    await tm.updateRecord(tableName, id, body)
-    const updatedRecord = await tm.getRecordById(tableName, id)
+    // Update record with proper access control
+    if (isAdminOrApiKey) {
+      await tm.updateRecord(tableName, id, body)
+    } else {
+      await tm.updateRecordWithAccessControl(tableName, id, body, currentUser?.id)
+    }
+
+    // Get updated record
+    const updatedRecord = isAdminOrApiKey
+      ? await tm.getRecordById(tableName, id)
+      : await tm.getRecordByIdWithAccessControl(tableName, id, currentUser?.id)
 
     return c.json({
       success: true,
@@ -352,13 +376,33 @@ data.delete('/:tableName/:id', async (c) => {
   const id = c.req.param('id')
 
   try {
-    // Check if record exists
-    const existingRecord = await tm.getRecordById(tableName, id)
+    // Get authentication context
+    const authContext = c.get('authContext')
+    const currentUser = c.get('currentEndUser')
+
+    // Determine authentication type
+    const isAdminOrApiKey = authContext?.type === 'admin' || authContext?.type === 'api_key'
+    const isUser = authContext?.type === 'user' && currentUser
+
+    if (!isAdminOrApiKey && !isUser) {
+      return c.json({ error: 'Authentication required' }, 401)
+    }
+
+    // Check if record exists with proper access control
+    const existingRecord = isAdminOrApiKey
+      ? await tm.getRecordById(tableName, id)
+      : await tm.getRecordByIdWithAccessControl(tableName, id, currentUser?.id)
+
     if (!existingRecord) {
       return c.json({ error: `Record with id '${id}' not found` }, 404)
     }
 
-    await tm.deleteRecord(tableName, id)
+    // Delete record with proper access control
+    if (isAdminOrApiKey) {
+      await tm.deleteRecord(tableName, id)
+    } else {
+      await tm.deleteRecordWithAccessControl(tableName, id, currentUser?.id)
+    }
 
     return c.json({
       success: true,

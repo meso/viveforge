@@ -112,6 +112,7 @@ export class NotificationManager {
 
   // Get user's active subscriptions
   async getUserSubscriptions(userId: string): Promise<PushSubscription[]> {
+    console.log(`Looking for subscriptions for user: ${userId}`)
     const result = await this.db
       .prepare(`
       SELECT * FROM push_subscriptions 
@@ -119,6 +120,11 @@ export class NotificationManager {
     `)
       .bind(userId)
       .all()
+
+    console.log(`Found ${result.results.length} subscriptions for user ${userId}`)
+    if (result.results.length > 0) {
+      console.log(`First subscription:`, result.results[0])
+    }
 
     return result.results.map((row) => ({
       id: row.id as string,
@@ -210,8 +216,11 @@ export class NotificationManager {
     let sent = 0
     let failed = 0
 
+    console.log(`Sending notifications to users:`, userIds)
+
     for (const userId of userIds) {
       const subscriptions = await this.getUserSubscriptions(userId)
+      console.log(`User ${userId} has ${subscriptions.length} subscriptions`)
 
       for (const subscription of subscriptions) {
         try {

@@ -6,12 +6,13 @@ import type { D1Database } from '../../types/cloudflare'
 import { createMockD1Database } from '../setup'
 
 // Mock NotificationManager
+const mockCreateRule = vi.fn().mockResolvedValue('rule-123')
 vi.mock('../../lib/notification-manager', () => ({
   NotificationManager: class MockNotificationManager {
     subscribe = vi.fn().mockResolvedValue('sub-123')
     unsubscribe = vi.fn().mockResolvedValue(undefined)
     getUserSubscriptions = vi.fn().mockResolvedValue([])
-    createRule = vi.fn().mockResolvedValue('rule-123')
+    createRule = mockCreateRule
     sendNotification = vi.fn().mockResolvedValue({ sent: 1, failed: 0 })
   },
 }))
@@ -47,8 +48,78 @@ describe('Push Routes', () => {
 
     app = new Hono<{ Bindings: Env }>()
 
+    const mockDB = createMockD1Database() as unknown as D1Database
+
+    // Mock the notification_rules query
+    const originalPrepare = mockDB.prepare
+    mockDB.prepare = (sql: string) => {
+      if (sql.includes('SELECT * FROM notification_rules WHERE id = ?')) {
+        return {
+          bind: () => ({
+            first: () =>
+              Promise.resolve({
+                id: 'rule-123',
+                name: 'Test Rule',
+                trigger_type: 'db_change',
+                table_name: 'messages',
+                event_type: 'insert',
+                recipient_type: 'all_users',
+                recipient_value: null,
+                title_template: 'New message',
+                body_template: 'You have a new message',
+                priority: 'normal',
+                ttl: 86400,
+                enabled: 1,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              }),
+          }),
+          run: () =>
+            Promise.resolve({
+              results: [],
+              success: true,
+              meta: {
+                changes: 0,
+                last_row_id: 0,
+                duration: 0,
+                size_after: 0,
+                rows_read: 0,
+                rows_written: 0,
+              },
+            }),
+          all: () =>
+            Promise.resolve({
+              results: [],
+              success: true,
+              meta: {
+                changes: 0,
+                last_row_id: 0,
+                duration: 0,
+                size_after: 0,
+                rows_read: 0,
+                rows_written: 0,
+              },
+            }),
+          raw: () =>
+            Promise.resolve({
+              results: [],
+              success: true,
+              meta: {
+                changes: 0,
+                last_row_id: 0,
+                duration: 0,
+                size_after: 0,
+                rows_read: 0,
+                rows_written: 0,
+              },
+            }),
+        } as unknown as D1PreparedStatement
+      }
+      return originalPrepare.call(mockDB, sql)
+    }
+
     env = {
-      DB: createMockD1Database() as unknown as D1Database,
+      DB: mockDB,
       VAPID_PUBLIC_KEY: 'test-public-key',
       VAPID_PRIVATE_KEY: 'test-private-key',
       VAPID_SUBJECT: 'mailto:test@example.com',
@@ -284,10 +355,33 @@ describe('Push Routes', () => {
 
       const res = await testApp.request(req)
 
+      if (res.status !== 200) {
+        const errorBody = await res.text()
+        console.log('Error response:', res.status, errorBody)
+        console.log('Mock createRule calls:', mockCreateRule.mock.calls)
+      }
+
       expect(res.status).toBe(200)
-      const data = (await res.json()) as { success: boolean; ruleId: string }
-      expect(data.success).toBe(true)
-      expect(data.ruleId).toBe('rule-123')
+      const data = (await res.json()) as {
+        id: string
+        name: string
+        triggerType: string
+        tableName: string
+        eventType: string
+        recipientType: string
+        titleTemplate: string
+        bodyTemplate: string
+        isEnabled: boolean
+      }
+      expect(data.id).toBe('rule-123')
+      expect(data.name).toBe('Test Rule')
+      expect(data.triggerType).toBe('db_change')
+      expect(data.tableName).toBe('messages')
+      expect(data.eventType).toBe('insert')
+      expect(data.recipientType).toBe('all_users')
+      expect(data.titleTemplate).toBe('New message')
+      expect(data.bodyTemplate).toBe('You have a new message')
+      expect(data.isEnabled).toBe(true)
     })
 
     it('should validate rule data', async () => {

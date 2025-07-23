@@ -25,39 +25,12 @@ export class HttpClient {
     const url = `${this.config.baseUrl}${endpoint}`
     console.log('[HTTP-CLIENT] HTTP Request:', options.method || 'GET', url)
 
-    // Check if body is FormData to handle headers appropriately
-    const isFormData = options.body instanceof FormData
-    const headers = this.buildHeaders(options.headers, isFormData)
+    const headers = this.buildHeaders(options.headers)
 
     const requestOptions: RequestInit = {
       ...options,
       headers,
       signal: this.createTimeoutSignal(),
-    }
-
-    // Debug FormData requests and handle Node.js specific issues
-    if (isFormData && options.body instanceof FormData) {
-      console.log('[HTTP-CLIENT] FormData request details:', {
-        url,
-        method: options.method,
-        headers: Object.fromEntries(headers.entries()),
-        bodyType: options.body?.constructor.name,
-        formDataEntries: Array.from((options.body as FormData).entries()).map(([key, value]) => ({
-          key,
-          valueType: value.constructor.name,
-          valueName: value instanceof File ? value.name : 'N/A',
-        })),
-      })
-
-      // Handle Node.js form-data library boundary
-      const bodyAsUnknown = options.body as unknown as { getBoundary?: () => string }
-      if (typeof window === 'undefined' && bodyAsUnknown?.getBoundary) {
-        const boundary = bodyAsUnknown.getBoundary()
-        headers.set('Content-Type', `multipart/form-data; boundary=${boundary}`)
-        console.log('[HTTP-CLIENT] Set Node.js form-data boundary:', boundary)
-      } else {
-        console.log('[HTTP-CLIENT] FormData detected, letting fetch handle Content-Type')
-      }
     }
 
     let lastError: Error | null = null
@@ -115,6 +88,7 @@ export class HttpClient {
     return this.request<T>(endpoint, {
       method: 'POST',
       body: data ? JSON.stringify(data) : undefined,
+      headers: data ? { 'Content-Type': 'application/json' } : undefined,
     })
   }
 
@@ -125,6 +99,7 @@ export class HttpClient {
     return this.request<T>(endpoint, {
       method: 'PUT',
       body: data ? JSON.stringify(data) : undefined,
+      headers: data ? { 'Content-Type': 'application/json' } : undefined,
     })
   }
 
@@ -142,6 +117,7 @@ export class HttpClient {
     return this.request<T>(endpoint, {
       method: 'PATCH',
       body: data ? JSON.stringify(data) : undefined,
+      headers: data ? { 'Content-Type': 'application/json' } : undefined,
     })
   }
 
@@ -155,15 +131,10 @@ export class HttpClient {
   /**
    * Build request headers
    */
-  private buildHeaders(customHeaders?: HeadersInit, isFormData = false): Headers {
+  private buildHeaders(customHeaders?: HeadersInit): Headers {
     const headers = new Headers()
 
-    // Handle Content-Type based on request type
-    if (!isFormData) {
-      headers.set('Content-Type', 'application/json')
-    }
-    // For FormData requests, don't set Content-Type - let fetch handle boundary
-
+    // Set default User-Agent
     headers.set('User-Agent', 'vibebase-sdk/0.1.0')
 
     // Add custom headers

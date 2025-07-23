@@ -12,7 +12,7 @@ interface UseStorageResult {
   getDownloadUrl: (fileName: string, expiresIn?: number) => Promise<string>
   getInfo: (fileName: string) => Promise<FileInfo>
   delete: (fileName: string) => Promise<void>
-  list: () => Promise<FileInfo[]>
+  list: () => Promise<FileInfo[] | { files: FileInfo[]; truncated: boolean; cursor?: string }>
   isUploading: boolean
   isDeleting: boolean
   error: Error | null

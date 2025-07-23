@@ -383,7 +383,9 @@ describe('Storage API', () => {
 
       const data = (await res.json()) as StorageErrorResponse
       expect(data.success).toBe(false)
-      expect(data.error.message).toBe('Content-Type must be multipart/form-data')
+      expect(data.error.message).toBe(
+        'Content-Type must be multipart/form-data, received: application/json'
+      )
     })
 
     it('should return 500 when R2 bucket not configured', async () => {
