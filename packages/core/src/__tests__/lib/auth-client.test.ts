@@ -3,6 +3,11 @@ import { VibebaseAuthClient } from '../../lib/auth-client'
 import type { Env } from '../../types'
 import type { KVNamespace, R2Bucket } from '../../types/cloudflare'
 
+// Type for testing private properties using index signature
+type VibebaseAuthClientWithPrivate = VibebaseAuthClient & {
+  [key: string]: unknown
+}
+
 // Mock fetch globally
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
@@ -37,6 +42,34 @@ describe('VibebaseAuthClient', () => {
     authClient = new VibebaseAuthClient(env)
   })
 
+  describe('constructor', () => {
+    it('should handle WORKER_DOMAIN without port number', () => {
+      const envWithoutPort = { ...env, WORKER_DOMAIN: 'example.com' }
+      const client = new VibebaseAuthClient(envWithoutPort)
+
+      // Private property access for testing - normally not recommended
+      // biome-ignore lint/complexity/useLiteralKeys: Required for accessing private properties in tests
+      expect((client as VibebaseAuthClientWithPrivate)['deploymentDomain']).toBe('example.com')
+    })
+
+    it('should strip port number from WORKER_DOMAIN', () => {
+      const envWithPort = { ...env, WORKER_DOMAIN: 'localhost:8787' }
+      const client = new VibebaseAuthClient(envWithPort)
+
+      // Private property access for testing - normally not recommended
+      // biome-ignore lint/complexity/useLiteralKeys: Required for accessing private properties in tests
+      expect((client as VibebaseAuthClientWithPrivate)['deploymentDomain']).toBe('localhost')
+    })
+
+    it('should handle complex domains with port', () => {
+      const envWithComplexDomain = { ...env, WORKER_DOMAIN: 'api.example.com:3000' }
+      const client = new VibebaseAuthClient(envWithComplexDomain)
+
+      // biome-ignore lint/complexity/useLiteralKeys: Required for accessing private properties in tests
+      expect((client as VibebaseAuthClientWithPrivate)['deploymentDomain']).toBe('api.example.com')
+    })
+  })
+
   afterEach(() => {
     vi.restoreAllMocks()
   })
@@ -55,6 +88,17 @@ describe('VibebaseAuthClient', () => {
 
       expect(loginUrl).toBe(
         'https://auth.vibebase.workers.dev/auth/login?origin=https%3A%2F%2Ftest.example.com&redirect_to=%2Fdashboard'
+      )
+    })
+
+    it('should generate correct login URL with port number for localhost', () => {
+      const envWithPort = { ...env, WORKER_DOMAIN: 'localhost:8787' }
+      const client = new VibebaseAuthClient(envWithPort)
+
+      const loginUrl = client.getLoginUrl()
+
+      expect(loginUrl).toBe(
+        'https://auth.vibebase.workers.dev/auth/login?origin=http%3A%2F%2Flocalhost%3A8787&redirect_to=%2F'
       )
     })
   })

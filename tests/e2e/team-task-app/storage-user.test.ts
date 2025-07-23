@@ -53,7 +53,7 @@ describe('User Auth Storage E2E Tests', () => {
       });
       
       expect(result.success).toBe(true);
-      expect(result.data.url).toBeDefined();
+      expect(result.data!.url).toBeDefined();
       
       uploadedFiles.push(filePath);
     });
@@ -73,7 +73,7 @@ describe('User Auth Storage E2E Tests', () => {
       });
       
       expect(result.success).toBe(true);
-      expect(result.data.url).toBeDefined();
+      expect(result.data!.url).toBeDefined();
       
       uploadedFiles.push(filePath);
     });
@@ -127,7 +127,7 @@ describe('User Auth Storage E2E Tests', () => {
       // ダウンロード
       const downloadResult = await aliceClient.storage.download(filePath);
       expect(downloadResult.success).toBe(true);
-      expect(downloadResult.data).toBe(originalContent);
+      expect(downloadResult.data!).toBe(originalContent);
     });
 
     it('should download files uploaded by other users (public access)', async () => {
@@ -144,7 +144,7 @@ describe('User Auth Storage E2E Tests', () => {
       // Alice がダウンロード
       const downloadResult = await aliceClient.storage.download(bobFilePath);
       expect(downloadResult.success).toBe(true);
-      expect(downloadResult.data).toBe(content);
+      expect(downloadResult.data!).toBe(content);
     });
   });
 
@@ -170,10 +170,10 @@ describe('User Auth Storage E2E Tests', () => {
       // ファイルリストを取得
       const listResult = await aliceClient.storage.list('user-files/alice/');
       expect(listResult.success).toBe(true);
-      expect(listResult.data.files.length).toBeGreaterThanOrEqual(3);
+      expect(listResult.data!.files.length).toBeGreaterThanOrEqual(3);
       
       // アップロードしたファイルが含まれることを確認
-      const fileNames = listResult.data.files.map(f => f.name);
+      const fileNames = listResult.data!.files.map(f => f.name);
       files.forEach(file => {
         expect(fileNames).toContain(file);
       });
@@ -191,9 +191,9 @@ describe('User Auth Storage E2E Tests', () => {
       
       const infoResult = await aliceClient.storage.getInfo(filePath);
       expect(infoResult.success).toBe(true);
-      expect(infoResult.data.name).toBe(filePath);
-      expect(infoResult.data.size).toBe(content.length);
-      expect(infoResult.data.contentType).toBe('text/plain');
+      expect(infoResult.data!.name).toBe(filePath);
+      expect(infoResult.data!.size).toBe(content.length);
+      expect(infoResult.data!.contentType).toBe('text/plain');
     });
 
     it('should delete own files', async () => {
@@ -241,7 +241,7 @@ Initial project specifications created by Alice.
       // 2. Bob がファイルをダウンロードして確認
       const bobDownload = await bobClient.storage.download(sharedFilePath);
       expect(bobDownload.success).toBe(true);
-      expect(bobDownload.data).toBe(originalSpecs);
+      expect(bobDownload.data!).toBe(originalSpecs);
       
       // 3. Bob がファイルを更新（追記）
       const updatedSpecs = originalSpecs + `
@@ -260,8 +260,8 @@ Initial project specifications created by Alice.
       // 4. Charlie が最新版をダウンロード
       const charlieDownload = await charlieClient.storage.download(sharedFilePath);
       expect(charlieDownload.success).toBe(true);
-      expect(charlieDownload.data).toBe(updatedSpecs);
-      expect(charlieDownload.data).toContain('Added by Bob');
+      expect(charlieDownload.data!).toBe(updatedSpecs);
+      expect(charlieDownload.data!).toContain('Added by Bob');
       
       // 5. Charlie がさらに追記
       const finalSpecs = updatedSpecs + `
@@ -288,9 +288,9 @@ Initial project specifications created by Alice.
       expect(finalBob.success).toBe(true);
       expect(finalCharlie.success).toBe(true);
       
-      expect(finalAlice.data).toBe(finalSpecs);
-      expect(finalBob.data).toBe(finalSpecs);
-      expect(finalCharlie.data).toBe(finalSpecs);
+      expect(finalAlice.data!).toBe(finalSpecs);
+      expect(finalBob.data!).toBe(finalSpecs);
+      expect(finalCharlie.data!).toBe(finalSpecs);
       
       // 全てのユーザーの変更が含まれることを確認
       expect(finalSpecs).toContain('created by Alice');
@@ -331,9 +331,9 @@ Initial project specifications created by Alice.
       // 全バージョンのファイルリストを確認
       const versionList = await aliceClient.storage.list('versioning-test/');
       expect(versionList.success).toBe(true);
-      expect(versionList.data.files.length).toBeGreaterThanOrEqual(3);
+      expect(versionList.data!.files.length).toBeGreaterThanOrEqual(3);
       
-      const versionFiles = versionList.data.files.filter(f => f.name.includes('document-v'));
+      const versionFiles = versionList.data!.files.filter(f => f.name.includes('document-v'));
       expect(versionFiles.length).toBe(3);
     });
   });
@@ -383,12 +383,12 @@ Initial project specifications created by Alice.
       // ファイル情報確認
       const infoResult = await aliceClient.storage.getInfo(filePath);
       expect(infoResult.success).toBe(true);
-      expect(infoResult.data.size).toBeGreaterThan(40000); // 40KB以上
+      expect(infoResult.data!.size).toBeGreaterThan(40000); // 40KB以上
       
       // ダウンロード確認
       const downloadResult = await aliceClient.storage.download(filePath);
       expect(downloadResult.success).toBe(true);
-      expect(downloadResult.data).toBe(largeContent);
+      expect(downloadResult.data!).toBe(largeContent);
     });
   });
 
@@ -442,9 +442,9 @@ Initial project specifications created by Alice.
       expect(projectFiles.success).toBe(true);
       expect(designFiles.success).toBe(true);
       
-      expect(personalFiles.data.files.length).toBe(2);
-      expect(projectFiles.data.files.length).toBe(2);
-      expect(designFiles.data.files.length).toBe(2);
+      expect(personalFiles.data!.files.length).toBe(2);
+      expect(projectFiles.data!.files.length).toBe(2);
+      expect(designFiles.data!.files.length).toBe(2);
     });
 
     it('should handle file access across team members', async () => {

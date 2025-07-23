@@ -22,13 +22,13 @@ describe('Storage (R2) Features E2E Tests', () => {
 
     // テストユーザーを取得
     console.log('Fetching test user...');
-    const result = await vibebase.data.list<User>('users', {
+    const result = await vibebase.data!.list<User>('users', {
       where: { email: 'alice@example.com' }
     });
-    console.log('User fetch result:', result.success, result.data?.length);
+    console.log('User fetch result:', result.success, result.data!?.length);
     
-    if (result.data.length > 0) {
-      testUser = result.data[0];
+    if (result.data!.length > 0) {
+      testUser = result.data![0];
       console.log('Test user found:', testUser.email);
     } else {
       throw new Error('Test user not found. Please run seed data first.');
@@ -61,10 +61,10 @@ describe('Storage (R2) Features E2E Tests', () => {
 
       console.log('SDK result:', JSON.stringify(result, null, 2));
       expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(result.data.name).toBe(fileName);
-      expect(result.data.contentType).toBe('text/plain');
-      expect(result.data.metadata?.purpose).toBe('e2e-test');
+      expect(result.data!).toBeDefined();
+      expect(result.data!.name).toBe(fileName);
+      expect(result.data!.contentType).toBe('text/plain');
+      expect(result.data!.metadata?.purpose).toBe('e2e-test');
       
       uploadedFiles.push(fileName);
     });
@@ -90,8 +90,8 @@ describe('Storage (R2) Features E2E Tests', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(result.data.name).toBe(fileName);
-      expect(result.data.contentType).toBe('application/json');
+      expect(result.data!.name).toBe(fileName);
+      expect(result.data!.contentType).toBe('application/json');
       
       uploadedFiles.push(fileName);
     });
@@ -111,8 +111,8 @@ describe('Storage (R2) Features E2E Tests', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(result.data.name).toBe(fileName);
-      expect(result.data.contentType).toBe('text/csv');
+      expect(result.data!.name).toBe(fileName);
+      expect(result.data!.contentType).toBe('text/csv');
       
       uploadedFiles.push(fileName);
     });
@@ -131,8 +131,8 @@ describe('Storage (R2) Features E2E Tests', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(result.data.name).toBe(fileName);
-      expect(result.data.contentType).toBe('image/png');
+      expect(result.data!.name).toBe(fileName);
+      expect(result.data!.contentType).toBe('image/png');
       
       uploadedFiles.push(fileName);
     });
@@ -143,12 +143,12 @@ describe('Storage (R2) Features E2E Tests', () => {
       const result = await vibebase.storage.list();
 
       expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(Array.isArray(result.data.files)).toBe(true);
-      expect(result.data.files.length).toBeGreaterThan(0);
+      expect(result.data!).toBeDefined();
+      expect(Array.isArray(result.data!.files)).toBe(true);
+      expect(result.data!.files.length).toBeGreaterThan(0);
 
       // アップロードしたファイルが含まれていることを確認
-      const uploadedFileNames = result.data.files.map(file => file.name);
+      const uploadedFileNames = result.data!.files.map(file => file.name);
       expect(uploadedFileNames).toContain('test-document.txt');
       expect(uploadedFileNames).toContain('test-data.json');
     });
@@ -157,11 +157,11 @@ describe('Storage (R2) Features E2E Tests', () => {
       const result = await vibebase.storage.list('test-');
 
       expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(Array.isArray(result.data.files)).toBe(true);
+      expect(result.data!).toBeDefined();
+      expect(Array.isArray(result.data!.files)).toBe(true);
 
       // すべてのファイルが 'test-' で始まることを確認
-      for (const file of result.data.files) {
+      for (const file of result.data!.files) {
         expect(file.name.startsWith('test-')).toBe(true);
       }
     });
@@ -170,11 +170,11 @@ describe('Storage (R2) Features E2E Tests', () => {
       const result = await vibebase.storage.list('', '.json');
 
       expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(Array.isArray(result.data.files)).toBe(true);
+      expect(result.data!).toBeDefined();
+      expect(Array.isArray(result.data!.files)).toBe(true);
 
       // すべてのファイルが .json で終わることを確認
-      for (const file of result.data.files) {
+      for (const file of result.data!.files) {
         expect(file.name.endsWith('.json')).toBe(true);
       }
     });
@@ -187,12 +187,12 @@ describe('Storage (R2) Features E2E Tests', () => {
       const result = await vibebase.storage.getInfo(fileName);
 
       expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(result.data.name).toBe(fileName);
-      expect(result.data.contentType).toBe('text/plain');
-      expect(result.data.size).toBeGreaterThan(0);
-      expect(result.data.metadata?.purpose).toBe('e2e-test');
-      expect(result.data.uploaded_at).toBeDefined();
+      expect(result.data!).toBeDefined();
+      expect(result.data!.name).toBe(fileName);
+      expect(result.data!.contentType).toBe('text/plain');
+      expect(result.data!.size).toBeGreaterThan(0);
+      expect(result.data!.metadata?.purpose).toBe('e2e-test');
+      expect(result.data!.uploaded_at).toBeDefined();
     });
 
     it('should handle missing file info request', async () => {
@@ -212,9 +212,9 @@ describe('Storage (R2) Features E2E Tests', () => {
       const result = await vibebase.storage.download(fileName);
 
       expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(typeof result.data).toBe('string');
-      expect(result.data).toContain('This is a test document for E2E testing.');
+      expect(result.data!).toBeDefined();
+      expect(typeof result.data!).toBe('string');
+      expect(result.data!).toContain('This is a test document for E2E testing.');
     });
 
     it('should generate presigned URL for download', async () => {
@@ -223,12 +223,12 @@ describe('Storage (R2) Features E2E Tests', () => {
       const result = await vibebase.storage.getPresignedUrl(fileName, 'download', 3600);
 
       expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(result.data.url).toBeDefined();
-      expect(result.data.expires_at).toBeDefined();
+      expect(result.data!).toBeDefined();
+      expect(result.data!.url).toBeDefined();
+      expect(result.data!.expires_at).toBeDefined();
       
       // URLが正しく生成されていることを確認
-      const url = new URL(result.data.url);
+      const url = new URL(result.data!.url);
       expect(url.pathname.includes(fileName)).toBe(true);
     });
 
@@ -238,12 +238,12 @@ describe('Storage (R2) Features E2E Tests', () => {
       const result = await vibebase.storage.getPresignedUrl(fileName, 'upload', 1800);
 
       expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(result.data.url).toBeDefined();
-      expect(result.data.expires_at).toBeDefined();
+      expect(result.data!).toBeDefined();
+      expect(result.data!.url).toBeDefined();
+      expect(result.data!.expires_at).toBeDefined();
       
       // URLが正しく生成されていることを確認
-      const url = new URL(result.data.url);
+      const url = new URL(result.data!.url);
       expect(url.pathname.includes(fileName)).toBe(true);
     });
   });
@@ -260,9 +260,9 @@ describe('Storage (R2) Features E2E Tests', () => {
       const result = await vibebase.storage.updateMetadata(fileName, newMetadata);
 
       expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(result.data.metadata?.purpose).toBe('updated-e2e-test');
-      expect(result.data.metadata?.version).toBe('2.0');
+      expect(result.data!).toBeDefined();
+      expect(result.data!.metadata?.purpose).toBe('updated-e2e-test');
+      expect(result.data!.metadata?.version).toBe('2.0');
     });
 
     it('should replace file content', async () => {
@@ -278,8 +278,8 @@ describe('Storage (R2) Features E2E Tests', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(result.data.metadata?.purpose).toBe('updated-content');
-      expect(result.data.metadata?.version).toBe('3.0');
+      expect(result.data!.metadata?.purpose).toBe('updated-content');
+      expect(result.data!.metadata?.version).toBe('3.0');
     });
   });
 
@@ -318,7 +318,7 @@ describe('Storage (R2) Features E2E Tests', () => {
 
       // アップロードされたファイルを確認
       const listResult = await vibebase.storage.list('bulk-file-');
-      expect(listResult.data.files.length).toBe(3);
+      expect(listResult.data!.files.length).toBe(3);
     });
 
     it('should delete multiple files', async () => {
@@ -337,8 +337,8 @@ describe('Storage (R2) Features E2E Tests', () => {
 
       // ファイルが削除されたことを確認
       const listResult = await vibebase.storage.list('bulk-file-');
-      expect(listResult.data.files.length).toBe(1);
-      expect(listResult.data.files[0].name).toBe('bulk-file-3.txt');
+      expect(listResult.data!.files.length).toBe(1);
+      expect(listResult.data!.files[0].name).toBe('bulk-file-3.txt');
     });
   });
 
@@ -356,7 +356,7 @@ describe('Storage (R2) Features E2E Tests', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(result.data.size).toBeGreaterThan(1000000);
+      expect(result.data!.size).toBeGreaterThan(1000000);
       
       uploadedFiles.push(fileName);
     });
@@ -365,11 +365,11 @@ describe('Storage (R2) Features E2E Tests', () => {
       const result = await vibebase.storage.getStats();
 
       expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(typeof result.data.total_files).toBe('number');
-      expect(typeof result.data.total_size).toBe('number');
-      expect(result.data.total_files).toBeGreaterThan(0);
-      expect(result.data.total_size).toBeGreaterThan(0);
+      expect(result.data!).toBeDefined();
+      expect(typeof result.data!.total_files).toBe('number');
+      expect(typeof result.data!.total_size).toBe('number');
+      expect(result.data!.total_files).toBeGreaterThan(0);
+      expect(result.data!.total_size).toBeGreaterThan(0);
     });
   });
 
@@ -386,7 +386,7 @@ describe('Storage (R2) Features E2E Tests', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(result.data.metadata?.access).toBe('private');
+      expect(result.data!.metadata?.access).toBe('private');
       
       uploadedFiles.push(fileName);
     });

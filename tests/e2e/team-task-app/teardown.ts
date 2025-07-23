@@ -30,7 +30,7 @@ async function teardown() {
 
     for (const table of tables) {
       try {
-        const result = await vibebase.data.bulkDelete(table, {});
+        const result = await vibebase.data.bulkDelete(table, []);
         console.log(`   ✅ Cleaned ${table}`);
       } catch (error) {
         console.log(`   ⚠️  Could not clean ${table}:`, error);

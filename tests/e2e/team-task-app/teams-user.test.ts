@@ -37,7 +37,7 @@ describe('User Auth Team Management E2E Tests', () => {
     // 作成したテストチームをクリーンアップ
     for (const teamId of createdTeamIds) {
       try {
-        await aliceClient.data.delete('teams', teamId);
+        await aliceClient.data!.delete('teams', teamId);
       } catch (error) {
         // エラーは無視（既に削除済みの可能性）
       }
@@ -53,24 +53,24 @@ describe('User Auth Team Management E2E Tests', () => {
         created_by: 'V1StGXR8_Z5jdHi6B-myT' // Alice
       };
 
-      const result = await aliceClient.data.create<Team>('teams', teamData);
+      const result = await aliceClient.data!.create<Team>('teams', teamData);
       
       expect(result.success).toBe(true);
-      expect(result.data.name).toBe(teamData.name);
-      expect(result.data.created_by).toBe('V1StGXR8_Z5jdHi6B-myT');
+      expect(result.data!.name).toBe(teamData.name);
+      expect(result.data!.created_by).toBe('V1StGXR8_Z5jdHi6B-myT');
       
-      testTeam = result.data;
-      createdTeamIds.push(result.data.id);
+      testTeam = result.data!;
+      createdTeamIds.push(result.data!.id);
     });
 
     it('should read teams as user', async () => {
-      const result = await aliceClient.data.list<Team>('teams');
+      const result = await aliceClient.data!.list<Team>('teams');
       
       expect(result.success).toBe(true);
-      expect(result.data.length).toBeGreaterThan(0);
+      expect(result.data!.length).toBeGreaterThan(0);
       
       // 自分が作成したチームが含まれることを確認
-      const myTeam = result.data.find(team => team.id === testTeam.id);
+      const myTeam = result.data!.find(team => team.id === testTeam.id);
       expect(myTeam).toBeDefined();
     });
 
@@ -79,26 +79,26 @@ describe('User Auth Team Management E2E Tests', () => {
         description: 'Updated description by team owner'
       };
       
-      const result = await aliceClient.data.update<Team>('teams', testTeam.id, updateData);
+      const result = await aliceClient.data!.update<Team>('teams', testTeam.id, updateData);
       
       expect(result.success).toBe(true);
-      expect(result.data.description).toBe(updateData.description);
+      expect(result.data!.description).toBe(updateData.description);
     });
 
     it('should allow other users to see public teams', async () => {
       // Bob と Charlie もチームを見ることができる（public table）
-      const bobTeams = await bobClient.data.list<Team>('teams');
-      const charlieTeams = await charlieClient.data.list<Team>('teams');
+      const bobTeams = await bobClient.data!.list<Team>('teams');
+      const charlieTeams = await charlieClient.data!.list<Team>('teams');
       
       expect(bobTeams.success).toBe(true);
       expect(charlieTeams.success).toBe(true);
       
       // 同じチーム数が見える
-      expect(bobTeams.data.length).toBe(charlieTeams.data.length);
+      expect(bobTeams.data!.length).toBe(charlieTeams.data!.length);
       
       // Aliceのチームが見える
-      const bobSeeAliceTeam = bobTeams.data.find(team => team.id === testTeam.id);
-      const charlieSeeAliceTeam = charlieTeams.data.find(team => team.id === testTeam.id);
+      const bobSeeAliceTeam = bobTeams.data!.find(team => team.id === testTeam.id);
+      const charlieSeeAliceTeam = charlieTeams.data!.find(team => team.id === testTeam.id);
       expect(bobSeeAliceTeam).toBeDefined();
       expect(charlieSeeAliceTeam).toBeDefined();
     });
@@ -119,11 +119,11 @@ describe('User Auth Team Management E2E Tests', () => {
         invited_by: 'V1StGXR8_Z5jdHi6B-myT'
       };
 
-      const result = await aliceClient.data.create<Member>('members', memberData);
+      const result = await aliceClient.data!.create<Member>('members', memberData);
       
       expect(result.success).toBe(true);
-      expect(result.data.role).toBe('owner');
-      expect(result.data.display_name).toBe('Alice Johnson (Owner)');
+      expect(result.data!.role).toBe('owner');
+      expect(result.data!.display_name).toBe('Alice Johnson (Owner)');
     });
 
     it('should add team members (Alice invites Bob)', async () => {
@@ -139,38 +139,38 @@ describe('User Auth Team Management E2E Tests', () => {
         invited_by: 'V1StGXR8_Z5jdHi6B-myT' // Alice
       };
 
-      const result = await aliceClient.data.create<Member>('members', memberData);
+      const result = await aliceClient.data!.create<Member>('members', memberData);
       
       expect(result.success).toBe(true);
-      expect(result.data.user_id).toBe('3ZjkQ2mN8pX9vC7bA-wEr');
-      expect(result.data.invited_by).toBe('V1StGXR8_Z5jdHi6B-myT');
+      expect(result.data!.user_id).toBe('3ZjkQ2mN8pX9vC7bA-wEr');
+      expect(result.data!.invited_by).toBe('V1StGXR8_Z5jdHi6B-myT');
     });
 
     it('should list team members', async () => {
-      const members = await aliceClient.data.list<Member>('members', {
+      const members = await aliceClient.data!.list<Member>('members', {
         where: { team_id: testTeam.id }
       });
       
       expect(members.success).toBe(true);
-      expect(members.data.length).toBeGreaterThanOrEqual(2); // Alice + Bob
+      expect(members.data!.length).toBeGreaterThanOrEqual(2); // Alice + Bob
       
       // Owner が含まれることを確認
-      const owner = members.data.find(m => m.role === 'owner');
+      const owner = members.data!.find(m => m.role === 'owner');
       expect(owner).toBeDefined();
       expect(owner!.user_id).toBe('V1StGXR8_Z5jdHi6B-myT');
     });
 
     it('should allow team members to view member profiles', async () => {
       // Bob も同じチームメンバー情報を見ることができる
-      const bobViewMembers = await bobClient.data.list<Member>('members', {
+      const bobViewMembers = await bobClient.data!.list<Member>('members', {
         where: { team_id: testTeam.id }
       });
       
       expect(bobViewMembers.success).toBe(true);
-      expect(bobViewMembers.data.length).toBeGreaterThanOrEqual(2);
+      expect(bobViewMembers.data!.length).toBeGreaterThanOrEqual(2);
       
       // Alice のプロフィール情報が見える
-      const aliceProfile = bobViewMembers.data.find(m => m.user_id === 'V1StGXR8_Z5jdHi6B-myT');
+      const aliceProfile = bobViewMembers.data!.find(m => m.user_id === 'V1StGXR8_Z5jdHi6B-myT');
       expect(aliceProfile).toBeDefined();
       expect(aliceProfile!.display_name).toBe('Alice Johnson (Owner)');
       expect(aliceProfile!.job_title).toBe('Engineering Manager');
@@ -178,25 +178,25 @@ describe('User Auth Team Management E2E Tests', () => {
 
     it('should update member role (Alice promotes Bob to admin)', async () => {
       // Bob のメンバーシップを取得
-      const members = await aliceClient.data.list<Member>('members', {
+      const members = await aliceClient.data!.list<Member>('members', {
         where: { 
           team_id: testTeam.id,
           user_id: '3ZjkQ2mN8pX9vC7bA-wEr' // Bob
         }
       });
       
-      expect(members.data.length).toBe(1);
-      const bobMembership = members.data[0];
+      expect(members.data!.length).toBe(1);
+      const bobMembership = members.data![0];
       
       // Role を admin に変更
-      const updated = await aliceClient.data.update<Member>('members', bobMembership.id, {
+      const updated = await aliceClient.data!.update<Member>('members', bobMembership.id, {
         role: 'admin' as const,
         display_name: 'Bob Smith (Admin)' // 役職変更に伴いdisplay_nameも更新
       });
       
       expect(updated.success).toBe(true);
-      expect(updated.data.role).toBe('admin');
-      expect(updated.data.display_name).toBe('Bob Smith (Admin)');
+      expect(updated.data!.role).toBe('admin');
+      expect(updated.data!.display_name).toBe('Bob Smith (Admin)');
     });
   });
 
@@ -204,18 +204,18 @@ describe('User Auth Team Management E2E Tests', () => {
     
     it('should simulate team creation and member invitation flow', async () => {
       // 1. Bob が新しいチームを作成
-      const newTeam = await bobClient.data.create<Team>('teams', {
+      const newTeam = await bobClient.data!.create<Team>('teams', {
         name: 'Bob\'s Innovation Team',
         description: 'Team for innovative projects',
         created_by: '3ZjkQ2mN8pX9vC7bA-wEr' // Bob
       });
       
       expect(newTeam.success).toBe(true);
-      createdTeamIds.push(newTeam.data.id);
+      createdTeamIds.push(newTeam.data!.id);
       
       // 2. Bob が自分をオーナーとして追加
-      const bobOwner = await bobClient.data.create<Member>('members', {
-        team_id: newTeam.data.id,
+      const bobOwner = await bobClient.data!.create<Member>('members', {
+        team_id: newTeam.data!.id,
         user_id: '3ZjkQ2mN8pX9vC7bA-wEr',
         role: 'owner' as const,
         display_name: 'Bob Smith (Founder)',
@@ -229,8 +229,8 @@ describe('User Auth Team Management E2E Tests', () => {
       expect(bobOwner.success).toBe(true);
       
       // 3. Bob が Alice を招待
-      const inviteAlice = await bobClient.data.create<Member>('members', {
-        team_id: newTeam.data.id,
+      const inviteAlice = await bobClient.data!.create<Member>('members', {
+        team_id: newTeam.data!.id,
         user_id: 'V1StGXR8_Z5jdHi6B-myT',
         role: 'admin' as const,
         display_name: 'Alice Johnson (Tech Advisor)',
@@ -244,8 +244,8 @@ describe('User Auth Team Management E2E Tests', () => {
       expect(inviteAlice.success).toBe(true);
       
       // 4. Bob が Charlie も招待
-      const inviteCharlie = await bobClient.data.create<Member>('members', {
-        team_id: newTeam.data.id,
+      const inviteCharlie = await bobClient.data!.create<Member>('members', {
+        team_id: newTeam.data!.id,
         user_id: 'LpH9mKj2nQ4vX8cD-zFgR',
         role: 'member' as const,
         display_name: 'Charlie Brown (Designer)',
@@ -259,24 +259,24 @@ describe('User Auth Team Management E2E Tests', () => {
       expect(inviteCharlie.success).toBe(true);
       
       // 5. 全メンバーがチーム情報を確認できる
-      const aliceViewTeam = await aliceClient.data.get<Team>('teams', newTeam.data.id);
-      const charlieViewTeam = await charlieClient.data.get<Team>('teams', newTeam.data.id);
+      const aliceViewTeam = await aliceClient.data!.get<Team>('teams', newTeam.data!.id);
+      const charlieViewTeam = await charlieClient.data!.get<Team>('teams', newTeam.data!.id);
       
       expect(aliceViewTeam.success).toBe(true);
       expect(charlieViewTeam.success).toBe(true);
-      expect(aliceViewTeam.data.name).toBe('Bob\'s Innovation Team');
-      expect(charlieViewTeam.data.name).toBe('Bob\'s Innovation Team');
+      expect(aliceViewTeam.data!.name).toBe('Bob\'s Innovation Team');
+      expect(charlieViewTeam.data!.name).toBe('Bob\'s Innovation Team');
       
       // 6. 各メンバーが異なる role を持つことを確認
-      const teamMembers = await aliceClient.data.list<Member>('members', {
-        where: { team_id: newTeam.data.id }
+      const teamMembers = await aliceClient.data!.list<Member>('members', {
+        where: { team_id: newTeam.data!.id }
       });
       
-      expect(teamMembers.data.length).toBe(3);
+      expect(teamMembers.data!.length).toBe(3);
       
-      const bobRole = teamMembers.data.find(m => m.user_id === '3ZjkQ2mN8pX9vC7bA-wEr');
-      const aliceRole = teamMembers.data.find(m => m.user_id === 'V1StGXR8_Z5jdHi6B-myT');
-      const charlieRole = teamMembers.data.find(m => m.user_id === 'LpH9mKj2nQ4vX8cD-zFgR');
+      const bobRole = teamMembers.data!.find(m => m.user_id === '3ZjkQ2mN8pX9vC7bA-wEr');
+      const aliceRole = teamMembers.data!.find(m => m.user_id === 'V1StGXR8_Z5jdHi6B-myT');
+      const charlieRole = teamMembers.data!.find(m => m.user_id === 'LpH9mKj2nQ4vX8cD-zFgR');
       
       expect(bobRole!.role).toBe('owner');
       expect(aliceRole!.role).toBe('admin');
@@ -285,15 +285,15 @@ describe('User Auth Team Management E2E Tests', () => {
 
     it('should handle team member persona variations', async () => {
       // 同じユーザーが異なるチームで異なるペルソナを持つテスト
-      const members = await aliceClient.data.list<Member>('members', {
+      const members = await aliceClient.data!.list<Member>('members', {
         where: { user_id: 'V1StGXR8_Z5jdHi6B-myT' } // Alice's memberships
       });
       
       expect(members.success).toBe(true);
-      expect(members.data.length).toBeGreaterThanOrEqual(2); // At least 2 teams
+      expect(members.data!.length).toBeGreaterThanOrEqual(2); // At least 2 teams
       
       // Alice が異なるチームで異なる display_name を持つことを確認
-      const displayNames = members.data.map(m => m.display_name);
+      const displayNames = members.data!.map(m => m.display_name);
       const uniqueNames = [...new Set(displayNames)];
       
       // 少なくとも2つの異なるペルソナがある
@@ -306,12 +306,12 @@ describe('User Auth Team Management E2E Tests', () => {
 
     it('should filter members by team', async () => {
       // 特定チームのメンバーのみを取得
-      const team1Members = await aliceClient.data.list<Member>('members', {
+      const team1Members = await aliceClient.data!.list<Member>('members', {
         where: { team_id: testTeam.id }
       });
       
       const team2Id = createdTeamIds[createdTeamIds.length - 1]; // Bob's innovation team
-      const team2Members = await aliceClient.data.list<Member>('members', {
+      const team2Members = await aliceClient.data!.list<Member>('members', {
         where: { team_id: team2Id }
       });
       
@@ -319,21 +319,21 @@ describe('User Auth Team Management E2E Tests', () => {
       expect(team2Members.success).toBe(true);
       
       // 異なるチームのメンバー数
-      expect(team1Members.data.length).not.toBe(team2Members.data.length);
+      expect(team1Members.data!.length).not.toBe(team2Members.data!.length);
       
       // 全て指定されたチームのメンバーであることを確認
-      team1Members.data.forEach(member => {
+      team1Members.data!.forEach(member => {
         expect(member.team_id).toBe(testTeam.id);
       });
       
-      team2Members.data.forEach(member => {
+      team2Members.data!.forEach(member => {
         expect(member.team_id).toBe(team2Id);
       });
     });
 
     it('should handle team member removal', async () => {
       // テスト用の追加メンバーを作成
-      const tempMember = await aliceClient.data.create<Member>('members', {
+      const tempMember = await aliceClient.data!.create<Member>('members', {
         team_id: testTeam.id,
         user_id: 'LpH9mKj2nQ4vX8cD-zFgR', // Charlie
         role: 'member' as const,
@@ -347,11 +347,11 @@ describe('User Auth Team Management E2E Tests', () => {
       expect(tempMember.success).toBe(true);
       
       // メンバー削除
-      const deleteResult = await aliceClient.data.delete('members', tempMember.data.id);
+      const deleteResult = await aliceClient.data!.delete('members', tempMember.data!.id);
       expect(deleteResult.success).toBe(true);
       
       // 削除確認
-      const remainingMembers = await aliceClient.data.list<Member>('members', {
+      const remainingMembers = await aliceClient.data!.list<Member>('members', {
         where: {
           team_id: testTeam.id,
           user_id: 'LpH9mKj2nQ4vX8cD-zFgR'
@@ -359,7 +359,7 @@ describe('User Auth Team Management E2E Tests', () => {
       });
       
       // Charlie が team から削除されていることを確認
-      expect(remainingMembers.data.length).toBe(0);
+      expect(remainingMembers.data!.length).toBe(0);
     });
   });
 
@@ -367,19 +367,19 @@ describe('User Auth Team Management E2E Tests', () => {
     
     it('should track team creation by different users', async () => {
       // 各ユーザーがチームを作成
-      const charlieTeam = await charlieClient.data.create<Team>('teams', {
+      const charlieTeam = await charlieClient.data!.create<Team>('teams', {
         name: 'Charlie\'s Design Studio',
         description: 'Creative design team',
         created_by: 'LpH9mKj2nQ4vX8cD-zFgR' // Charlie
       });
       
       expect(charlieTeam.success).toBe(true);
-      expect(charlieTeam.data.created_by).toBe('LpH9mKj2nQ4vX8cD-zFgR');
-      createdTeamIds.push(charlieTeam.data.id);
+      expect(charlieTeam.data!.created_by).toBe('LpH9mKj2nQ4vX8cD-zFgR');
+      createdTeamIds.push(charlieTeam.data!.id);
       
       // Charlie が自分をオーナーとして追加
-      const charlieOwner = await charlieClient.data.create<Member>('members', {
-        team_id: charlieTeam.data.id,
+      const charlieOwner = await charlieClient.data!.create<Member>('members', {
+        team_id: charlieTeam.data!.id,
         user_id: 'LpH9mKj2nQ4vX8cD-zFgR',
         role: 'owner' as const,
         display_name: '🎨 Charlie (Creative Director)',
@@ -391,19 +391,19 @@ describe('User Auth Team Management E2E Tests', () => {
       });
       
       expect(charlieOwner.success).toBe(true);
-      expect(charlieOwner.data.display_name).toBe('🎨 Charlie (Creative Director)');
+      expect(charlieOwner.data!.display_name).toBe('🎨 Charlie (Creative Director)');
     });
 
     it('should filter teams by creator', async () => {
-      const aliceCreatedTeams = await aliceClient.data.list<Team>('teams', {
+      const aliceCreatedTeams = await aliceClient.data!.list<Team>('teams', {
         where: { created_by: 'V1StGXR8_Z5jdHi6B-myT' }
       });
       
-      const bobCreatedTeams = await bobClient.data.list<Team>('teams', {
+      const bobCreatedTeams = await bobClient.data!.list<Team>('teams', {
         where: { created_by: '3ZjkQ2mN8pX9vC7bA-wEr' }
       });
       
-      const charlieCreatedTeams = await charlieClient.data.list<Team>('teams', {
+      const charlieCreatedTeams = await charlieClient.data!.list<Team>('teams', {
         where: { created_by: 'LpH9mKj2nQ4vX8cD-zFgR' }
       });
       
@@ -412,37 +412,37 @@ describe('User Auth Team Management E2E Tests', () => {
       expect(charlieCreatedTeams.success).toBe(true);
       
       // 各自が作成したチームのみが返される
-      aliceCreatedTeams.data.forEach(team => {
+      aliceCreatedTeams.data!.forEach(team => {
         expect(team.created_by).toBe('V1StGXR8_Z5jdHi6B-myT');
       });
       
-      bobCreatedTeams.data.forEach(team => {
+      bobCreatedTeams.data!.forEach(team => {
         expect(team.created_by).toBe('3ZjkQ2mN8pX9vC7bA-wEr');
       });
       
-      charlieCreatedTeams.data.forEach(team => {
+      charlieCreatedTeams.data!.forEach(team => {
         expect(team.created_by).toBe('LpH9mKj2nQ4vX8cD-zFgR');
       });
     });
 
     it('should show user participation across multiple teams', async () => {
       // Alice が参加している全チームを確認
-      const aliceMemberships = await aliceClient.data.list<Member>('members', {
+      const aliceMemberships = await aliceClient.data!.list<Member>('members', {
         where: { user_id: 'V1StGXR8_Z5jdHi6B-myT' }
       });
       
       expect(aliceMemberships.success).toBe(true);
-      expect(aliceMemberships.data.length).toBeGreaterThan(1); // 複数チームに参加
+      expect(aliceMemberships.data!.length).toBeGreaterThan(1); // 複数チームに参加
       
       // 各チームでの役割を確認
-      const roles = aliceMemberships.data.map(m => ({ team_id: m.team_id, role: m.role }));
+      const roles = aliceMemberships.data!.map(m => ({ team_id: m.team_id, role: m.role }));
       
       // 少なくとも1つのチームでownerであることを確認
       const ownerRoles = roles.filter(r => r.role === 'owner');
       expect(ownerRoles.length).toBeGreaterThan(0);
       
       // Alice のチーム固有のペルソナを確認
-      const personas = aliceMemberships.data.map(m => m.display_name);
+      const personas = aliceMemberships.data!.map(m => m.display_name);
       const uniquePersonas = [...new Set(personas)];
       expect(uniquePersonas.length).toBeGreaterThanOrEqual(2); // 複数のペルソナ
     });
@@ -452,7 +452,7 @@ describe('User Auth Team Management E2E Tests', () => {
     
     it('should handle team deletion with cascade', async () => {
       // テスト用チームを作成
-      const cascadeTeam = await aliceClient.data.create<Team>('teams', {
+      const cascadeTeam = await aliceClient.data!.create<Team>('teams', {
         name: 'Cascade Test Team',
         description: 'Team for cascade deletion testing',
         created_by: 'V1StGXR8_Z5jdHi6B-myT'
@@ -461,8 +461,8 @@ describe('User Auth Team Management E2E Tests', () => {
       expect(cascadeTeam.success).toBe(true);
       
       // メンバーを追加
-      const cascadeMember = await aliceClient.data.create<Member>('members', {
-        team_id: cascadeTeam.data.id,
+      const cascadeMember = await aliceClient.data!.create<Member>('members', {
+        team_id: cascadeTeam.data!.id,
         user_id: 'V1StGXR8_Z5jdHi6B-myT',
         role: 'owner' as const,
         display_name: 'Alice (Cascade Test)',
@@ -472,15 +472,15 @@ describe('User Auth Team Management E2E Tests', () => {
       expect(cascadeMember.success).toBe(true);
       
       // チーム削除
-      const deleteResult = await aliceClient.data.delete('teams', cascadeTeam.data.id);
+      const deleteResult = await aliceClient.data!.delete('teams', cascadeTeam.data!.id);
       expect(deleteResult.success).toBe(true);
       
       // 関連データが削除されていることを確認
-      const remainingMembers = await aliceClient.data.list<Member>('members', {
-        where: { team_id: cascadeTeam.data.id }
+      const remainingMembers = await aliceClient.data!.list<Member>('members', {
+        where: { team_id: cascadeTeam.data!.id }
       });
       
-      expect(remainingMembers.data.length).toBe(0);
+      expect(remainingMembers.data!.length).toBe(0);
     });
   });
 });

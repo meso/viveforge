@@ -28,30 +28,30 @@ describe('Realtime Features E2E Tests', () => {
     // テストユーザーを取得
     const userEmails = ['alice@example.com', 'bob@example.com'];
     for (const email of userEmails) {
-      const result = await vibebase.data.list('users', {
+      const result = await vibebase.data!.list('users', {
         where: { email }
       });
-      if (result.data.length > 0) {
-        testUsers.push(result.data[0] as unknown as User);
+      if (result.data!.length > 0) {
+        testUsers.push(result.data![0] as unknown as User);
       }
     }
 
     // テスト用のチームとプロジェクトを作成
-    const teamResponse = await vibebase.data.create('teams', {
+    const teamResponse = await vibebase.data!.create('teams', {
       name: 'Realtime Test Team',
       description: 'Team for realtime testing',
       created_by: testUsers[0].id
     });
-    testTeam = teamResponse.success ? teamResponse.data : teamResponse as any;
+    testTeam = teamResponse.success ? teamResponse.data! : teamResponse as any;
 
-    const projectResponse = await vibebase.data.create('projects', {
+    const projectResponse = await vibebase.data!.create('projects', {
       team_id: testTeam.id,
       name: 'Realtime Test Project',
       description: 'Project for realtime testing',
       status: 'active',
       created_by: testUsers[0].id
     });
-    testProject = projectResponse.success ? projectResponse.data : projectResponse as any;
+    testProject = projectResponse.success ? projectResponse.data! : projectResponse as any;
 
     // テスト用のフックを作成（リアルタイム機能を有効にするため）
     try {
@@ -69,17 +69,17 @@ describe('Realtime Features E2E Tests', () => {
     // クリーンアップ
     for (const taskId of createdTaskIds) {
       try {
-        await vibebase.data.delete('tasks', taskId);
+        await vibebase.data!.delete('tasks', taskId);
       } catch (error) {
         console.warn(`Failed to cleanup task ${taskId}:`, error);
       }
     }
 
     if (testProject) {
-      await vibebase.data.delete('projects', testProject.id);
+      await vibebase.data!.delete('projects', testProject.id);
     }
     if (testTeam) {
-      await vibebase.data.delete('teams', testTeam.id);
+      await vibebase.data!.delete('teams', testTeam.id);
     }
 
     // リアルタイム接続をクリーンアップ
@@ -99,7 +99,7 @@ describe('Realtime Features E2E Tests', () => {
       }
       
       testES.onmessage = (event) => {
-        console.log('Direct EventSource message:', event.data)
+        console.log('Direct EventSource message:', event.data!)
       }
       
       testES.onerror = (error) => {
@@ -118,14 +118,14 @@ describe('Realtime Features E2E Tests', () => {
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // タスクを作成してイベントが発火するかテスト
-      const newTaskResponse = await vibebase.data.create('tasks', {
+      const newTaskResponse = await vibebase.data!.create('tasks', {
         project_id: testProject.id,
         title: 'Realtime test task',
         status: 'todo',
         priority: 'high',
         created_by: testUsers[0].id
       });
-      const newTask = newTaskResponse.success ? newTaskResponse.data : newTaskResponse as any;
+      const newTask = newTaskResponse.success ? newTaskResponse.data! : newTaskResponse as any;
       if (newTask?.id) {
         createdTaskIds.push(newTask.id);
       }
@@ -154,14 +154,14 @@ describe('Realtime Features E2E Tests', () => {
       const events: any[] = [];
       
       // タスクを作成
-      const taskResponse = await vibebase.data.create('tasks', {
+      const taskResponse = await vibebase.data!.create('tasks', {
         project_id: testProject.id,
         title: 'Task for update events',
         status: 'todo',
         priority: 'medium',
         created_by: testUsers[0].id
       });
-      const task = taskResponse.success ? taskResponse.data : taskResponse as any;
+      const task = taskResponse.success ? taskResponse.data! : taskResponse as any;
       if (task?.id) {
         createdTaskIds.push(task.id);
       }
@@ -175,7 +175,7 @@ describe('Realtime Features E2E Tests', () => {
       await new Promise(resolve => setTimeout(resolve, 500));
 
       // タスクを更新
-      await vibebase.data.update('tasks', task.id, {
+      await vibebase.data!.update('tasks', task.id, {
         status: 'in_progress',
         assigned_to: testUsers[1].id
       });
@@ -195,14 +195,14 @@ describe('Realtime Features E2E Tests', () => {
       const events: any[] = [];
       
       // タスクを作成
-      const taskResponse = await vibebase.data.create('tasks', {
+      const taskResponse = await vibebase.data!.create('tasks', {
         project_id: testProject.id,
         title: 'Task for delete events',
         status: 'todo',
         priority: 'low',
         created_by: testUsers[0].id
       });
-      const task = taskResponse.success ? taskResponse.data : taskResponse as any;
+      const task = taskResponse.success ? taskResponse.data! : taskResponse as any;
 
       // リアルタイムイベントのサブスクリプション
       const subscription = vibebase.realtime.subscribe('tasks', '*', (event) => {
@@ -213,7 +213,7 @@ describe('Realtime Features E2E Tests', () => {
       await new Promise(resolve => setTimeout(resolve, 500));
 
       // タスクを削除
-      await vibebase.data.delete('tasks', task.id);
+      await vibebase.data!.delete('tasks', task.id);
 
       // イベントが発火するまで待機（短縮）
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -240,36 +240,36 @@ describe('Realtime Features E2E Tests', () => {
       await new Promise(resolve => setTimeout(resolve, 500));
 
       // 他のプロジェクトを作成
-      const otherProjectResponse = await vibebase.data.create('projects', {
+      const otherProjectResponse = await vibebase.data!.create('projects', {
         team_id: testTeam.id,
         name: 'Other Project',
         status: 'active',
         created_by: testUsers[0].id
       });
-      const otherProject = otherProjectResponse.success ? otherProjectResponse.data : otherProjectResponse as any;
+      const otherProject = otherProjectResponse.success ? otherProjectResponse.data! : otherProjectResponse as any;
 
       // テストプロジェクトのタスクを作成
-      const testTaskResponse = await vibebase.data.create('tasks', {
+      const testTaskResponse = await vibebase.data!.create('tasks', {
         project_id: testProject.id,
         title: 'Test project task',
         status: 'todo',
         priority: 'high',
         created_by: testUsers[0].id
       });
-      const testTask = testTaskResponse.success ? testTaskResponse.data : testTaskResponse as any;
+      const testTask = testTaskResponse.success ? testTaskResponse.data! : testTaskResponse as any;
       if (testTask?.id) {
         createdTaskIds.push(testTask.id);
       }
 
       // 他のプロジェクトのタスクを作成
-      const otherTaskResponse = await vibebase.data.create('tasks', {
+      const otherTaskResponse = await vibebase.data!.create('tasks', {
         project_id: otherProject.id,
         title: 'Other project task',
         status: 'todo',
         priority: 'high',
         created_by: testUsers[0].id
       });
-      const otherTask = otherTaskResponse.success ? otherTaskResponse.data : otherTaskResponse as any;
+      const otherTask = otherTaskResponse.success ? otherTaskResponse.data! : otherTaskResponse as any;
 
       // イベントが発火するまで待機（短縮）
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -281,10 +281,10 @@ describe('Realtime Features E2E Tests', () => {
 
       // クリーンアップ
       if (otherTask?.id) {
-        await vibebase.data.delete('tasks', otherTask.id);
+        await vibebase.data!.delete('tasks', otherTask.id);
       }
       if (otherProject?.id) {
-        await vibebase.data.delete('projects', otherProject.id);
+        await vibebase.data!.delete('projects', otherProject.id);
       }
       subscription.unsubscribe();
     });
@@ -306,22 +306,22 @@ describe('Realtime Features E2E Tests', () => {
       await new Promise(resolve => setTimeout(resolve, 500));
 
       // データを作成
-      const newProjectResponse = await vibebase.data.create('projects', {
+      const newProjectResponse = await vibebase.data!.create('projects', {
         team_id: testTeam.id,
         name: 'Multi-subscription Test Project',
         status: 'active',
         created_by: testUsers[0].id
       });
-      const newProject = newProjectResponse.success ? newProjectResponse.data : newProjectResponse as any;
+      const newProject = newProjectResponse.success ? newProjectResponse.data! : newProjectResponse as any;
 
-      const newTaskResponse = await vibebase.data.create('tasks', {
+      const newTaskResponse = await vibebase.data!.create('tasks', {
         project_id: newProject.id,
         title: 'Multi-subscription test task',
         status: 'todo',
         priority: 'medium',
         created_by: testUsers[0].id
       });
-      const newTask = newTaskResponse.success ? newTaskResponse.data : newTaskResponse as any;
+      const newTask = newTaskResponse.success ? newTaskResponse.data! : newTaskResponse as any;
       if (newTask?.id) {
         createdTaskIds.push(newTask.id);
       }
@@ -338,7 +338,7 @@ describe('Realtime Features E2E Tests', () => {
 
       // クリーンアップ
       if (newProject?.id) {
-        await vibebase.data.delete('projects', newProject.id);
+        await vibebase.data!.delete('projects', newProject.id);
       }
       taskSubscription.unsubscribe();
       projectSubscription.unsubscribe();
@@ -357,14 +357,14 @@ describe('Realtime Features E2E Tests', () => {
       await new Promise(resolve => setTimeout(resolve, 500));
 
       // 最初のタスクを作成
-      const task1Response = await vibebase.data.create('tasks', {
+      const task1Response = await vibebase.data!.create('tasks', {
         project_id: testProject.id,
         title: 'Connection test task 1',
         status: 'todo',
         priority: 'high',
         created_by: testUsers[0].id
       });
-      const task1 = task1Response.success ? task1Response.data : task1Response as any;
+      const task1 = task1Response.success ? task1Response.data! : task1Response as any;
       if (task1?.id) {
         createdTaskIds.push(task1.id);
       }
@@ -372,14 +372,14 @@ describe('Realtime Features E2E Tests', () => {
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // 2番目のタスクを作成
-      const task2Response = await vibebase.data.create('tasks', {
+      const task2Response = await vibebase.data!.create('tasks', {
         project_id: testProject.id,
         title: 'Connection test task 2',
         status: 'todo',
         priority: 'high',
         created_by: testUsers[0].id
       });
-      const task2 = task2Response.success ? task2Response.data : task2Response as any;
+      const task2 = task2Response.success ? task2Response.data! : task2Response as any;
       if (task2?.id) {
         createdTaskIds.push(task2.id);
       }
@@ -414,14 +414,14 @@ describe('Realtime Features E2E Tests', () => {
       subscription.unsubscribe();
 
       // 停止後にタスクを作成
-      const taskResponse = await vibebase.data.create('tasks', {
+      const taskResponse = await vibebase.data!.create('tasks', {
         project_id: testProject.id,
         title: 'Task after unsubscribe',
         status: 'todo',
         priority: 'low',
         created_by: testUsers[0].id
       });
-      const task = taskResponse.success ? taskResponse.data : taskResponse as any;
+      const task = taskResponse.success ? taskResponse.data! : taskResponse as any;
       if (task?.id) {
         createdTaskIds.push(task.id);
       }
@@ -446,14 +446,14 @@ describe('Realtime Features E2E Tests', () => {
       // 複数のタスクを素早く作成
       const tasks = [];
       for (let i = 0; i < 5; i++) {
-        const taskResponse = await vibebase.data.create('tasks', {
+        const taskResponse = await vibebase.data!.create('tasks', {
           project_id: testProject.id,
           title: `Rapid task ${i + 1}`,
           status: 'todo',
           priority: 'medium',
           created_by: testUsers[0].id
         });
-        const task = taskResponse.success ? taskResponse.data : taskResponse as any;
+        const task = taskResponse.success ? taskResponse.data! : taskResponse as any;
         tasks.push(task);
         if (task?.id) {
           createdTaskIds.push(task.id);
@@ -463,7 +463,7 @@ describe('Realtime Features E2E Tests', () => {
       // すべてのタスクを素早く更新
       for (const task of tasks) {
         if (task?.id) {
-          await vibebase.data.update('tasks', task.id, {
+          await vibebase.data!.update('tasks', task.id, {
             status: 'in_progress'
           });
         }
@@ -499,9 +499,9 @@ describe('Realtime Features E2E Tests', () => {
         created_by: testUsers[0].id
       }));
 
-      const createdResponse = await vibebase.data.bulkInsert('tasks', bulkTasks);
-      if (createdResponse.success && createdResponse.data?.records) {
-        createdResponse.data.records.forEach((task: any) => {
+      const createdResponse = await vibebase.data!.bulkInsert('tasks', bulkTasks);
+      if (createdResponse.success && createdResponse.data!?.records) {
+        createdResponse.data!.records.forEach((task: any) => {
           if (task?.id) {
             createdTaskIds.push(task.id);
           }

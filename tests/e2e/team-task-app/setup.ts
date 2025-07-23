@@ -226,7 +226,7 @@ console.log('\n🔔 Initializing VAPID keys for push notifications...');
 const deploymentDomain = 'localhost:8787';
 
 // 暗号化関数（VapidStorageと同じアルゴリズム）
-async function getDerivedKey(deploymentDomain: string): Promise<CryptoKey> {
+async function getDerivedKey(deploymentDomain: string): Promise<any> {
   const encoder = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
     'raw',
@@ -252,7 +252,7 @@ async function getDerivedKey(deploymentDomain: string): Promise<CryptoKey> {
 
 async function encryptData(
   data: string,
-  key: CryptoKey
+  key: any
 ): Promise<{ encrypted: string; iv: string }> {
   const encoder = new TextEncoder();
   const iv = crypto.getRandomValues(new Uint8Array(12));

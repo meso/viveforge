@@ -1,7 +1,9 @@
 // Team Task Management App Types
 // チームタスク管理アプリケーションの型定義
 
-export interface Team {
+import type { TableRow } from '@vibebase/sdk';
+
+export interface Team extends TableRow {
   id: string;
   name: string;
   description?: string;
@@ -10,7 +12,7 @@ export interface Team {
   created_by: string;
 }
 
-export interface Member {
+export interface Member extends TableRow {
   id: string;
   team_id: string;
   user_id: string;
@@ -27,7 +29,7 @@ export interface Member {
 }
 
 // 後方互換性のために残す
-export interface TeamMember {
+export interface TeamMember extends TableRow {
   id: string;
   team_id: string;
   user_id: string;
@@ -36,7 +38,7 @@ export interface TeamMember {
   invited_by?: string;
 }
 
-export interface Project {
+export interface Project extends TableRow {
   id: string;
   team_id: string;
   name: string;
@@ -48,7 +50,7 @@ export interface Project {
   created_by: string;
 }
 
-export interface Task {
+export interface Task extends TableRow {
   id: string;
   project_id: string;
   title: string;
@@ -65,7 +67,7 @@ export interface Task {
   completed_at?: string;
 }
 
-export interface TaskComment {
+export interface TaskComment extends TableRow {
   id: string;
   task_id: string;
   user_id: string;
@@ -75,7 +77,7 @@ export interface TaskComment {
   is_edited: boolean;
 }
 
-export interface TaskAttachment {
+export interface TaskAttachment extends TableRow {
   id: string;
   task_id: string;
   file_name: string;
@@ -86,7 +88,7 @@ export interface TaskAttachment {
   uploaded_at: string;
 }
 
-export interface ActivityLog {
+export interface ActivityLog extends TableRow {
   id: string;
   team_id: string;
   project_id?: string;
@@ -100,7 +102,7 @@ export interface ActivityLog {
 }
 
 // ユーザー情報（Vibebaseのusersテーブルと連携）
-export interface User {
+export interface User extends TableRow {
   id: string;
   email: string;
   name?: string;

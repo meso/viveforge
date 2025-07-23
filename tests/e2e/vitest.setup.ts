@@ -4,11 +4,11 @@
  */
 
 import { vi } from 'vitest';
-import EventSource from 'eventsource';
+import { EventSource } from 'eventsource';
 
 // EventSource polyfill for Node.js environment
 if (typeof globalThis.EventSource === 'undefined') {
-  globalThis.EventSource = EventSource;
+  globalThis.EventSource = EventSource as any;
 }
 
 // Optional: Add other global polyfills if needed

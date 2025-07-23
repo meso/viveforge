@@ -25,7 +25,7 @@ describe('Custom SQL Features E2E Tests', () => {
     try {
       const existingQueries = await vibebase.customQueries.list();
       if (existingQueries.success) {
-        for (const query of existingQueries.data) {
+        for (const query of existingQueries.data!) {
           if (query.name.includes('Test') || query.slug.includes('test')) {
             try {
               await vibebase.customQueries.delete(query.id);
@@ -42,35 +42,37 @@ describe('Custom SQL Features E2E Tests', () => {
     // テストユーザーを取得
     const userEmails = ['alice@example.com', 'bob@example.com'];
     for (const email of userEmails) {
-      const result = await vibebase.data.list<User>('users', {
+      const result = await vibebase.data!.list('users', {
         where: { email }
       });
-      if (result.data.length > 0) {
-        testUsers.push(result.data[0]);
+      if (result.data!.length > 0) {
+        testUsers.push(result.data![0] as unknown as User);
       }
     }
 
     // テスト用のチームとプロジェクトを作成
-    testTeam = await vibebase.data.create<Team>('teams', {
+    const teamResponse = await vibebase.data!.create('teams', {
       name: 'Custom SQL Test Team',
       description: 'Team for custom SQL testing',
       created_by: testUsers[0].id
     });
+    testTeam = teamResponse.data! as unknown as Team;
 
     const projectData = {
-      team_id: testTeam.success ? testTeam.data.id : testTeam.id,
+      team_id: testTeam.id,
       name: 'Custom SQL Test Project',
       description: 'Project for custom SQL testing',
       status: 'active',
       created_by: testUsers[0].id
     };
     
-    testProject = await vibebase.data.create<Project>('projects', projectData);
+    const projectResponse = await vibebase.data!.create('projects', projectData);
+    testProject = projectResponse.data! as unknown as Project;
 
     // テスト用のタスクをいくつか作成
     for (let i = 1; i <= 5; i++) {
-      await vibebase.data.create<Task>('tasks', {
-        project_id: testProject?.success ? testProject.data.id : testProject?.id,
+      await vibebase.data!.create('tasks', {
+        project_id: testProject.id,
         title: `Test Task ${i}`,
         description: `Description for test task ${i}`,
         status: i <= 2 ? 'todo' : i <= 4 ? 'in_progress' : 'done',
@@ -91,18 +93,18 @@ describe('Custom SQL Features E2E Tests', () => {
     }
 
     // プロジェクトのタスクを削除
-    const tasksResult = await vibebase.data.list<Task>('tasks', {
+    const tasksResult = await vibebase.data!.list<Task>('tasks', {
       where: { project_id: testProject.id }
     });
-    for (const task of tasksResult.data) {
-      await vibebase.data.delete('tasks', task.id);
+    for (const task of tasksResult.data!) {
+      await vibebase.data!.delete('tasks', task.id);
     }
 
     if (testProject) {
-      await vibebase.data.delete('projects', testProject?.success ? testProject.data.id : testProject?.id);
+      await vibebase.data!.delete('projects', testProject.id);
     }
     if (testTeam) {
-      await vibebase.data.delete('teams', testTeam.id);
+      await vibebase.data!.delete('teams', testTeam.id);
     }
   });
 
@@ -138,22 +140,22 @@ describe('Custom SQL Features E2E Tests', () => {
       console.log('Create result:', JSON.stringify(result, null, 2));
       
       expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(result.data.name).toBe(query.name);
-      expect(result.data.sql_query).toBe(query.sql_query);
-      expect(result.data.is_enabled).toBe(true);
+      expect(result.data!).toBeDefined();
+      expect(result.data!.name).toBe(query.name);
+      expect(result.data!.sql_query).toBe(query.sql_query);
+      expect(result.data!.is_enabled).toBe(true);
       
-      createdCustomQueries.push(result.data.id);
+      createdCustomQueries.push(result.data!.id);
     });
 
     it('should list custom queries', async () => {
       const result = await vibebase.customQueries.list();
       
       expect(result.success).toBe(true);
-      expect(Array.isArray(result.data)).toBe(true);
-      expect(result.data.length).toBeGreaterThan(0);
+      expect(Array.isArray(result.data!)).toBe(true);
+      expect(result.data!.length).toBeGreaterThan(0);
       
-      const createdQuery = result.data.find(q => q.name === 'Get Project Tasks');
+      const createdQuery = result.data!.find(q => q.name === 'Get Project Tasks');
       expect(createdQuery).toBeDefined();
     });
 
@@ -168,9 +170,9 @@ describe('Custom SQL Features E2E Tests', () => {
       const result = await vibebase.customQueries.update(queryId, updates);
       
       expect(result.success).toBe(true);
-      expect(result.data.name).toBe(updates.name);
-      expect(result.data.cache_ttl).toBe(updates.cache_ttl);
-      expect(result.data.is_enabled).toBe(updates.is_enabled ? 1 : 0);
+      expect(result.data!.name).toBe(updates.name);
+      expect(result.data!.cache_ttl).toBe(updates.cache_ttl);
+      expect(result.data!.is_enabled).toBe(updates.is_enabled ? 1 : 0);
     });
 
     it('should get a specific custom query', async () => {
@@ -179,8 +181,8 @@ describe('Custom SQL Features E2E Tests', () => {
       const result = await vibebase.customQueries.get(queryId);
       
       expect(result.success).toBe(true);
-      expect(result.data.id).toBe(queryId);
-      expect(result.data.name).toBe('Get Project Tasks (Updated)');
+      expect(result.data!.id).toBe(queryId);
+      expect(result.data!.name).toBe('Get Project Tasks (Updated)');
     });
   });
 
@@ -209,23 +211,23 @@ describe('Custom SQL Features E2E Tests', () => {
 
       const createResult = await vibebase.customQueries.create(query);
       expect(createResult.success).toBe(true);
-      createdCustomQueries.push(createResult.data.id);
+      createdCustomQueries.push(createResult.data!.id);
 
-      const projectId = testProject?.success ? testProject.data.id : testProject?.id;
+      const projectId = testProject.id;
 
       // クエリを実行
-      const executeResult = await vibebase.customQueries.execute(createResult.data.id, {
+      const executeResult = await vibebase.customQueries.execute(createResult.data!.id, {
         status: 'todo',
         project_id: projectId
       });
       expect(executeResult.success).toBe(true);
-      expect(Array.isArray(executeResult.data.data)).toBe(true);
-      expect(executeResult.data.parameters).toEqual({
+      expect(Array.isArray(executeResult.data!.data)).toBe(true);
+      expect(executeResult.data!.parameters).toEqual({
         status: 'todo',
         project_id: projectId
       });
-      expect(typeof executeResult.data.execution_time).toBe('number');
-      expect(typeof executeResult.data.cached).toBe('boolean');
+      expect(typeof executeResult.data!.execution_time).toBe('number');
+      expect(typeof executeResult.data!.cached).toBe('boolean');
     });
 
     it('should execute query by slug', async () => {
@@ -247,15 +249,15 @@ describe('Custom SQL Features E2E Tests', () => {
 
       const createResult = await vibebase.customQueries.create(query);
       expect(createResult.success).toBe(true);
-      createdCustomQueries.push(createResult.data.id);
+      createdCustomQueries.push(createResult.data!.id);
 
       // slugで実行
-      const executeResult = await vibebase.customQueries.executeBySlug(createResult.data.slug, {
-        project_id: testProject?.success ? testProject.data.id : testProject?.id
+      const executeResult = await vibebase.customQueries.executeBySlug(createResult.data!.slug, {
+        project_id: testProject.id
       });
 
       expect(executeResult.success).toBe(true);
-      expect(Array.isArray(executeResult.data.data)).toBe(true);
+      expect(Array.isArray(executeResult.data!.data)).toBe(true);
     });
 
     it('should handle missing required parameters', async () => {
@@ -282,10 +284,10 @@ describe('Custom SQL Features E2E Tests', () => {
 
       const createResult = await vibebase.customQueries.create(query);
       expect(createResult.success).toBe(true);
-      createdCustomQueries.push(createResult.data.id);
+      createdCustomQueries.push(createResult.data!.id);
 
       try {
-        await vibebase.customQueries.execute(createResult.data.id, {
+        await vibebase.customQueries.execute(createResult.data!.id, {
           // project_id パラメータが不足
           status: 'todo'
         });
@@ -321,16 +323,16 @@ describe('Custom SQL Features E2E Tests', () => {
 
       const createResult = await vibebase.customQueries.create(query);
       expect(createResult.success).toBe(true);
-      createdCustomQueries.push(createResult.data.id);
+      createdCustomQueries.push(createResult.data!.id);
 
       // 正しい型で実行
-      const executeResult = await vibebase.customQueries.execute(createResult.data.id, {
-        project_id: testProject?.success ? testProject.data.id : testProject?.id,
+      const executeResult = await vibebase.customQueries.execute(createResult.data!.id, {
+        project_id: testProject.id,
         limit: 3
       });
 
       expect(executeResult.success).toBe(true);
-      expect(executeResult.data.data.length).toBeLessThanOrEqual(3);
+      expect(executeResult.data!.data.length).toBeLessThanOrEqual(3);
     });
   });
 
@@ -355,22 +357,22 @@ describe('Custom SQL Features E2E Tests', () => {
 
       const createResult = await vibebase.customQueries.create(query);
       expect(createResult.success).toBe(true);
-      createdCustomQueries.push(createResult.data.id);
+      createdCustomQueries.push(createResult.data!.id);
 
-      const params = { project_id: testProject?.success ? testProject.data.id : testProject?.id };
+      const params = { project_id: testProject.id };
 
       // 最初の実行（キャッシュなし）
-      const firstResult = await vibebase.customQueries.execute(createResult.data.id, params);
+      const firstResult = await vibebase.customQueries.execute(createResult.data!.id, params);
       expect(firstResult.success).toBe(true);
-      expect(firstResult.data.cached).toBe(false);
+      expect(firstResult.data!.cached).toBe(false);
 
       // 2回目の実行（キャッシュあり）
-      const secondResult = await vibebase.customQueries.execute(createResult.data.id, params);
+      const secondResult = await vibebase.customQueries.execute(createResult.data!.id, params);
       expect(secondResult.success).toBe(true);
-      expect(secondResult.data.cached).toBe(true);
+      expect(secondResult.data!.cached).toBe(true);
       
       // 結果は同じであるべき
-      expect(secondResult.data.data).toEqual(firstResult.data.data);
+      expect(secondResult.data!.data).toEqual(firstResult.data!.data);
     });
   });
 
@@ -403,17 +405,17 @@ describe('Custom SQL Features E2E Tests', () => {
 
       const createResult = await vibebase.customQueries.create(query);
       expect(createResult.success).toBe(true);
-      createdCustomQueries.push(createResult.data.id);
+      createdCustomQueries.push(createResult.data!.id);
 
-      const executeResult = await vibebase.customQueries.execute(createResult.data.id, {
-        project_id: testProject?.success ? testProject.data.id : testProject?.id
+      const executeResult = await vibebase.customQueries.execute(createResult.data!.id, {
+        project_id: testProject.id
       });
 
       expect(executeResult.success).toBe(true);
-      expect(Array.isArray(executeResult.data.data)).toBe(true);
+      expect(Array.isArray(executeResult.data!.data)).toBe(true);
       
       // 統計データが含まれていることを確認
-      const stats = executeResult.data.data;
+      const stats = executeResult.data!.data;
       expect(stats.length).toBeGreaterThan(0);
       expect(stats[0]).toHaveProperty('status');
       expect(stats[0]).toHaveProperty('priority');
@@ -450,18 +452,18 @@ describe('Custom SQL Features E2E Tests', () => {
 
       const createResult = await vibebase.customQueries.create(query);
       expect(createResult.success).toBe(true);
-      createdCustomQueries.push(createResult.data.id);
+      createdCustomQueries.push(createResult.data!.id);
 
-      const executeResult = await vibebase.customQueries.execute(createResult.data.id, {
-        project_id: testProject?.success ? testProject.data.id : testProject?.id
+      const executeResult = await vibebase.customQueries.execute(createResult.data!.id, {
+        project_id: testProject.id
       });
 
       expect(executeResult.success).toBe(true);
-      expect(Array.isArray(executeResult.data.data)).toBe(true);
+      expect(Array.isArray(executeResult.data!.data)).toBe(true);
       
       // JOINされたデータが含まれていることを確認
-      if (executeResult.data.data.length > 0) {
-        const task = executeResult.data.data[0];
+      if (executeResult.data!.data.length > 0) {
+        const task = executeResult.data!.data[0];
         expect(task).toHaveProperty('title');
         expect(task).toHaveProperty('project_name');
         expect(task).toHaveProperty('created_by_email');
@@ -503,19 +505,19 @@ describe('Custom SQL Features E2E Tests', () => {
 
       const createResult = await vibebase.customQueries.create(query);
       expect(createResult.success).toBe(true);
-      createdCustomQueries.push(createResult.data.id);
+      createdCustomQueries.push(createResult.data!.id);
 
       const now = new Date();
       const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-      const executeResult = await vibebase.customQueries.execute(createResult.data.id, {
-        project_id: testProject?.success ? testProject.data.id : testProject?.id,
+      const executeResult = await vibebase.customQueries.execute(createResult.data!.id, {
+        project_id: testProject.id,
         start_date: oneWeekAgo.toISOString(),
         end_date: now.toISOString()
       });
 
       expect(executeResult.success).toBe(true);
-      expect(Array.isArray(executeResult.data.data)).toBe(true);
+      expect(Array.isArray(executeResult.data!.data)).toBe(true);
     });
   });
 
@@ -564,11 +566,11 @@ describe('Custom SQL Features E2E Tests', () => {
 
       const createResult = await vibebase.customQueries.create(query);
       expect(createResult.success).toBe(true);
-      createdCustomQueries.push(createResult.data.id);
+      createdCustomQueries.push(createResult.data!.id);
 
       try {
-        await vibebase.customQueries.execute(createResult.data.id, {
-          project_id: testProject?.success ? testProject.data.id : testProject?.id
+        await vibebase.customQueries.execute(createResult.data!.id, {
+          project_id: testProject.id
         });
         // エラーが発生すべき
         expect(true).toBe(false);

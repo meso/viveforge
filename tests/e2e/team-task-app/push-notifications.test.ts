@@ -42,28 +42,30 @@ describe('Push Notifications Features E2E Tests (Requires VAPID setup)', () => {
     // テストユーザーを取得
     const userEmails = ['alice@example.com', 'bob@example.com'];
     for (const email of userEmails) {
-      const result = await vibebase.data.list<User>('users', {
+      const result = await vibebase.data!.list<User>('users', {
         where: { email }
       });
-      if (result.data.length > 0) {
-        testUsers.push(result.data[0]);
+      if (result.data!.length > 0) {
+        testUsers.push(result.data![0]);
       }
     }
 
     // テスト用のチームとプロジェクトを作成
-    testTeam = await vibebase.data.create<Team>('teams', {
+    const teamResponse = await vibebase.data!.create<Team>('teams', {
       name: 'Push Notifications Test Team',
       description: 'Team for push notifications testing',
       created_by: testUsers[0].id
     });
+    testTeam = teamResponse.data!;
 
-    testProject = await vibebase.data.create<Project>('projects', {
+    const projectResponse = await vibebase.data!.create<Project>('projects', {
       team_id: testTeam.id,
       name: 'Push Test Project',
       description: 'Project for push notifications testing',
       status: 'active',
       created_by: testUsers[0].id
     });
+    testProject = projectResponse.data!;
   });
 
   afterAll(async () => {
@@ -86,18 +88,18 @@ describe('Push Notifications Features E2E Tests (Requires VAPID setup)', () => {
     }
 
     // プロジェクトのタスクを削除
-    const tasksResult = await vibebase.data.list<Task>('tasks', {
+    const tasksResult = await vibebase.data!.list<Task>('tasks', {
       where: { project_id: testProject.id }
     });
-    for (const task of tasksResult.data) {
-      await vibebase.data.delete('tasks', task.id);
+    for (const task of tasksResult.data!) {
+      await vibebase.data!.delete('tasks', task.id);
     }
 
     if (testProject) {
-      await vibebase.data.delete('projects', testProject.id);
+      await vibebase.data!.delete('projects', testProject.id);
     }
     if (testTeam) {
-      await vibebase.data.delete('teams', testTeam.id);
+      await vibebase.data!.delete('teams', testTeam.id);
     }
   });
 
@@ -106,10 +108,10 @@ describe('Push Notifications Features E2E Tests (Requires VAPID setup)', () => {
       const result = await vibebase.push.getVapidPublicKey();
 
       expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(result.data.publicKey).toBeDefined();
-      expect(typeof result.data.publicKey).toBe('string');
-      expect(result.data.publicKey.length).toBeGreaterThan(0);
+      expect(result.data!).toBeDefined();
+      expect(result.data!.publicKey).toBeDefined();
+      expect(typeof result.data!.publicKey).toBe('string');
+      expect(result.data!.publicKey.length).toBeGreaterThan(0);
     });
   });
 
@@ -118,22 +120,22 @@ describe('Push Notifications Features E2E Tests (Requires VAPID setup)', () => {
       const result = await vibebase.push.subscribe(mockPushSubscription, mockDeviceInfo);
 
       expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(result.data.endpoint).toBe(mockPushSubscription.endpoint);
-      expect(result.data.device_info.userAgent).toBe(mockDeviceInfo.userAgent);
-      expect(result.data.is_active).toBe(true);
+      expect(result.data!).toBeDefined();
+      expect(result.data!.endpoint).toBe(mockPushSubscription.endpoint);
+      expect(result.data!.device_info.userAgent).toBe(mockDeviceInfo.userAgent);
+      expect(result.data!.is_active).toBe(true);
       
-      mockSubscription = result.data;
+      mockSubscription = result.data!;
     });
 
     it('should list push subscriptions', async () => {
       const result = await vibebase.push.listSubscriptions();
 
       expect(result.success).toBe(true);
-      expect(Array.isArray(result.data)).toBe(true);
-      expect(result.data.length).toBeGreaterThan(0);
+      expect(Array.isArray(result.data!)).toBe(true);
+      expect(result.data!.length).toBeGreaterThan(0);
 
-      const subscription = result.data.find(s => s.endpoint === mockPushSubscription.endpoint);
+      const subscription = result.data!.find(s => s.endpoint === mockPushSubscription.endpoint);
       expect(subscription).toBeDefined();
       expect(subscription?.is_active).toBe(true);
     });
@@ -142,7 +144,7 @@ describe('Push Notifications Features E2E Tests (Requires VAPID setup)', () => {
       const result = await vibebase.push.listSubscriptions(testUsers[0].id);
 
       expect(result.success).toBe(true);
-      expect(Array.isArray(result.data)).toBe(true);
+      expect(Array.isArray(result.data!)).toBe(true);
     });
 
     it('should handle duplicate subscription', async () => {
@@ -172,10 +174,10 @@ describe('Push Notifications Features E2E Tests (Requires VAPID setup)', () => {
 
       // With API key authentication, should succeed
       expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(result.data.result).toBeDefined();
-      expect(typeof result.data.result.sent).toBe('number');
-      expect(typeof result.data.result.failed).toBe('number');
+      expect(result.data!).toBeDefined();
+      expect(result.data!.result).toBeDefined();
+      expect(typeof result.data!.result.sent).toBe('number');
+      expect(typeof result.data!.result.failed).toBe('number');
     });
 
     it('should send notification to specific users', async () => {
@@ -192,9 +194,9 @@ describe('Push Notifications Features E2E Tests (Requires VAPID setup)', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(result.data.result).toBeDefined();
-      expect(typeof result.data.result.sent).toBe('number');
-      expect(typeof result.data.result.failed).toBe('number');
+      expect(result.data!.result).toBeDefined();
+      expect(typeof result.data!.result.sent).toBe('number');
+      expect(typeof result.data!.result.failed).toBe('number');
     });
 
     it('should send rich notification with actions', async () => {
@@ -225,7 +227,7 @@ describe('Push Notifications Features E2E Tests (Requires VAPID setup)', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(result.data.result).toBeDefined();
+      expect(result.data!.result).toBeDefined();
     });
 
     it('should handle empty recipients', async () => {
@@ -239,9 +241,9 @@ describe('Push Notifications Features E2E Tests (Requires VAPID setup)', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(result.data.result).toBeDefined();
-      expect(result.data.result.sent).toBe(0);
-      expect(result.data.result.failed).toBe(0);
+      expect(result.data!.result).toBeDefined();
+      expect(result.data!.result.sent).toBe(0);
+      expect(result.data!.result.failed).toBe(0);
     });
   });
 
@@ -263,12 +265,12 @@ describe('Push Notifications Features E2E Tests (Requires VAPID setup)', () => {
       const result = await vibebase.push.createRule(rule);
 
       expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(result.data.name).toBe(rule.name);
-      expect(result.data.triggerType).toBe(rule.triggerType);
-      expect(result.data.isEnabled).toBe(true);
+      expect(result.data!).toBeDefined();
+      expect(result.data!.name).toBe(rule.name);
+      expect(result.data!.triggerType).toBe(rule.triggerType);
+      expect(result.data!.isEnabled).toBe(true);
       
-      createdRules.push(result.data.id);
+      createdRules.push(result.data!.id);
     });
 
     it('should create a manual notification rule', async () => {
@@ -285,19 +287,19 @@ describe('Push Notifications Features E2E Tests (Requires VAPID setup)', () => {
       const result = await vibebase.push.createRule(rule);
 
       expect(result.success).toBe(true);
-      expect(result.data.triggerType).toBe('manual');
+      expect(result.data!.triggerType).toBe('manual');
       
-      createdRules.push(result.data.id);
+      createdRules.push(result.data!.id);
     });
 
     it('should list notification rules', async () => {
       const result = await vibebase.push.listRules();
 
       expect(result.success).toBe(true);
-      expect(Array.isArray(result.data)).toBe(true);
-      expect(result.data.length).toBeGreaterThan(0);
+      expect(Array.isArray(result.data!)).toBe(true);
+      expect(result.data!.length).toBeGreaterThan(0);
 
-      const createdRule = result.data.find(r => r.name === 'New Task Notification');
+      const createdRule = result.data!.find(r => r.name === 'New Task Notification');
       expect(createdRule).toBeDefined();
     });
 
@@ -307,8 +309,8 @@ describe('Push Notifications Features E2E Tests (Requires VAPID setup)', () => {
       const result = await vibebase.push.getRule(ruleId);
 
       expect(result.success).toBe(true);
-      expect(result.data.id).toBe(ruleId);
-      expect(result.data.name).toBe('New Task Notification');
+      expect(result.data!.id).toBe(ruleId);
+      expect(result.data!.name).toBe('New Task Notification');
     });
 
     it('should update a notification rule', async () => {
@@ -322,9 +324,9 @@ describe('Push Notifications Features E2E Tests (Requires VAPID setup)', () => {
       const result = await vibebase.push.updateRule(ruleId, updates);
 
       expect(result.success).toBe(true);
-      expect(result.data.name).toBe(updates.name);
-      expect(result.data.bodyTemplate).toBe(updates.bodyTemplate);
-      expect(result.data.isEnabled).toBe(false);
+      expect(result.data!.name).toBe(updates.name);
+      expect(result.data!.bodyTemplate).toBe(updates.bodyTemplate);
+      expect(result.data!.isEnabled).toBe(false);
     });
 
     it('should toggle notification rule status', async () => {
@@ -333,12 +335,12 @@ describe('Push Notifications Features E2E Tests (Requires VAPID setup)', () => {
       // 有効化
       const enableResult = await vibebase.push.toggleRule(ruleId, true);
       expect(enableResult.success).toBe(true);
-      expect(enableResult.data.isEnabled).toBe(true);
+      expect(enableResult.data!.isEnabled).toBe(true);
 
       // 無効化
       const disableResult = await vibebase.push.toggleRule(ruleId, false);
       expect(disableResult.success).toBe(true);
-      expect(disableResult.data.isEnabled).toBe(false);
+      expect(disableResult.data!.isEnabled).toBe(false);
     });
   });
 
@@ -349,7 +351,7 @@ describe('Push Notifications Features E2E Tests (Requires VAPID setup)', () => {
       await vibebase.push.toggleRule(ruleId, true);
 
       // タスクを作成してトリガーをテスト
-      const task = await vibebase.data.create<Task>('tasks', {
+      const taskResponse = await vibebase.data!.create<Task>('tasks', {
         project_id: testProject.id,
         title: 'Notification Trigger Test Task',
         description: 'This task should trigger a push notification',
@@ -357,6 +359,7 @@ describe('Push Notifications Features E2E Tests (Requires VAPID setup)', () => {
         priority: 'high',
         created_by: testUsers[0].id
       });
+      const task = taskResponse.data!;
 
       // 少し待ってから通知ログを確認
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -366,10 +369,10 @@ describe('Push Notifications Features E2E Tests (Requires VAPID setup)', () => {
       });
 
       expect(logsResult.success).toBe(true);
-      expect(logsResult.data.logs.length).toBeGreaterThan(0);
+      expect(logsResult.data!.logs.length).toBeGreaterThan(0);
 
       // クリーンアップ
-      await vibebase.data.delete('tasks', task.id);
+      await vibebase.data!.delete('tasks', task.id);
     });
 
     it('should handle rule with specific recipients', async () => {
@@ -388,19 +391,20 @@ describe('Push Notifications Features E2E Tests (Requires VAPID setup)', () => {
 
       const createResult = await vibebase.push.createRule(rule);
       expect(createResult.success).toBe(true);
-      createdRules.push(createResult.data.id);
+      createdRules.push(createResult.data!.id);
 
       // タスクを作成して更新
-      const task = await vibebase.data.create<Task>('tasks', {
+      const taskResponse = await vibebase.data!.create<Task>('tasks', {
         project_id: testProject.id,
         title: 'Update Trigger Test',
         status: 'todo',
         priority: 'medium',
         created_by: testUsers[0].id
       });
+      const task = taskResponse.data!;
 
       // タスクを更新
-      await vibebase.data.update('tasks', task.id, {
+      await vibebase.data!.update('tasks', task.id, {
         status: 'in_progress'
       });
 
@@ -409,13 +413,13 @@ describe('Push Notifications Features E2E Tests (Requires VAPID setup)', () => {
 
       const logsResult = await vibebase.push.getLogs({
         limit: 5,
-        ruleId: createResult.data.id
+        ruleId: createResult.data!.id
       });
 
       expect(logsResult.success).toBe(true);
 
       // クリーンアップ
-      await vibebase.data.delete('tasks', task.id);
+      await vibebase.data!.delete('tasks', task.id);
     });
   });
 
@@ -433,8 +437,8 @@ describe('Push Notifications Features E2E Tests (Requires VAPID setup)', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(typeof result.data.success).toBe('boolean');
+      expect(result.data!).toBeDefined();
+      expect(typeof result.data!.success).toBe('boolean');
     });
 
     it('should handle test notification to invalid endpoint', async () => {
@@ -462,12 +466,12 @@ describe('Push Notifications Features E2E Tests (Requires VAPID setup)', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(Array.isArray(result.data.logs)).toBe(true);
-      expect(typeof result.data.total).toBe('number');
+      expect(result.data!).toBeDefined();
+      expect(Array.isArray(result.data!.logs)).toBe(true);
+      expect(typeof result.data!.total).toBe('number');
 
-      if (result.data.logs.length > 0) {
-        const log = result.data.logs[0];
+      if (result.data!.logs.length > 0) {
+        const log = result.data!.logs[0];
         expect(log).toHaveProperty('id');
         expect(log).toHaveProperty('title');
         expect(log).toHaveProperty('body');
@@ -488,7 +492,7 @@ describe('Push Notifications Features E2E Tests (Requires VAPID setup)', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(Array.isArray(result.data.logs)).toBe(true);
+      expect(Array.isArray(result.data!.logs)).toBe(true);
     });
 
     it('should get logs filtered by rule ID', async () => {
@@ -499,10 +503,10 @@ describe('Push Notifications Features E2E Tests (Requires VAPID setup)', () => {
         });
 
         expect(result.success).toBe(true);
-        expect(Array.isArray(result.data.logs)).toBe(true);
+        expect(Array.isArray(result.data!.logs)).toBe(true);
 
         // フィルターされたログはすべて指定したrule_idを持つべき
-        for (const log of result.data.logs) {
+        for (const log of result.data!.logs) {
           if (log.rule_id) {
             expect(log.rule_id).toBe(createdRules[0]);
           }
@@ -514,15 +518,15 @@ describe('Push Notifications Features E2E Tests (Requires VAPID setup)', () => {
       const result = await vibebase.push.getStats();
 
       expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(typeof result.data.total_notifications).toBe('number');
-      expect(typeof result.data.success_rate).toBe('number');
-      expect(typeof result.data.active_subscriptions).toBe('number');
-      expect(typeof result.data.rules_count).toBe('number');
+      expect(result.data!).toBeDefined();
+      expect(typeof result.data!.total_notifications).toBe('number');
+      expect(typeof result.data!.success_rate).toBe('number');
+      expect(typeof result.data!.active_subscriptions).toBe('number');
+      expect(typeof result.data!.rules_count).toBe('number');
 
       // 成功率は0-1の範囲であるべき
-      expect(result.data.success_rate).toBeGreaterThanOrEqual(0);
-      expect(result.data.success_rate).toBeLessThanOrEqual(1);
+      expect(result.data!.success_rate).toBeGreaterThanOrEqual(0);
+      expect(result.data!.success_rate).toBeLessThanOrEqual(1);
     });
 
     it('should get statistics with date range', async () => {
@@ -535,7 +539,7 @@ describe('Push Notifications Features E2E Tests (Requires VAPID setup)', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
+      expect(result.data!).toBeDefined();
     });
   });
 
@@ -547,7 +551,7 @@ describe('Push Notifications Features E2E Tests (Requires VAPID setup)', () => {
 
       // サブスクリプションが削除されたことを確認
       const listResult = await vibebase.push.listSubscriptions();
-      const subscription = listResult.data.find(s => s.endpoint === mockSubscription.endpoint);
+      const subscription = listResult.data!.find(s => s.endpoint === mockSubscription.endpoint);
       expect(subscription?.is_active).toBe(false);
     });
 
@@ -612,7 +616,7 @@ describe('Push Notifications Features E2E Tests (Requires VAPID setup)', () => {
       // 実行時にエラーになる可能性がある
       const result = await vibebase.push.createRule(rule);
       if (result.success) {
-        createdRules.push(result.data.id);
+        createdRules.push(result.data!.id);
       }
     });
   });

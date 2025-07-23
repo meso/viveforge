@@ -91,11 +91,22 @@ export class VibebaseAuthClient {
   private authBaseUrl: string
   private deploymentId: string | null = null
   private deploymentDomain: string
+  private originalWorkerDomain: string
   private publicKeyCache: Map<string, string> = new Map()
 
   constructor(private env: Env) {
     this.authBaseUrl = env.VIBEBASE_AUTH_URL || 'https://auth.vibebase.workers.dev'
-    this.deploymentDomain = env.WORKER_DOMAIN || 'unknown'
+
+    // 元のWORKER_DOMAINを保存（URL生成用）
+    this.originalWorkerDomain = env.WORKER_DOMAIN || 'unknown'
+
+    // WORKER_DOMAINからポート番号を除去してaudienceとして使用
+    let domain = this.originalWorkerDomain
+    if (domain.includes(':')) {
+      domain = domain.split(':')[0]
+    }
+    this.deploymentDomain = domain
+
     // deployment_idは不要になったため削除
     this.deploymentId = null
   }
@@ -246,9 +257,9 @@ export class VibebaseAuthClient {
    */
   getLoginUrl(redirectTo: string = '/'): string {
     // 開発環境ではhttpを使用
-    const protocol = this.deploymentDomain.includes('localhost') ? 'http' : 'https'
+    const protocol = this.originalWorkerDomain.includes('localhost') ? 'http' : 'https'
     const params = new URLSearchParams({
-      origin: `${protocol}://${this.deploymentDomain}`,
+      origin: `${protocol}://${this.originalWorkerDomain}`, // ポート番号込みを使用
       redirect_to: redirectTo,
     })
 
@@ -481,6 +492,14 @@ export class VibebaseAuthClient {
    */
   private async verifyJWTWithHono(token: string, publicKeyData: string): Promise<JWTPayload> {
     try {
+      // E2E/開発環境でのテスト用JWT検証
+      if (this.env.ENVIRONMENT === 'development' && this.env.JWT_SECRET) {
+        console.log('Using test JWT verification for E2E environment')
+        const { verify } = await import('hono/jwt')
+        const payload = await verify(token, this.env.JWT_SECRET, 'HS256')
+        return payload
+      }
+
       // hono/jwtのverify関数を直接使用
       const { verify } = await import('hono/jwt')
 
@@ -519,8 +538,14 @@ export class VibebaseAuthClient {
     }
 
     // 発行者チェック - 信頼できるvibebase-authからのトークンか
-    if (!payload.iss || payload.iss !== this.authBaseUrl) {
-      throw new Error('Invalid issuer')
+    // E2E/開発環境ではテスト用issuerも許可
+    const validIssuers = [this.authBaseUrl]
+    if (this.env.ENVIRONMENT === 'development') {
+      validIssuers.push('https://auth.vibebase.workers.dev')
+    }
+
+    if (!payload.iss || !validIssuers.includes(payload.iss)) {
+      throw new Error(`Invalid issuer: ${payload.iss}`)
     }
 
     // 有効期限チェック

@@ -38,12 +38,12 @@ describe('User Authentication and Privacy Tests', () => {
       });
       
       expect(aliceResponse.status).toBe(200);
-      const aliceData = await aliceResponse.json();
+      const aliceData = await aliceResponse.json() as any;
       
       // Aliceは自分のデータのみ取得できる（1レコード）
-      expect(aliceData.data).toHaveLength(1);
-      expect(aliceData.data[0].id).toBe('V1StGXR8_Z5jdHi6B-myT'); // AliceのID
-      expect(aliceData.data[0].email).toBe('alice@example.com');
+      expect((aliceData as any).data!).toHaveLength(1);
+      expect((aliceData as any).data![0].id).toBe('V1StGXR8_Z5jdHi6B-myT'); // AliceのID
+      expect((aliceData as any).data![0].email).toBe('alice@example.com');
     });
     
     it('should prevent users from accessing other users data', async () => {
@@ -53,15 +53,15 @@ describe('User Authentication and Privacy Tests', () => {
       });
       
       expect(bobResponse.status).toBe(200);
-      const bobData = await bobResponse.json();
+      const bobData = await bobResponse.json() as any;
       
       // Bobは自分のデータのみ取得（Aliceのデータは見えない）
-      expect(bobData.data).toHaveLength(1);
-      expect(bobData.data[0].id).toBe('3ZjkQ2mN8pX9vC7bA-wEr'); // BobのID
-      expect(bobData.data[0].email).toBe('bob@example.com');
+      expect((bobData as any).data!).toHaveLength(1);
+      expect((bobData as any).data![0].id).toBe('3ZjkQ2mN8pX9vC7bA-wEr'); // BobのID
+      expect((bobData as any).data![0].email).toBe('bob@example.com');
       
       // Aliceのデータが含まれていないことを確認
-      const hasAliceData = bobData.data.some((user: any) => user.email === 'alice@example.com');
+      const hasAliceData = (bobData as any).data!.some((user: any) => user.email === 'alice@example.com');
       expect(hasAliceData).toBe(false);
     });
     
@@ -88,9 +88,9 @@ describe('User Authentication and Privacy Tests', () => {
       });
       
       expect(response.status).toBe(200);
-      const result = await response.json();
+      const result = await response.json() as any;
       expect(result.success).toBe(true);
-      expect(result.data.name).toBe('Alice Johnson Updated');
+      expect(result.data!.name).toBe('Alice Johnson Updated');
     });
     
     it('should prevent users from updating other users data', async () => {
@@ -118,13 +118,13 @@ describe('User Authentication and Privacy Tests', () => {
       });
       
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data = await response.json() as any;
       
       // APIキーは全てのユーザーデータにアクセス可能
-      expect(data.data.length).toBeGreaterThanOrEqual(3); // Alice, Bob, Charlie以上
+      expect(data.data!.length).toBeGreaterThanOrEqual(3); // Alice, Bob, Charlie以上
       
       // 全てのテストユーザーが含まれることを確認
-      const emails = data.data.map((user: any) => user.email);
+      const emails = data.data!.map((user: any) => user.email);
       expect(emails).toContain('alice@example.com');
       expect(emails).toContain('bob@example.com');
       expect(emails).toContain('charlie@example.com');
@@ -138,9 +138,9 @@ describe('User Authentication and Privacy Tests', () => {
       });
       
       expect(response.status).toBe(200);
-      const data = await response.json();
-      expect(data.data.id).toBe(bobId);
-      expect(data.data.email).toBe('bob@example.com');
+      const data = await response.json() as any;
+      expect(data.data!.id).toBe(bobId);
+      expect(data.data!.email).toBe('bob@example.com');
     });
   });
 
@@ -152,13 +152,13 @@ describe('User Authentication and Privacy Tests', () => {
       });
       
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data = await response.json() as any;
       
       // Aliceが参加しているチームのメンバー情報が見える
-      expect(data.data.length).toBeGreaterThan(0);
+      expect(data.data!.length).toBeGreaterThan(0);
       
       // プロフィール情報が含まれることを確認
-      const aliceMember = data.data.find((member: any) => member.user_id === 'V1StGXR8_Z5jdHi6B-myT');
+      const aliceMember = data.data!.find((member: any) => member.user_id === 'V1StGXR8_Z5jdHi6B-myT');
       expect(aliceMember).toBeDefined();
       expect(aliceMember.display_name).toContain('Alice');
       expect(aliceMember.job_title).toBeDefined();
@@ -171,10 +171,10 @@ describe('User Authentication and Privacy Tests', () => {
       });
       
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data = await response.json() as any;
       
       // Bobの複数のペルソナを検索
-      const bobMembers = data.data.filter((member: any) => member.user_id === '3ZjkQ2mN8pX9vC7bA-wEr');
+      const bobMembers = data.data!.filter((member: any) => member.user_id === '3ZjkQ2mN8pX9vC7bA-wEr');
       expect(bobMembers.length).toBeGreaterThan(1); // 複数チームに参加
       
       // 異なるチームで異なるdisplay_nameを持つことを確認
@@ -203,10 +203,10 @@ describe('User Authentication and Privacy Tests', () => {
         headers: getUserHeaders(testTokens.alice)
       });
       expect(projectsResponse.status).toBe(200);
-      const projectsData = await projectsResponse.json();
-      expect(projectsData.data.length).toBeGreaterThan(0);
+      const projectsData = await projectsResponse.json() as any;
+      expect(projectsData.data!.length).toBeGreaterThan(0);
       
-      taskData.project_id = projectsData.data[0].id;
+      taskData.project_id = (projectsData as any).data![0].id;
       
       // タスク作成
       const createResponse = await fetch(`${API_URL}/api/data/tasks`, {
@@ -216,11 +216,11 @@ describe('User Authentication and Privacy Tests', () => {
       });
       
       expect(createResponse.status).toBe(201);
-      const createdTask = await createResponse.json();
+      const createdTask = await createResponse.json() as any;
       expect(createdTask.success).toBe(true);
-      expect(createdTask.data.title).toBe(taskData.title);
+      expect(createdTask.data!.title).toBe(taskData.title);
       
-      const taskId = createdTask.data.id;
+      const taskId = createdTask.data!.id;
       
       // 2. BobがアサインされたタスクをGET
       const bobTasksResponse = await fetch(`${API_URL}/api/data/tasks`, {
@@ -228,10 +228,10 @@ describe('User Authentication and Privacy Tests', () => {
       });
       
       expect(bobTasksResponse.status).toBe(200);
-      const bobTasks = await bobTasksResponse.json();
+      const bobTasks = await bobTasksResponse.json() as any;
       
       // 作成したタスクが見えることを確認
-      const assignedTask = bobTasks.data.find((task: any) => task.id === taskId);
+      const assignedTask = bobTasks.data!.find((task: any) => task.id === taskId);
       expect(assignedTask).toBeDefined();
       expect(assignedTask.assigned_to).toBe('3ZjkQ2mN8pX9vC7bA-wEr');
       
@@ -243,8 +243,8 @@ describe('User Authentication and Privacy Tests', () => {
       });
       
       expect(updateResponse.status).toBe(200);
-      const updatedTask = await updateResponse.json();
-      expect(updatedTask.data.status).toBe('in_progress');
+      const updatedTask = await updateResponse.json() as any;
+      expect(updatedTask.data!.status).toBe('in_progress');
       
       // 4. Aliceが更新されたタスクを確認
       const aliceCheckResponse = await fetch(`${API_URL}/api/data/tasks/${taskId}`, {
@@ -252,8 +252,8 @@ describe('User Authentication and Privacy Tests', () => {
       });
       
       expect(aliceCheckResponse.status).toBe(200);
-      const taskCheck = await aliceCheckResponse.json();
-      expect(taskCheck.data.status).toBe('in_progress');
+      const taskCheck = await aliceCheckResponse.json() as any;
+      expect(taskCheck.data!.status).toBe('in_progress');
     });
     
     it('should handle team collaboration with proper access controls', async () => {
@@ -265,10 +265,10 @@ describe('User Authentication and Privacy Tests', () => {
       });
       
       expect(membersResponse.status).toBe(200);
-      const membersData = await membersResponse.json();
+      const membersData = await membersResponse.json() as any;
       
       // Aliceのエンジニアリングチームメンバー情報
-      const aliceEngMember = membersData.data.find((m: any) => 
+      const aliceEngMember = membersData.data!.find((m: any) => 
         m.user_id === 'V1StGXR8_Z5jdHi6B-myT' && m.display_name.includes('Tech Lead')
       );
       expect(aliceEngMember).toBeDefined();
@@ -280,8 +280,8 @@ describe('User Authentication and Privacy Tests', () => {
       });
       
       expect(projectsResponse.status).toBe(200);
-      const projectsData = await projectsResponse.json();
-      expect(projectsData.data.length).toBeGreaterThan(0);
+      const projectsData = await projectsResponse.json() as any;
+      expect(projectsData.data!.length).toBeGreaterThan(0);
       
       // 3. タスク一覧の取得（全チームタスクが見える）
       const tasksResponse = await fetch(`${API_URL}/api/data/tasks`, {
@@ -289,11 +289,11 @@ describe('User Authentication and Privacy Tests', () => {
       });
       
       expect(tasksResponse.status).toBe(200);
-      const tasksData = await tasksResponse.json();
-      expect(tasksData.data.length).toBeGreaterThan(0);
+      const tasksData = await tasksResponse.json() as any;
+      expect(tasksData.data!.length).toBeGreaterThan(0);
       
       // 4. コメント追加（チームメンバーとして）
-      const taskId = tasksData.data[0].id;
+      const taskId = (tasksData as any).data![0].id;
       const commentData = {
         task_id: taskId,
         user_id: 'LpH9mKj2nQ4vX8cD-zFgR', // Charlie
@@ -308,7 +308,7 @@ describe('User Authentication and Privacy Tests', () => {
       });
       
       expect(commentResponse.status).toBe(201);
-      const createdComment = await commentResponse.json();
+      const createdComment = await commentResponse.json() as any;
       expect(createdComment.success).toBe(true);
     });
   });

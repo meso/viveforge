@@ -244,7 +244,7 @@ push.post('/subscribe', async (c) => {
           typeof subscriptionData === 'string'
             ? subscriptionData
             : subscriptionData && typeof subscriptionData === 'object' && 'id' in subscriptionData
-              ? ((subscriptionData as { id: string }).id)
+              ? (subscriptionData as { id: string }).id
               : 'unknown',
         user_id: userId,
         endpoint: validated.subscription.endpoint || '',

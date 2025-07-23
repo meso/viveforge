@@ -49,7 +49,7 @@ async function seedData() {
             throw new Error(`Failed to create user: ${response.error}`);
           }
           console.log(`   🔍 Created user response:`, response);
-          userIds.push(response.data.id);
+          userIds.push(response.data!.id);
           console.log(`   ✅ Created user: ${userData.email}`);
         }
       } catch (error) {
@@ -70,7 +70,7 @@ async function seedData() {
           console.error(`   ❌ Failed to create team ${teamData.name}:`, response.error);
           throw new Error(`Failed to create team: ${response.error}`);
         }
-        teamIds.push(response.data.id);
+        teamIds.push(response.data!.id);
         console.log(`   ✅ Created team: ${teamData.name}`);
       } catch (error) {
         console.error(`   ❌ Failed to create team ${teamData.name}:`, error);
@@ -107,7 +107,7 @@ async function seedData() {
           console.error(`   ❌ Failed to create project ${projectData.name}:`, response.error);
           throw new Error(`Failed to create project: ${response.error}`);
         }
-        projectIds.push(response.data.id);
+        projectIds.push(response.data!.id);
         console.log(`   ✅ Created project: ${projectData.name}`);
       } catch (error) {
         console.error(`   ❌ Failed to create project ${projectData.name}:`, error);
@@ -126,7 +126,7 @@ async function seedData() {
           console.error(`   ❌ Failed to create task ${taskData.title}:`, response.error);
           throw new Error(`Failed to create task: ${response.error}`);
         }
-        taskIds.push(response.data.id);
+        taskIds.push(response.data!.id);
         console.log(`   ✅ Created task: ${taskData.title}`);
       } catch (error) {
         console.error(`   ❌ Failed to create task ${taskData.title}:`, error);

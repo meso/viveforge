@@ -57,8 +57,8 @@ describe('Real Files Storage E2E Tests', () => {
       // テキストファイルをアップロード
       const uploadResult = await uploadTestFile(aliceClient, TEST_FILES.TEXT, remotePath);
       expect(uploadResult.success).toBe(true);
-      expect(uploadResult.data.url).toBeDefined();
-      expect(uploadResult.data.size).toBe(uploadResult.testFile.size);
+      expect(uploadResult.data!.url).toBeDefined();
+      expect(uploadResult.data!.size).toBe(uploadResult.testFile.size);
       
       uploadedFiles.push(remotePath);
       
@@ -78,7 +78,7 @@ describe('Real Files Storage E2E Tests', () => {
       
       const uploadResult = await uploadTestFile(bobClient, TEST_FILES.CONFIG, remotePath);
       expect(uploadResult.success).toBe(true);
-      expect(uploadResult.data.contentType).toBe('application/json');
+      expect(uploadResult.data!.contentType).toBe('application/json');
       
       uploadedFiles.push(remotePath);
       
@@ -101,8 +101,8 @@ describe('Real Files Storage E2E Tests', () => {
       
       const uploadResult = await uploadTestFile(aliceClient, TEST_FILES.SMALL_IMAGE, remotePath);
       expect(uploadResult.success).toBe(true);
-      expect(uploadResult.data.contentType).toBe('image/png');
-      expect(uploadResult.data.size).toBe(uploadResult.testFile.size);
+      expect(uploadResult.data!.contentType).toBe('image/png');
+      expect(uploadResult.data!.size).toBe(uploadResult.testFile.size);
       
       uploadedFiles.push(remotePath);
       
@@ -122,16 +122,16 @@ describe('Real Files Storage E2E Tests', () => {
       
       const uploadResult = await uploadTestFile(charlieClient, TEST_FILES.LARGE_IMAGE, remotePath);
       expect(uploadResult.success).toBe(true);
-      expect(uploadResult.data.contentType).toBe('image/png');
-      expect(uploadResult.data.size).toBe(1024); // 1KB
+      expect(uploadResult.data!.contentType).toBe('image/png');
+      expect(uploadResult.data!.size).toBe(1024); // 1KB
       
       uploadedFiles.push(remotePath);
       
       // ファイル情報を検証
       const infoResult = await charlieClient.storage.getInfo(remotePath);
       expect(infoResult.success).toBe(true);
-      expect(infoResult.data.size).toBe(1024);
-      expect(infoResult.data.contentType).toBe('image/png');
+      expect(infoResult.data!.size).toBe(1024);
+      expect(infoResult.data!.contentType).toBe('image/png');
     });
   });
 
@@ -160,8 +160,8 @@ describe('Real Files Storage E2E Tests', () => {
       // Charlie がファイル情報を取得
       const charlieInfo = await charlieClient.storage.getInfo(remotePath);
       expect(charlieInfo.success).toBe(true);
-      expect(charlieInfo.data.metadata?.uploader).toBe('Alice');
-      expect(charlieInfo.data.metadata?.shared).toBe('true');
+      expect(charlieInfo.data!.metadata?.uploader).toBe('Alice');
+      expect(charlieInfo.data!.metadata?.shared).toBe('true');
     });
   });
 
@@ -204,7 +204,7 @@ describe('Real Files Storage E2E Tests', () => {
           fileConfig.remotePath
         );
         expect(result.success).toBe(true);
-        expect(result.data.contentType).toBe(fileConfig.expectedType);
+        expect(result.data!.contentType).toBe(fileConfig.expectedType);
         
         uploadedFiles.push(fileConfig.remotePath);
         uploadResults.push({ ...result, config: fileConfig });
@@ -213,10 +213,10 @@ describe('Real Files Storage E2E Tests', () => {
       // ファイルリストを取得して確認
       const listResult = await aliceClient.storage.list('variety/');
       expect(listResult.success).toBe(true);
-      expect(listResult.data.files.length).toBe(4);
+      expect(listResult.data!.files.length).toBe(4);
       
       // 各ファイルタイプが正しく保存されていることを確認
-      const fileNames = listResult.data.files.map(f => f.name);
+      const fileNames = listResult.data!.files.map(f => f.name);
       files.forEach(file => {
         expect(fileNames).toContain(file.remotePath);
       });
@@ -245,8 +245,8 @@ describe('Real Files Storage E2E Tests', () => {
       // 上書き後のファイル情報を確認
       const infoResult = await aliceClient.storage.getInfo(remotePath);
       expect(infoResult.success).toBe(true);
-      expect(infoResult.data.contentType).toBe('application/json'); // CONFIGファイルのタイプ
-      expect(infoResult.data.metadata?.version).toBe('2');
+      expect(infoResult.data!.contentType).toBe('application/json'); // CONFIGファイルのタイプ
+      expect(infoResult.data!.metadata?.version).toBe('2');
     });
 
     it('should handle file deletion correctly', async () => {
@@ -300,10 +300,10 @@ describe('Real Files Storage E2E Tests', () => {
       // メタデータが正しく保存されていることを確認
       const infoResult = await aliceClient.storage.getInfo(remotePath);
       expect(infoResult.success).toBe(true);
-      expect(infoResult.data.metadata?.author).toBe('Alice');
-      expect(infoResult.data.metadata?.project).toBe('E2E Tests');
-      expect(infoResult.data.metadata?.priority).toBe('high');
-      expect(infoResult.data.metadata?.tags).toBe('test,storage,metadata');
+      expect(infoResult.data!.metadata?.author).toBe('Alice');
+      expect(infoResult.data!.metadata?.project).toBe('E2E Tests');
+      expect(infoResult.data!.metadata?.priority).toBe('high');
+      expect(infoResult.data!.metadata?.tags).toBe('test,storage,metadata');
     });
   });
 });
