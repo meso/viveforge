@@ -1,8 +1,8 @@
 import type { D1Database } from '@cloudflare/workers-types'
 import { Hono } from 'hono'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { AdminAuthManager, User } from '../../lib/admin-auth-manager'
 import { APIKeyManager } from '../../lib/api-key-manager'
-import type { User, VibebaseAuthClient } from '../../lib/auth-client'
 import { multiAuth } from '../../middleware/auth'
 import type { Env, Variables } from '../../types'
 import type { R2Bucket as CustomR2Bucket, KVNamespace } from '../../types/cloudflare'
@@ -17,7 +17,7 @@ describe('Multi-Auth Middleware', () => {
   let app: Hono<{ Bindings: Env; Variables: Variables }>
   let mockEnv: Env
   let mockAPIKeyManager: APIKeyManager
-  let mockAuthClient: VibebaseAuthClient
+  let mockAuthClient: AdminAuthManager
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -35,7 +35,7 @@ describe('Multi-Auth Middleware', () => {
       verifyRequest: vi.fn(),
       verifyJWT: vi.fn(),
       getLoginUrl: vi.fn().mockReturnValue('/auth/login'),
-    } as unknown as VibebaseAuthClient
+    } as unknown as AdminAuthManager
 
     mockEnv = {
       DB: {} as unknown as D1Database,

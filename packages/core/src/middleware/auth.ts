@@ -1,6 +1,6 @@
 import type { Context, Next } from 'hono'
+import type { AdminAuthManager, User as AdminUser } from '../lib/admin-auth-manager'
 import { APIKeyManager } from '../lib/api-key-manager'
-import type { User as AdminUser, VibebaseAuthClient } from '../lib/auth-client'
 import { UserAuthManager } from '../lib/user-auth-manager'
 import type { Env, Variables } from '../types'
 import type { AuthContext, User } from '../types/auth'
@@ -128,7 +128,7 @@ async function handleAdminJWTAuth(
   token: string
 ) {
   try {
-    const authClient = c.get('authClient') as VibebaseAuthClient
+    const authClient = c.get('authClient') as AdminAuthManager
 
     if (!authClient) {
       return c.json({ error: 'Authentication service unavailable' }, 503)
@@ -154,7 +154,7 @@ async function handleAdminJWTAuth(
 
 async function handleAdminAuth(c: Context<{ Bindings: Env; Variables: Variables }>, next: Next) {
   try {
-    const authClient = c.get('authClient') as VibebaseAuthClient
+    const authClient = c.get('authClient') as AdminAuthManager
 
     if (!authClient) {
       console.error('AuthClient not initialized')

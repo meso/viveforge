@@ -1,4 +1,4 @@
-import type { User, VibebaseAuthClient } from './lib/auth-client'
+import type { AdminAuthManager, User } from './lib/admin-auth-manager'
 import type { Database } from './lib/database'
 import type { LocalTableInfo, TableManager } from './lib/table-manager'
 import type { AuthContext } from './types/auth'
@@ -42,7 +42,7 @@ export interface Env {
 export interface Variables {
   tableManager?: TableManager
   db?: Database
-  authClient?: VibebaseAuthClient
+  authClient?: AdminAuthManager
   user?: User
   userId?: string
   adminId?: string

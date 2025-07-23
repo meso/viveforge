@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import type { VibebaseAuthClient } from '../lib/auth-client'
+import type { AdminAuthManager } from '../lib/admin-auth-manager'
 import { getCurrentDateTimeISO } from '../lib/datetime-utils'
 import { generateId } from '../lib/utils'
 import { getCurrentUser } from '../middleware/auth'
@@ -19,7 +19,7 @@ const auth = new Hono<{ Bindings: Env; Variables: Variables }>()
  */
 auth.get('/login', async (c) => {
   try {
-    const authClient = c.get('authClient') as VibebaseAuthClient
+    const authClient = c.get('authClient') as AdminAuthManager
     if (!authClient) {
       return serviceUnavailableResponse(c, 'Authentication service')
     }
@@ -45,7 +45,7 @@ auth.get('/callback', async (c) => {
   }
 
   try {
-    const authClient = c.get('authClient') as VibebaseAuthClient
+    const authClient = c.get('authClient') as AdminAuthManager
     if (!authClient) {
       throw new Error('Authentication service unavailable')
     }
@@ -145,7 +145,7 @@ auth.get('/callback', async (c) => {
  */
 auth.post('/logout', async (c) => {
   try {
-    const authClient = c.get('authClient') as VibebaseAuthClient
+    const authClient = c.get('authClient') as AdminAuthManager
     const refreshToken = c.req.raw.headers.get('Cookie')?.match(/refresh_token=([^;]+)/)?.[1]
 
     if (refreshToken && authClient) {
@@ -177,7 +177,7 @@ auth.post('/logout', async (c) => {
  */
 auth.get('/logout', async (c) => {
   try {
-    const authClient = c.get('authClient') as VibebaseAuthClient
+    const authClient = c.get('authClient') as AdminAuthManager
     const refreshToken = c.req.raw.headers.get('Cookie')?.match(/refresh_token=([^;]+)/)?.[1]
 
     if (refreshToken && authClient) {
@@ -208,7 +208,7 @@ auth.get('/logout', async (c) => {
  */
 auth.post('/refresh', async (c) => {
   try {
-    const authClient = c.get('authClient') as VibebaseAuthClient
+    const authClient = c.get('authClient') as AdminAuthManager
     const refreshToken = c.req.raw.headers.get('Cookie')?.match(/refresh_token=([^;]+)/)?.[1]
 
     if (!refreshToken) {

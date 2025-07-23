@@ -2,8 +2,8 @@ import type { ExecutionContext, ScheduledEvent } from '@cloudflare/workers-types
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
+import { AdminAuthManager } from './lib/admin-auth-manager'
 import { AppSettingsManager } from './lib/app-settings-manager'
-import { VibebaseAuthClient } from './lib/auth-client'
 import { getOrGenerateJWTSecret, logSecurityWarnings } from './lib/security-utils'
 import { multiAuth } from './middleware/auth'
 import { securityHeaders } from './middleware/security-headers'
@@ -90,7 +90,7 @@ app.use('*', async (c, next) => {
 // 認証クライアントを初期化してコンテキストに設定
 app.use('*', async (c, next) => {
   try {
-    const authClient = new VibebaseAuthClient(c.env)
+    const authClient = new AdminAuthManager(c.env)
     await authClient.initialize()
     c.set('authClient', authClient)
     await next()

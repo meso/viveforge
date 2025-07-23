@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { VibebaseAuthClient } from '../../lib/auth-client'
+import { AdminAuthManager } from '../../lib/admin-auth-manager'
 import type { Env } from '../../types'
 import type { KVNamespace, R2Bucket } from '../../types/cloudflare'
 
 // Type for testing private properties using index signature
-type VibebaseAuthClientWithPrivate = VibebaseAuthClient & {
+type AdminAuthManagerWithPrivate = AdminAuthManager & {
   [key: string]: unknown
 }
 
@@ -19,8 +19,8 @@ vi.mock('hono/jwt', () => ({
   verify: mockVerify,
 }))
 
-describe('VibebaseAuthClient', () => {
-  let authClient: VibebaseAuthClient
+describe('AdminAuthManager', () => {
+  let authClient: AdminAuthManager
   let env: Env
 
   beforeEach(() => {
@@ -39,34 +39,34 @@ describe('VibebaseAuthClient', () => {
       },
     }
 
-    authClient = new VibebaseAuthClient(env)
+    authClient = new AdminAuthManager(env)
   })
 
   describe('constructor', () => {
     it('should handle WORKER_DOMAIN without port number', () => {
       const envWithoutPort = { ...env, WORKER_DOMAIN: 'example.com' }
-      const client = new VibebaseAuthClient(envWithoutPort)
+      const client = new AdminAuthManager(envWithoutPort)
 
       // Private property access for testing - normally not recommended
       // biome-ignore lint/complexity/useLiteralKeys: Required for accessing private properties in tests
-      expect((client as VibebaseAuthClientWithPrivate)['deploymentDomain']).toBe('example.com')
+      expect((client as AdminAuthManagerWithPrivate)['deploymentDomain']).toBe('example.com')
     })
 
     it('should strip port number from WORKER_DOMAIN', () => {
       const envWithPort = { ...env, WORKER_DOMAIN: 'localhost:8787' }
-      const client = new VibebaseAuthClient(envWithPort)
+      const client = new AdminAuthManager(envWithPort)
 
       // Private property access for testing - normally not recommended
       // biome-ignore lint/complexity/useLiteralKeys: Required for accessing private properties in tests
-      expect((client as VibebaseAuthClientWithPrivate)['deploymentDomain']).toBe('localhost')
+      expect((client as AdminAuthManagerWithPrivate)['deploymentDomain']).toBe('localhost')
     })
 
     it('should handle complex domains with port', () => {
       const envWithComplexDomain = { ...env, WORKER_DOMAIN: 'api.example.com:3000' }
-      const client = new VibebaseAuthClient(envWithComplexDomain)
+      const client = new AdminAuthManager(envWithComplexDomain)
 
       // biome-ignore lint/complexity/useLiteralKeys: Required for accessing private properties in tests
-      expect((client as VibebaseAuthClientWithPrivate)['deploymentDomain']).toBe('api.example.com')
+      expect((client as AdminAuthManagerWithPrivate)['deploymentDomain']).toBe('api.example.com')
     })
   })
 
@@ -93,7 +93,7 @@ describe('VibebaseAuthClient', () => {
 
     it('should generate correct login URL with port number for localhost', () => {
       const envWithPort = { ...env, WORKER_DOMAIN: 'localhost:8787' }
-      const client = new VibebaseAuthClient(envWithPort)
+      const client = new AdminAuthManager(envWithPort)
 
       const loginUrl = client.getLoginUrl()
 

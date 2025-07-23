@@ -1,17 +1,17 @@
 import { Hono } from 'hono'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { VibebaseAuthClient } from '../../lib/auth-client'
+import type { AdminAuthManager } from '../../lib/admin-auth-manager'
 import { getCurrentUser, multiAuth } from '../../middleware/auth'
 import type { Env, Variables } from '../../types'
 import type { D1Database, KVNamespace, R2Bucket } from '../../types/cloudflare'
 
-// Mock VibebaseAuthClient
-vi.mock('../../lib/auth-client')
+// Mock AdminAuthManager
+vi.mock('../../lib/admin-auth-manager')
 
 describe('Auth Middleware', () => {
   let app: Hono<{ Bindings: Env; Variables: Variables }>
   let env: Env
-  let mockAuthClient: VibebaseAuthClient
+  let mockAuthClient: AdminAuthManager
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -36,7 +36,7 @@ describe('Auth Middleware', () => {
         .mockReturnValue(
           'https://auth.vibebase.workers.dev/auth/login?origin=https%3A%2F%2Ftest.example.com&redirect_to=%2F'
         ),
-    } as unknown as VibebaseAuthClient
+    } as unknown as AdminAuthManager
 
     app = new Hono<{ Bindings: Env; Variables: Variables }>()
 

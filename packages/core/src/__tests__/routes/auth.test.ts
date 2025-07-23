@@ -1,12 +1,12 @@
 import { Hono } from 'hono'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { VibebaseAuthClient } from '../../lib/auth-client'
+import type { AdminAuthManager } from '../../lib/admin-auth-manager'
 import { auth } from '../../routes/auth'
 import type { Env, Variables } from '../../types'
 import type { D1Database, KVNamespace, R2Bucket } from '../../types/cloudflare'
 
-// Mock VibebaseAuthClient
-vi.mock('../../lib/auth-client')
+// Mock AdminAuthManager
+vi.mock('../../lib/admin-auth-manager')
 
 // Mock fetch globally
 const mockFetch = vi.fn()
@@ -26,7 +26,7 @@ describe('Auth Routes', () => {
     initialize: ReturnType<typeof vi.fn>
     getDeploymentId: ReturnType<typeof vi.fn>
     verifyJWT: ReturnType<typeof vi.fn>
-    // Additional properties required by VibebaseAuthClient
+    // Additional properties required by AdminAuthManager
     env: Env
     registerDeployment: ReturnType<typeof vi.fn>
     getExistingDeployment: ReturnType<typeof vi.fn>
@@ -110,7 +110,7 @@ describe('Auth Routes', () => {
       verifyJWT: vi.fn(),
       initialize: vi.fn(),
       getDeploymentId: vi.fn(),
-      // Additional methods required by VibebaseAuthClient
+      // Additional methods required by AdminAuthManager
       env: env,
       registerDeployment: vi.fn(),
       getExistingDeployment: vi.fn(),
@@ -131,7 +131,7 @@ describe('Auth Routes', () => {
 
     // Setup middleware to inject mock auth client
     app.use('*', async (c, next) => {
-      c.set('authClient', mockAuthClient as unknown as VibebaseAuthClient)
+      c.set('authClient', mockAuthClient as unknown as AdminAuthManager)
       await next()
     })
 
@@ -460,7 +460,7 @@ describe('Auth Routes', () => {
       // Create a separate app instance for this test with user context
       const testApp = new Hono<{ Bindings: Env; Variables: Variables }>()
       testApp.use('*', async (c, next) => {
-        c.set('authClient', mockAuthClient as unknown as VibebaseAuthClient)
+        c.set('authClient', mockAuthClient as unknown as AdminAuthManager)
         c.set('user', mockUser) // Set user in context
         await next()
       })
@@ -507,7 +507,7 @@ describe('Auth Routes', () => {
       // Create a separate app instance for this test with user context
       const testApp = new Hono<{ Bindings: Env; Variables: Variables }>()
       testApp.use('*', async (c, next) => {
-        c.set('authClient', mockAuthClient as unknown as VibebaseAuthClient)
+        c.set('authClient', mockAuthClient as unknown as AdminAuthManager)
         c.set('user', mockUser) // Set user in context
         await next()
       })
