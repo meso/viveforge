@@ -75,7 +75,8 @@
       "Bash(VIBEBASE_API_URL=http://localhost:8787 VIBEBASE_API_KEY=vb_live_test123456789012345678901234567890 npx tsx team-task-app/seed.ts)",
       "Bash(VIBEBASE_API_URL=\"http://localhost:8787\" VIBEBASE_API_KEY=\"vb_live_test123456789012345678901234567890\" pnpm test push-notifications-user.test.ts --reporter=verbose)",
       "Bash(timeout:*)",
-      "Bash(npm seed:*)"
+      "Bash(npm seed:*)",
+      "WebFetch(domain:hono.dev)"
     ],
     "deny": []
   }

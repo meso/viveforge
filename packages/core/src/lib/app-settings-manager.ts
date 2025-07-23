@@ -107,10 +107,7 @@ export class AppSettingsManager {
           updated_at: string
         }>()
 
-      console.log('getSettingsForAPI result:', result)
-
       if (!result) {
-        console.log('No app_settings record found')
         return []
       }
 
@@ -135,7 +132,6 @@ export class AppSettingsManager {
         }
       }
 
-      console.log('getSettingsForAPI returning settings:', settings)
       return settings
     } catch (error) {
       if (error instanceof Error && error.message.includes('no such table')) {

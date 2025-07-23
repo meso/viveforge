@@ -106,8 +106,6 @@ auth.get('/callback', async (c) => {
         .prepare('UPDATE admins SET github_id = ?, updated_at = ? WHERE id = ?')
         .bind(githubId, getCurrentDateTimeISO(), existingAdmin.id)
         .run()
-
-      console.log(`Updated github_id for admin: ${githubUsername}`)
     }
 
     // Cookieでセッション管理

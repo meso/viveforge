@@ -89,7 +89,6 @@ export class SchemaManager {
       updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP${foreignKeys ? `, ${foreignKeys}` : ''}
     )`
 
-    console.log('Creating table with SQL:', sql)
     await this.db.prepare(sql).run()
   }
 
@@ -159,7 +158,6 @@ export class SchemaManager {
       snapshotType: 'pre_change',
     })
 
-    console.log('Adding column with SQL:', alterSQL)
     await this.db.prepare(alterSQL).run()
 
     // If foreign key is specified, we need to recreate the table (SQLite limitation)
@@ -185,7 +183,6 @@ export class SchemaManager {
 
     // SQLite 3.25.0+ supports ALTER TABLE RENAME COLUMN
     const sql = `ALTER TABLE ${safeTableName} RENAME COLUMN ${safeOldName} TO ${safeNewName}`
-    console.log('Renaming column with SQL:', sql)
     await this.db.prepare(sql).run()
   }
 
@@ -205,7 +202,6 @@ export class SchemaManager {
 
     // SQLite 3.35.0+ supports ALTER TABLE DROP COLUMN
     const sql = `ALTER TABLE ${safeTableName} DROP COLUMN ${safeColumnName}`
-    console.log('Dropping column with SQL:', sql)
     await this.db.prepare(sql).run()
   }
 
@@ -381,10 +377,6 @@ export class SchemaManager {
       tempTableName,
       columns
     )
-
-    console.log('Original SQL:', (tableInfo as TableInfo).sql)
-    console.log('Modified SQL:', modifiedSQL)
-    console.log('Temp table name:', tempTableName)
 
     // Create pre-change snapshot asynchronously
     this.createAsyncSnapshot({

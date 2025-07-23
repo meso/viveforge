@@ -10,26 +10,21 @@ const snapshots = new Hono<{ Bindings: Env; Variables: Variables }>()
 // Middleware
 snapshots.use('*', async (c, next) => {
   try {
-    console.log('Snapshots middleware: starting')
     const env = c.env
     if (!env.DB) {
       console.error('Snapshots middleware: Database not configured')
       return c.json({ error: 'Database not configured' }, 500)
     }
 
-    console.log('Snapshots middleware: Creating TableManager')
     const tableManager = new TableManager(env.DB, env.SYSTEM_STORAGE, c.executionCtx, {
       REALTIME: env.REALTIME as CustomDurableObjectNamespace,
       WORKER_DOMAIN: env.WORKER_DOMAIN,
     })
-    console.log('Snapshots middleware: Creating Database')
     const db = new Database(env.DB)
 
-    console.log('Snapshots middleware: Setting context variables')
     c.set('tableManager', tableManager)
     c.set('db', db)
 
-    console.log('Snapshots middleware: Proceeding to next')
     await next()
   } catch (error) {
     console.error('Snapshots middleware error:', error)
@@ -46,19 +41,15 @@ snapshots.use('*', async (c, next) => {
 // Get all snapshots
 snapshots.get('/', async (c) => {
   try {
-    console.log('Snapshots GET: starting')
     const limit = parseInt(c.req.query('limit') || '20')
     const offset = parseInt(c.req.query('offset') || '0')
-    console.log('Snapshots GET: parsed params', { limit, offset })
 
     const tableManager = c.get('tableManager')
     if (!tableManager) {
       console.error('Snapshots GET: TableManager not available')
       return c.json({ error: 'TableManager not available' }, 500)
     }
-    console.log('Snapshots GET: got tableManager, calling getSnapshots')
     const result = await tableManager.getSnapshots(limit, offset)
-    console.log('Snapshots GET: got result', result)
 
     return c.json(result)
   } catch (error) {
@@ -69,7 +60,6 @@ snapshots.get('/', async (c) => {
       console.error('Error message:', error.message)
       console.error('Error stack:', error.stack)
       if (error.message.includes('no such table')) {
-        console.log('Returning empty snapshots due to missing table')
         return c.json({ snapshots: [], total: 0 })
       }
     }

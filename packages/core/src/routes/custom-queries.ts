@@ -90,19 +90,16 @@ const testQuerySchema = z.object({
 // Get all custom queries
 customQueries.get('/', async (c) => {
   try {
-    console.log('Custom queries GET: starting')
     if (!c.env.DB) {
       console.error('Custom queries GET: Database not configured')
       return c.json({ error: 'Database not configured' }, 500)
     }
 
-    console.log('Custom queries GET: executing query')
     const result = await c.env.DB.prepare(`
       SELECT id, slug, name, description, sql_query, parameters, method, is_readonly, cache_ttl, is_enabled, created_at, updated_at
       FROM custom_queries
       ORDER BY name ASC
     `).all()
-    console.log('Custom queries GET: query result', result)
 
     // Parse parameters JSON for each query
     const queries = (result.results || []).map((query) => ({

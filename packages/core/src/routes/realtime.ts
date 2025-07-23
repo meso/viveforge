@@ -15,7 +15,6 @@ const subscribeSchema = z.object({
 
 // GET /api/realtime/test-sse - Simple test SSE endpoint
 realtime.get('/test-sse', async (_c) => {
-  console.log('Test SSE endpoint called')
   const { readable, writable } = new TransformStream()
   const writer = writable.getWriter()
   const encoder = new TextEncoder()
@@ -50,20 +49,15 @@ realtime.get('/test-sse', async (_c) => {
 
 // GET /api/realtime/sse - Server-Sent Events endpoint (using multiAuth middleware)
 realtime.get('/sse', async (c) => {
-  console.log('SSE: Endpoint called')
-
   // multiAuth middleware already handles token validation via URL parameter
   // The middleware supports both API keys and user JWT tokens
   const authContext = c.get('authContext')
 
   if (!authContext) {
-    console.log('SSE: No authentication context found')
     return c.text('Unauthorized - Authentication required', 401)
   }
 
-  console.log('SSE: Authentication successful, type:', authContext.type)
   if (authContext.type === 'user') {
-    console.log('SSE: User ID:', authContext.user.id)
   }
 
   // Create a simple SSE stream for testing

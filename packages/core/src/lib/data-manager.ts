@@ -41,12 +41,10 @@ export class DataManager {
 
   // Create a record in a table
   async createRecord(tableName: string, data: Record<string, unknown>): Promise<void> {
-    console.log('Enabling foreign keys before insert...')
     await this.enableForeignKeys()
 
     // Verify foreign keys are enabled
-    const pragmaResult = await this.db.prepare('PRAGMA foreign_keys').first()
-    console.log('Foreign keys status:', pragmaResult)
+    const _pragmaResult = await this.db.prepare('PRAGMA foreign_keys').first()
 
     // Validate table name and check if it's a system table
     validateNotSystemTable(tableName, SYSTEM_TABLES)
@@ -69,8 +67,6 @@ export class DataManager {
     const safeColumns = createColumnList(columns)
 
     const sql = `INSERT INTO ${safeTableName} (${safeColumns}) VALUES (${placeholders})`
-    console.log('Executing INSERT with foreign key constraints:', sql, 'Values:', values)
-    console.log('Data being inserted:', dataWithTimestamps)
 
     await this.db
       .prepare(sql)
@@ -470,7 +466,6 @@ export class DataManager {
 
   // Update record
   async updateRecord(tableName: string, id: string, data: Record<string, unknown>): Promise<void> {
-    console.log('updateRecord called:', { tableName, id, data })
     await this.enableForeignKeys()
 
     // Validate table name and check if it's a system table
@@ -484,7 +479,6 @@ export class DataManager {
 
     // Add updated_at timestamp
     updateData.updated_at = getCurrentDateTimeISO()
-    console.log('updateData after processing:', updateData)
 
     const columns = Object.keys(updateData)
     const values = Object.values(updateData)
@@ -492,15 +486,11 @@ export class DataManager {
     const setClause = safeColumns.map((col) => `${col} = ?`).join(', ')
 
     const sql = `UPDATE ${safeTableName} SET ${setClause} WHERE id = ?`
-    console.log('UPDATE SQL:', sql)
-    console.log('UPDATE values:', [...values, id])
 
-    const result = await this.db
+    const _result = await this.db
       .prepare(sql)
       .bind(...(values as (string | number | boolean | null)[]), id)
       .run()
-
-    console.log('UPDATE result:', result)
 
     // Process hooks after successful update
     await this.hookManager.processDataEvent(tableName, id, 'update', updateData, {

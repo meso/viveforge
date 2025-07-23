@@ -379,7 +379,6 @@ export class TableManager {
       snapshotType: 'pre_change',
     })
 
-    console.log('Adding column with SQL:', alterSQL)
     await this.db.prepare(alterSQL).run()
 
     // If foreign key is specified, we need to recreate the table (SQLite limitation)

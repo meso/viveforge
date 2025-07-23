@@ -110,7 +110,6 @@ storage.post('/files', async (c) => {
   }
 
   const contentType = c.req.header('content-type')
-  console.log(`[STORAGE] Upload request Content-Type: ${contentType}`)
 
   // More lenient Content-Type check for development/testing
   if (
@@ -127,24 +126,9 @@ storage.post('/files', async (c) => {
   }
 
   try {
-    console.log('[STORAGE] Attempting to parse FormData...')
     const formData = await c.req.formData()
-    console.log('[STORAGE] FormData parsed successfully')
 
     const file = formData.get('file')
-    console.log('[STORAGE] File from FormData:', {
-      exists: !!file,
-      type: typeof file,
-      isFile: file && typeof file === 'object' && 'name' in file && 'size' in file,
-      name:
-        file && typeof file === 'object' && 'name' in file
-          ? (file as { name: string }).name
-          : 'N/A',
-      size:
-        file && typeof file === 'object' && 'size' in file
-          ? (file as { size: number }).size
-          : 'N/A',
-    })
 
     if (!file || typeof file === 'string') {
       return errorResponse(c, 400, ErrorCode.VALIDATION_FAILED, 'No file provided')
@@ -278,10 +262,6 @@ storage.put('/files/:fileName', async (c) => {
     // Add default metadata
     customMetadata.originalName = fileName
     customMetadata.uploadedAt = new Date().toISOString()
-
-    console.log(
-      `[STORAGE] Uploading file: ${fileName}, size: ${arrayBuffer.byteLength}, contentType: ${contentType}`
-    )
 
     // Upload to R2
     const uploadResult = await bucket.put(fileName, arrayBuffer, {

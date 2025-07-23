@@ -1,6 +1,9 @@
+import { fetch } from 'cross-fetch'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { HttpClient } from '../lib/http-client'
 import { StorageClient } from '../lib/storage-client'
+
+vi.mock('cross-fetch')
 
 describe('StorageClient', () => {
   let storageClient: StorageClient
@@ -13,7 +16,11 @@ describe('StorageClient', () => {
       patch: vi.fn(),
       delete: vi.fn(),
       request: vi.fn(),
-    } as jest.Mocked<HttpClient>
+      config: {
+        baseUrl: 'https://test.example.com',
+        auth: {},
+      },
+    } as HttpClient
 
     storageClient = new StorageClient(mockHttpClient)
   })
@@ -42,11 +49,11 @@ describe('StorageClient', () => {
 
       const result = await storageClient.upload(fileName, file, options)
 
-      expect(mockHttpClient.request).toHaveBeenCalledWith('/api/storage/files', {
-        method: 'POST',
-        body: expect.stringContaining('Content-Disposition: form-data; name="file"'),
+      expect(mockHttpClient.request).toHaveBeenCalledWith('/api/storage/files/test.txt', {
+        method: 'PUT',
+        body: expect.any(ArrayBuffer),
         headers: expect.objectContaining({
-          'Content-Type': expect.stringContaining('multipart/form-data'),
+          'Content-Type': 'text/plain',
         }),
       })
       expect(result).toEqual(mockResponse)
@@ -70,11 +77,11 @@ describe('StorageClient', () => {
 
       const result = await storageClient.upload(fileName, file)
 
-      expect(mockHttpClient.request).toHaveBeenCalledWith('/api/storage/files', {
-        method: 'POST',
-        body: expect.stringContaining('Content-Disposition: form-data; name="file"'),
+      expect(mockHttpClient.request).toHaveBeenCalledWith('/api/storage/files/test.txt', {
+        method: 'PUT',
+        body: expect.any(ArrayBuffer),
         headers: expect.objectContaining({
-          'Content-Type': expect.stringContaining('multipart/form-data'),
+          'Content-Type': 'text/plain',
         }),
       })
       expect(result).toEqual(mockResponse)
@@ -213,7 +220,7 @@ describe('StorageClient', () => {
       const result = await storageClient.list()
 
       expect(mockHttpClient.get).toHaveBeenCalledWith('/api/storage/files', {})
-      expect(result.data).toEqual(mockResponse.data.files)
+      expect(result.data).toEqual(mockResponse.data)
     })
 
     it('should list files with prefix filter', async () => {
@@ -238,7 +245,7 @@ describe('StorageClient', () => {
       const result = await storageClient.list(prefix)
 
       expect(mockHttpClient.get).toHaveBeenCalledWith('/api/storage/files', { prefix })
-      expect(result.data).toEqual(mockResponse.data.files)
+      expect(result.data).toEqual(mockResponse.data)
     })
 
     it('should list files with extension filter', async () => {
@@ -263,7 +270,7 @@ describe('StorageClient', () => {
       const result = await storageClient.list(undefined, extension)
 
       expect(mockHttpClient.get).toHaveBeenCalledWith('/api/storage/files', { extension })
-      expect(result.data).toEqual(mockResponse.data.files)
+      expect(result.data).toEqual(mockResponse.data)
     })
 
     it('should list files with both prefix and extension filters', async () => {
@@ -279,7 +286,7 @@ describe('StorageClient', () => {
       const result = await storageClient.list(prefix, extension)
 
       expect(mockHttpClient.get).toHaveBeenCalledWith('/api/storage/files', { prefix, extension })
-      expect(result.data).toEqual([])
+      expect(result.data).toEqual({ files: [] })
     })
   })
 
@@ -424,21 +431,29 @@ describe('StorageClient', () => {
   })
 
   describe('download', () => {
-    it('should get download URL', async () => {
+    it('should download file content', async () => {
       const fileName = 'test.txt'
-      const mockResponse = {
-        success: true,
-        data: {
-          url: 'https://storage.example.com/test.txt?signature=abc123',
-        },
+      const mockContent = 'This is the file content'
+
+      // Mock fetch response
+      const mockFetchResponse = {
+        ok: true,
         status: 200,
+        text: vi.fn().mockResolvedValue(mockContent),
       }
-      mockHttpClient.get.mockResolvedValue(mockResponse)
+      vi.mocked(fetch).mockResolvedValue(mockFetchResponse as Response)
 
       const result = await storageClient.download(fileName)
 
-      expect(mockHttpClient.get).toHaveBeenCalledWith('/api/storage/files/test.txt/download')
-      expect(result).toEqual(mockResponse)
+      expect(fetch).toHaveBeenCalledWith(
+        'https://test.example.com/api/storage/files/test.txt/content',
+        expect.objectContaining({
+          method: 'GET',
+          headers: expect.any(Headers),
+        })
+      )
+      expect(result.success).toBe(true)
+      expect(result.data).toBe(mockContent)
     })
   })
 

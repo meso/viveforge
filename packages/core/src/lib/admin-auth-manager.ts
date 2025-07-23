@@ -137,9 +137,6 @@ export class AdminAuthManager {
    * デプロイメント登録
    */
   private async registerDeployment(): Promise<void> {
-    console.log(`Registering deployment with auth server: ${this.authBaseUrl}`)
-    console.log(`Deployment domain: ${this.deploymentDomain}`)
-
     try {
       const response = await fetch(`${this.authBaseUrl}/api/deployments/register`, {
         method: 'POST',
@@ -159,8 +156,6 @@ export class AdminAuthManager {
         }),
       })
 
-      console.log(`Registration response status: ${response.status}`)
-
       if (!response.ok) {
         const errorResponse = await response.json().catch(() => ({ error: 'Unknown error' }))
         console.error(`Registration failed with response:`, errorResponse)
@@ -174,7 +169,6 @@ export class AdminAuthManager {
             typeof errorResponse.error === 'string' &&
             errorResponse.error.includes('already registered'))
         ) {
-          console.log('Domain already registered, attempting to get existing deployment...')
           return await this.getExistingDeployment()
         }
 
@@ -319,7 +313,6 @@ export class AdminAuthManager {
       // Authorization ヘッダーからトークン取得
       const authHeader = c.req.header('Authorization')
       if (authHeader?.startsWith('Bearer ')) {
-        console.log('Found Authorization header')
         const token = authHeader.substring(7)
         return await this.verifyToken(token)
       }
@@ -522,8 +515,6 @@ export class AdminAuthManager {
    * トークンペイロード検証
    */
   private validateTokenPayload(payload: JWTPayload): void {
-    const now = Math.floor(Date.now() / 1000)
-
     // 重要: audフィールドが自分のドメインと一致するかチェック
     if (!payload.aud || payload.aud !== this.deploymentDomain) {
       throw new Error(`Invalid audience: expected ${this.deploymentDomain}, got ${payload.aud}`)
@@ -540,18 +531,20 @@ export class AdminAuthManager {
       throw new Error(`Invalid issuer: ${payload.iss}`)
     }
 
-    // 有効期限チェック
-    if (!payload.exp || payload.exp < now) {
-      throw new Error('Token expired')
-    }
-
     // トークンタイプチェック
     if (!payload.token_type || payload.token_type !== 'access') {
       throw new Error('Invalid token type')
     }
 
-    // 有効開始時刻チェック
-    if (payload.nbf && payload.nbf > now) {
+    const now = Math.floor(Date.now() / 1000)
+
+    // 有効期限チェック
+    if (!payload.exp || payload.exp < now) {
+      throw new Error('Token expired')
+    }
+
+    // 有効開始時刻チェック（時刻のずれを考慮して30秒の許容範囲を設ける）
+    if (payload.nbf && payload.nbf > now + 30) {
       throw new Error('Token not yet valid')
     }
   }

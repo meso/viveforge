@@ -55,19 +55,9 @@ export class StorageClient {
       // This is a workaround for Vitest/JSDOM File polyfill limitations
       const fileAsUnknown = file as unknown as { data?: Uint8Array; [key: string]: unknown }
 
-      console.log('[STORAGE-CLIENT] File debug info:', {
-        name: (file as File).name || 'unknown',
-        size: (file as Blob).size,
-        type: (file as Blob).type,
-        keys: Object.keys(fileAsUnknown),
-        hasIndexZero: typeof fileAsUnknown[0],
-        firstItem: fileAsUnknown[0],
-      })
-
       if (fileAsUnknown[0] && typeof fileAsUnknown[0] === 'string') {
         // File was created with string content
         const text = fileAsUnknown[0]
-        console.log('[STORAGE-CLIENT] Extracted text from file[0]:', text.length, 'chars')
         const encoder = new TextEncoder()
         arrayBuffer = encoder.encode(text).buffer
       } else {
@@ -75,10 +65,6 @@ export class StorageClient {
         const possibleContent =
           fileAsUnknown._data || fileAsUnknown.data || fileAsUnknown._buffer || fileAsUnknown.buffer
         if (possibleContent) {
-          console.log(
-            '[STORAGE-CLIENT] Found content in alternative property:',
-            typeof possibleContent
-          )
           if (typeof possibleContent === 'string') {
             const encoder = new TextEncoder()
             arrayBuffer = encoder.encode(possibleContent).buffer
@@ -376,7 +362,6 @@ export class StorageClient {
 
       // Get the text content of the file
       const textContent = await response.text()
-      console.log('[STORAGE-CLIENT] Downloaded content length:', textContent.length)
 
       return {
         success: true,

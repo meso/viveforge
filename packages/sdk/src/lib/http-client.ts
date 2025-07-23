@@ -23,7 +23,6 @@ export class HttpClient {
    */
   async request<T = unknown>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
     const url = `${this.config.baseUrl}${endpoint}`
-    console.log('[HTTP-CLIENT] HTTP Request:', options.method || 'GET', url)
 
     const headers = this.buildHeaders(options.headers)
 
@@ -38,11 +37,8 @@ export class HttpClient {
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        console.log(`[HTTP-CLIENT] Attempt ${attempt + 1} of ${maxRetries + 1}: Fetching ${url}`)
         const response = await fetch(url, requestOptions)
-        console.log(`Response status: ${response.status} ${response.statusText}`)
         const result = await this.handleResponse<T>(response)
-        console.log('Response handled successfully:', result.success ? 'SUCCESS' : 'ERROR')
         return result
       } catch (error) {
         console.error(`Request attempt ${attempt + 1} failed:`, error)
@@ -50,13 +46,11 @@ export class HttpClient {
 
         // Don't retry on client errors (4xx)
         if (error instanceof Error && error.message.includes('4')) {
-          console.log('Client error detected, not retrying')
           break
         }
 
         // Wait before retry (exponential backoff)
         if (attempt < maxRetries) {
-          console.log(`Retrying in ${2 ** attempt * 1000}ms...`)
           await this.delay(2 ** attempt * 1000)
         }
       }

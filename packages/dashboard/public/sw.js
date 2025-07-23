@@ -25,11 +25,17 @@ self.addEventListener('install', event => {
           console.error('Cache failed:', error);
         }),
       
-      // Manual test notification
-      self.registration.showNotification('Service Worker Test', {
-        body: 'Service Worker updated successfully!',
-        icon: '/favicon.svg',
-        tag: 'sw-test'
+      // Manual test notification (only after registration is complete)
+      Promise.resolve().then(() => {
+        if (self.registration && self.registration.active) {
+          return self.registration.showNotification('Service Worker Test', {
+            body: 'Service Worker updated successfully!',
+            icon: '/favicon.svg',
+            tag: 'sw-test'
+          });
+        }
+      }).catch(error => {
+        console.log('Test notification failed (normal during install):', error);
       })
     ])
   );

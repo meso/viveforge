@@ -96,14 +96,11 @@ async function getVapidConfig(env: Env): Promise<{
     return { valid: false, error: 'Database not configured' }
   }
 
-  console.log('VAPID Debug - WORKER_DOMAIN:', env.WORKER_DOMAIN)
   const workerDomain = env.WORKER_DOMAIN || 'localhost:8787'
-  console.log('VAPID Debug - Using domain:', workerDomain)
   const vapidStorage = new VapidStorage(env.DB, workerDomain)
 
   // Get VAPID keys from database
   const storedKeys = await vapidStorage.retrieve()
-  console.log('VAPID Debug - storedKeys:', storedKeys ? 'Found' : 'Not found')
   if (storedKeys) {
     return {
       valid: true,
@@ -151,16 +148,11 @@ push.post('/initialize', async (c) => {
   }
 
   try {
-    console.log('Starting VAPID initialization...')
-
     const vapidStorage = new VapidStorage(c.env.DB, c.env.WORKER_DOMAIN)
 
     // Check if already configured
-    console.log('Checking if VAPID is already configured...')
     if (await vapidStorage.isConfigured()) {
-      console.log('VAPID already configured, deleting existing keys...')
       await vapidStorage.delete()
-      console.log('Existing VAPID keys deleted')
     }
 
     // Generate and store keys automatically

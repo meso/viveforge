@@ -272,8 +272,6 @@ export default {
 
       if (!response.ok) {
         console.error('Failed to process events via cron:', response.status, await response.text())
-      } else {
-        console.log('Cron event processing completed successfully')
       }
     } catch (error) {
       console.error('Error in cron handler:', error)

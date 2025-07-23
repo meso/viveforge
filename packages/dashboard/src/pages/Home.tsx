@@ -144,11 +144,11 @@ export function HomePage() {
                 <span class="text-green-600">Get table data</span>
               </div>
               <div class="flex justify-between">
-                <code class="text-gray-600">GET /api/storage</code>
+                <code class="text-gray-600">GET /api/storage/files</code>
                 <span class="text-green-600">List files</span>
               </div>
               <div class="flex justify-between">
-                <code class="text-gray-600">POST /api/storage/upload</code>
+                <code class="text-gray-600">POST /api/storage/files</code>
                 <span class="text-green-600">Upload file</span>
               </div>
             </div>

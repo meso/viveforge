@@ -5,10 +5,10 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "test:clean": "npm run setup && npm run seed && npm run test",
+    "test:clean": "npm run cleanup && npm run seed && npm run test",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "setup": "tsx --env-file .env.test team-task-app/setup.ts",
+    "cleanup": "tsx --env-file .env.test team-task-app/setup.ts",
     "seed": "tsx --env-file .env.test team-task-app/seed.ts",
     "teardown": "tsx --env-file .env.test team-task-app/teardown.ts",
     "simple-test": "tsx --env-file .env.test team-task-app/simple-test.ts",

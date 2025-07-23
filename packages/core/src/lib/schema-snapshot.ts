@@ -303,13 +303,9 @@ export class SchemaSnapshotManager {
   // Get all snapshots
   async getSnapshots(limit = 20, offset = 0): Promise<SnapshotListResult> {
     try {
-      console.log('Getting snapshots with limit:', limit, 'offset:', offset)
-
       const countResult = await this.db
         .prepare('SELECT COUNT(*) as total FROM schema_snapshots')
         .first()
-
-      console.log('Count result:', countResult)
 
       const result = await this.db
         .prepare(`
@@ -322,8 +318,6 @@ export class SchemaSnapshotManager {
         `)
         .bind(limit, offset)
         .all()
-
-      console.log('Query result:', result)
 
       const snapshots: SchemaSnapshot[] = (result.results || []).map(
         (row: Record<string, unknown>) => ({
@@ -346,13 +340,11 @@ export class SchemaSnapshotManager {
         total: (countResult as CountResult)?.total || 0,
       }
 
-      console.log('Final result:', finalResult)
       return finalResult
     } catch (error) {
       console.error('Error in getSnapshots:', error)
       // If table doesn't exist, return empty result instead of throwing
       if (error instanceof Error && error.message.includes('no such table')) {
-        console.log('Table does not exist, returning empty result')
         return {
           snapshots: [],
           total: 0,

@@ -234,7 +234,6 @@ export class HookManager {
       })
 
       await notificationManager.processDbChange(tableName, eventType, eventData)
-      console.log(`Push notifications processed for ${tableName}:${eventType}`)
     } catch (error) {
       console.error('Push notification processing failed:', error)
       // エラーでもメイン処理には影響しない
@@ -272,8 +271,6 @@ export class HookManager {
       if (!response.ok) {
         throw new Error(`Broadcast failed: ${response.status}`)
       }
-
-      console.log(`Realtime broadcast successful for ${tableName}:${eventType}:${recordId}`)
     } catch (error) {
       console.error('Realtime broadcast failed:', error)
       // エラーでもメイン処理には影響しない
