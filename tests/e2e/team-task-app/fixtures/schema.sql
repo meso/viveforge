@@ -11,12 +11,17 @@ CREATE TABLE IF NOT EXISTS teams (
   created_by TEXT NOT NULL
 );
 
--- Team members table: チームメンバー管理
-CREATE TABLE IF NOT EXISTS team_members (
+-- Members table: チームメンバー管理とチーム固有プロフィール
+CREATE TABLE IF NOT EXISTS members (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
   team_id TEXT NOT NULL,
   user_id TEXT NOT NULL,
   role TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'member')),
+  display_name TEXT NOT NULL,
+  avatar_url TEXT,
+  bio TEXT,
+  job_title TEXT,
+  timezone TEXT,
   joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   invited_by TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -101,8 +106,8 @@ CREATE TABLE IF NOT EXISTS activity_logs (
 
 
 -- Indexes for performance
-CREATE INDEX idx_team_members_team_id ON team_members(team_id);
-CREATE INDEX idx_team_members_user_id ON team_members(user_id);
+CREATE INDEX idx_members_team_id ON members(team_id);
+CREATE INDEX idx_members_user_id ON members(user_id);
 CREATE INDEX idx_projects_team_id ON projects(team_id);
 CREATE INDEX idx_tasks_project_id ON tasks(project_id);
 CREATE INDEX idx_tasks_assigned_to ON tasks(assigned_to);

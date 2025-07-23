@@ -6,7 +6,7 @@ import { createClient } from '@vibebase/sdk';
 import {
   testUsers,
   generateTeams,
-  generateTeamMembers,
+  generateMembers,
   generateProjects,
   generateTasks,
   generateTaskComments,
@@ -78,17 +78,17 @@ async function seedData() {
       }
     }
 
-    console.log('\n👥 Creating team memberships...');
-    const teamMembers = generateTeamMembers(teamIds, userIds);
+    console.log('\n👥 Creating team memberships with profiles...');
+    const members = generateMembers(teamIds, userIds);
     
-    for (const memberData of teamMembers) {
+    for (const memberData of members) {
       try {
-        const response = await vibebase.data.create('team_members', memberData);
+        const response = await vibebase.data.create('members', memberData);
         if (!response.success) {
           console.error(`   ❌ Failed to add team member:`, response.error);
           // チームメンバーシップの失敗は続行可能
         } else {
-          console.log(`   ✅ Added member to team`);
+          console.log(`   ✅ Added member to team: ${memberData.display_name}`);
         }
       } catch (error) {
         console.error(`   ❌ Failed to create team membership:`, error);
@@ -178,6 +178,9 @@ async function seedData() {
       }
     }
 
+    console.log('\n🔐 User sessions already created in setup...');
+    console.log('   ℹ️  User sessions are pre-created during setup phase');
+
     console.log('\n📊 Skipping activity logs creation...');
     console.log('   ℹ️  Activity logs skipped (validation issues)');
 
@@ -210,6 +213,7 @@ async function seedData() {
     console.log(`   Projects: ${projectIds.length}`);
     console.log(`   Tasks: ${taskIds.length}`);
     console.log(`   Comments: ${comments.length}`);
+    console.log(`   User Sessions: 3 (pre-created in setup)`);
     console.log(`   Activities: 0 (skipped)`);
     console.log('');
     console.log('🚀 Ready to run E2E tests!');

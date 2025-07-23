@@ -50,9 +50,8 @@ describe('Storage (R2) Features E2E Tests', () => {
     it('should upload a text file', async () => {
       const fileName = 'test-document.txt';
       const content = 'This is a test document for E2E testing.';
-      const blob = new Blob([content], { type: 'text/plain' });
 
-      const result = await vibebase.storage.upload(fileName, blob, {
+      const result = await vibebase.storage.upload(fileName, content, {
         contentType: 'text/plain',
         metadata: {
           purpose: 'e2e-test',
@@ -81,9 +80,8 @@ describe('Storage (R2) Features E2E Tests', () => {
         ]
       };
       const content = JSON.stringify(data, null, 2);
-      const blob = new Blob([content], { type: 'application/json' });
 
-      const result = await vibebase.storage.upload(fileName, blob, {
+      const result = await vibebase.storage.upload(fileName, content, {
         contentType: 'application/json',
         metadata: {
           type: 'test-data',
@@ -104,9 +102,7 @@ describe('Storage (R2) Features E2E Tests', () => {
 1,"Task 1",todo,high
 2,"Task 2",in_progress,medium
 3,"Task 3",done,low`;
-      const blob = new Blob([csvContent], { type: 'text/csv' });
-
-      const result = await vibebase.storage.upload(fileName, blob, {
+      const result = await vibebase.storage.upload(fileName, csvContent, {
         contentType: 'text/csv',
         metadata: {
           format: 'csv',
@@ -125,9 +121,8 @@ describe('Storage (R2) Features E2E Tests', () => {
       const fileName = 'test-image.png';
       // PNG ファイルのヘッダーをシミュレート
       const pngHeader = new Uint8Array([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
-      const blob = new Blob([pngHeader], { type: 'image/png' });
 
-      const result = await vibebase.storage.upload(fileName, blob, {
+      const result = await vibebase.storage.upload(fileName, pngHeader, {
         contentType: 'image/png',
         metadata: {
           type: 'image',
@@ -148,11 +143,12 @@ describe('Storage (R2) Features E2E Tests', () => {
       const result = await vibebase.storage.list();
 
       expect(result.success).toBe(true);
-      expect(Array.isArray(result.data)).toBe(true);
-      expect(result.data.length).toBeGreaterThan(0);
+      expect(result.data).toBeDefined();
+      expect(Array.isArray(result.data.files)).toBe(true);
+      expect(result.data.files.length).toBeGreaterThan(0);
 
       // アップロードしたファイルが含まれていることを確認
-      const uploadedFileNames = result.data.map(file => file.name);
+      const uploadedFileNames = result.data.files.map(file => file.name);
       expect(uploadedFileNames).toContain('test-document.txt');
       expect(uploadedFileNames).toContain('test-data.json');
     });
@@ -161,10 +157,11 @@ describe('Storage (R2) Features E2E Tests', () => {
       const result = await vibebase.storage.list('test-');
 
       expect(result.success).toBe(true);
-      expect(Array.isArray(result.data)).toBe(true);
+      expect(result.data).toBeDefined();
+      expect(Array.isArray(result.data.files)).toBe(true);
 
       // すべてのファイルが 'test-' で始まることを確認
-      for (const file of result.data) {
+      for (const file of result.data.files) {
         expect(file.name.startsWith('test-')).toBe(true);
       }
     });
@@ -173,10 +170,11 @@ describe('Storage (R2) Features E2E Tests', () => {
       const result = await vibebase.storage.list('', '.json');
 
       expect(result.success).toBe(true);
-      expect(Array.isArray(result.data)).toBe(true);
+      expect(result.data).toBeDefined();
+      expect(Array.isArray(result.data.files)).toBe(true);
 
       // すべてのファイルが .json で終わることを確認
-      for (const file of result.data) {
+      for (const file of result.data.files) {
         expect(file.name.endsWith('.json')).toBe(true);
       }
     });
@@ -200,13 +198,10 @@ describe('Storage (R2) Features E2E Tests', () => {
     it('should handle missing file info request', async () => {
       const fileName = 'non-existent-file.txt';
       
-      try {
-        await vibebase.storage.getInfo(fileName);
-        // エラーが発生すべき
-        expect(true).toBe(false);
-      } catch (error: any) {
-        expect(error.message).toContain('not found');
-      }
+      const result = await vibebase.storage.getInfo(fileName);
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
     });
   });
 
@@ -218,8 +213,8 @@ describe('Storage (R2) Features E2E Tests', () => {
 
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
-      expect(result.data.url).toBeDefined();
-      expect(result.data.url.includes(fileName)).toBe(true);
+      expect(typeof result.data).toBe('string');
+      expect(result.data).toContain('This is a test document for E2E testing.');
     });
 
     it('should generate presigned URL for download', async () => {
@@ -273,9 +268,8 @@ describe('Storage (R2) Features E2E Tests', () => {
     it('should replace file content', async () => {
       const fileName = 'test-document.txt';
       const newContent = 'This is the updated content for the test document.';
-      const blob = new Blob([newContent], { type: 'text/plain' });
 
-      const result = await vibebase.storage.upload(fileName, blob, {
+      const result = await vibebase.storage.upload(fileName, newContent, {
         contentType: 'text/plain',
         metadata: {
           purpose: 'updated-content',
@@ -310,8 +304,7 @@ describe('Storage (R2) Features E2E Tests', () => {
       ];
 
       for (const file of files) {
-        const blob = new Blob([file.content], { type: file.type });
-        const result = await vibebase.storage.upload(file.name, blob, {
+        const result = await vibebase.storage.upload(file.name, file.content, {
           contentType: file.type,
           metadata: {
             batch: 'bulk-upload-test',
@@ -325,7 +318,7 @@ describe('Storage (R2) Features E2E Tests', () => {
 
       // アップロードされたファイルを確認
       const listResult = await vibebase.storage.list('bulk-file-');
-      expect(listResult.data.length).toBe(3);
+      expect(listResult.data.files.length).toBe(3);
     });
 
     it('should delete multiple files', async () => {
@@ -344,8 +337,8 @@ describe('Storage (R2) Features E2E Tests', () => {
 
       // ファイルが削除されたことを確認
       const listResult = await vibebase.storage.list('bulk-file-');
-      expect(listResult.data.length).toBe(1);
-      expect(listResult.data[0].name).toBe('bulk-file-3.txt');
+      expect(listResult.data.files.length).toBe(1);
+      expect(listResult.data.files[0].name).toBe('bulk-file-3.txt');
     });
   });
 
@@ -354,9 +347,7 @@ describe('Storage (R2) Features E2E Tests', () => {
       const fileName = 'large-file.txt';
       // 1MB のファイルをシミュレート
       const largeContent = 'x'.repeat(1024 * 1024);
-      const blob = new Blob([largeContent], { type: 'text/plain' });
-
-      const result = await vibebase.storage.upload(fileName, blob, {
+      const result = await vibebase.storage.upload(fileName, largeContent, {
         contentType: 'text/plain',
         metadata: {
           size: 'large',
@@ -386,9 +377,7 @@ describe('Storage (R2) Features E2E Tests', () => {
     it('should respect file access permissions', async () => {
       const fileName = 'private-file.txt';
       const content = 'This is a private file';
-      const blob = new Blob([content], { type: 'text/plain' });
-
-      const result = await vibebase.storage.upload(fileName, blob, {
+      const result = await vibebase.storage.upload(fileName, content, {
         contentType: 'text/plain',
         metadata: {
           access: 'private',
@@ -405,10 +394,9 @@ describe('Storage (R2) Features E2E Tests', () => {
     it('should validate file types', async () => {
       const fileName = 'test-file.exe';
       const content = 'This should not be allowed';
-      const blob = new Blob([content], { type: 'application/x-executable' });
 
       try {
-        await vibebase.storage.upload(fileName, blob, {
+        await vibebase.storage.upload(fileName, content, {
           contentType: 'application/x-executable'
         });
         
@@ -426,12 +414,9 @@ describe('Storage (R2) Features E2E Tests', () => {
     it('should handle download of non-existent file', async () => {
       const fileName = 'non-existent-file.txt';
       
-      try {
-        await vibebase.storage.download(fileName);
-        expect(true).toBe(false);
-      } catch (error: any) {
-        expect(error.message).toContain('not found');
-      }
+      const result = await vibebase.storage.download(fileName);
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
     });
 
     it('should handle deletion of non-existent file', async () => {
@@ -450,8 +435,7 @@ describe('Storage (R2) Features E2E Tests', () => {
       
       for (const fileName of invalidNames) {
         try {
-          const blob = new Blob(['test'], { type: 'text/plain' });
-          await vibebase.storage.upload(fileName, blob);
+          await vibebase.storage.upload(fileName, 'test');
           expect(true).toBe(false);
         } catch (error: any) {
           expect(error.message).toContain('invalid');

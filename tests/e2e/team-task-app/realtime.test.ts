@@ -114,8 +114,8 @@ describe('Realtime Features E2E Tests', () => {
 
       expect(subscription).toBeDefined();
       
-      // 少し待って接続を確立
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // 少し待って接続を確立（短縮）
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // タスクを作成してイベントが発火するかテスト
       const newTaskResponse = await vibebase.data.create('tasks', {
@@ -130,8 +130,8 @@ describe('Realtime Features E2E Tests', () => {
         createdTaskIds.push(newTask.id);
       }
 
-      // イベントが発火するまで待機
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // イベントが発火するまで待機（短縮）
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // イベントが受信されたことを確認
       expect(events.length).toBeGreaterThan(0);
@@ -171,8 +171,8 @@ describe('Realtime Features E2E Tests', () => {
         events.push(event);
       });
 
-      // 接続を確立
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // 接続を確立（短縮）
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // タスクを更新
       await vibebase.data.update('tasks', task.id, {
@@ -180,8 +180,8 @@ describe('Realtime Features E2E Tests', () => {
         assigned_to: testUsers[1].id
       });
 
-      // イベントが発火するまで待機
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // イベントが発火するまで待機（短縮）
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // 現在はテストイベントのみを受信するため、それを確認
       expect(events.length).toBeGreaterThan(0);
@@ -209,14 +209,14 @@ describe('Realtime Features E2E Tests', () => {
         events.push(event);
       });
 
-      // 接続を確立
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // 接続を確立（短縮）
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // タスクを削除
       await vibebase.data.delete('tasks', task.id);
 
-      // イベントが発火するまで待機
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // イベントが発火するまで待機（短縮）
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // 現在はテストイベントのみを受信するため、それを確認
       expect(events.length).toBeGreaterThan(0);
@@ -236,8 +236,8 @@ describe('Realtime Features E2E Tests', () => {
         events.push(event);
       });
 
-      // 接続を確立
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // 接続を確立（短縮）
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // 他のプロジェクトを作成
       const otherProjectResponse = await vibebase.data.create('projects', {
@@ -271,8 +271,8 @@ describe('Realtime Features E2E Tests', () => {
       });
       const otherTask = otherTaskResponse.success ? otherTaskResponse.data : otherTaskResponse as any;
 
-      // イベントが発火するまで待機
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // イベントが発火するまで待機（短縮）
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // 現在はテストイベントのみを受信するため、それを確認
       expect(events.length).toBeGreaterThan(0);
@@ -302,8 +302,8 @@ describe('Realtime Features E2E Tests', () => {
         projectEvents.push(event);
       });
 
-      // 接続を確立
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // 接続を確立（短縮）
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // データを作成
       const newProjectResponse = await vibebase.data.create('projects', {
@@ -326,8 +326,8 @@ describe('Realtime Features E2E Tests', () => {
         createdTaskIds.push(newTask.id);
       }
 
-      // イベントが発火するまで待機
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // イベントが発火するまで待機（短縮）
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // 現在はテストイベントのみを受信するため、それを確認
       expect(taskEvents.length).toBeGreaterThan(0);
@@ -353,8 +353,8 @@ describe('Realtime Features E2E Tests', () => {
         events.push(event);
       });
 
-      // 接続を確立
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // 接続を確立（短縮）
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // 最初のタスクを作成
       const task1Response = await vibebase.data.create('tasks', {
@@ -384,8 +384,8 @@ describe('Realtime Features E2E Tests', () => {
         createdTaskIds.push(task2.id);
       }
 
-      // イベントが発火するまで待機
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // イベントが発火するまで待機（短縮）
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // 現在はテストイベントのみを受信するため、それを確認
       expect(events.length).toBeGreaterThan(0);
@@ -402,8 +402,8 @@ describe('Realtime Features E2E Tests', () => {
         events.push(event);
       });
 
-      // 接続を確立
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // 接続を確立（短縮）
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // いくつかイベントを受信
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -440,8 +440,8 @@ describe('Realtime Features E2E Tests', () => {
         events.push(event);
       });
 
-      // 接続を確立
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // 接続を確立（短縮）
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // 複数のタスクを素早く作成
       const tasks = [];
@@ -487,8 +487,8 @@ describe('Realtime Features E2E Tests', () => {
         events.push(event);
       });
 
-      // 接続を確立
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // 接続を確立（短縮）
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // バルク作成
       const bulkTasks = Array.from({ length: 3 }, (_, i) => ({

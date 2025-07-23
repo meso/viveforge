@@ -3,7 +3,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createClient, type VibebaseClient } from '@vibebase/sdk';
-import type { Team, TeamMember, User } from './fixtures/types';
+import type { Team, Member, User } from './fixtures/types';
 
 describe('Team Management E2E Tests', () => {
   let vibebase: VibebaseClient;
@@ -204,20 +204,22 @@ describe('Team Management E2E Tests', () => {
       }
 
       // 最初のメンバー（owner）を追加
-      await vibebase.data.create('team_members', {
+      await vibebase.data.create('members', {
         team_id: testTeam.id,
         user_id: testUsers[0].id,
         role: 'owner',
+        display_name: 'Alice (Team Owner)',
         invited_by: testUsers[0].id
       } as any);
     });
 
     it('should add members to team', async () => {
       // メンバーを追加
-      const response = await vibebase.data.create('team_members', {
+      const response = await vibebase.data.create('members', {
         team_id: testTeam.id,
         user_id: testUsers[1].id,
         role: 'member',
+        display_name: 'Bob (Team Member)',
         invited_by: testUsers[0].id
       } as any);
 
@@ -229,7 +231,7 @@ describe('Team Management E2E Tests', () => {
     });
 
     it('should list team members', async () => {
-      const members = await vibebase.data.list<TeamMember>('team_members', {
+      const members = await vibebase.data.list<Member>('members', {
         where: { team_id: testTeam.id }
       });
 
@@ -242,7 +244,7 @@ describe('Team Management E2E Tests', () => {
 
     it('should update member role', async () => {
       // Bob のメンバーシップを取得
-      const members = await vibebase.data.list<TeamMember>('team_members', {
+      const members = await vibebase.data.list<Member>('members', {
         where: { 
           team_id: testTeam.id,
           user_id: testUsers[1].id
@@ -253,7 +255,7 @@ describe('Team Management E2E Tests', () => {
       const memberId = members.data[0].id;
 
       // roleをadminに変更
-      const updated = await vibebase.data.update<TeamMember>('team_members', memberId, {
+      const updated = await vibebase.data.update<Member>('members', memberId, {
         role: 'admin'
       });
 
@@ -263,10 +265,11 @@ describe('Team Management E2E Tests', () => {
 
     it('should prevent duplicate memberships', async () => {
       // 既に存在するメンバーシップを再度作成しようとする
-      const duplicateResult = await vibebase.data.create('team_members', {
+      const duplicateResult = await vibebase.data.create('members', {
         team_id: testTeam.id,
         user_id: testUsers[1].id,
         role: 'member',
+        display_name: 'Bob (Duplicate)',
         invited_by: testUsers[0].id
       } as any);
       
@@ -276,10 +279,11 @@ describe('Team Management E2E Tests', () => {
 
     it('should remove member from team', async () => {
       // Charlieを追加してから削除
-      const response = await vibebase.data.create('team_members', {
+      const response = await vibebase.data.create('members', {
         team_id: testTeam.id,
         user_id: testUsers[2].id,
         role: 'member',
+        display_name: 'Charlie (Temp Member)',
         invited_by: testUsers[0].id
       } as any);
 
@@ -289,10 +293,10 @@ describe('Team Management E2E Tests', () => {
         throw new Error('Member creation failed');
       }
 
-      await vibebase.data.delete('team_members', tempMember.id);
+      await vibebase.data.delete('members', tempMember.id);
 
       // 削除確認
-      const members = await vibebase.data.list<TeamMember>('team_members', {
+      const members = await vibebase.data.list<Member>('members', {
         where: {
           team_id: testTeam.id,
           user_id: testUsers[2].id
@@ -336,7 +340,7 @@ describe('Team Management E2E Tests', () => {
       const teams = await vibebase.data.list<Team>('teams');
       
       for (const team of teams.data.slice(0, 3)) {
-        const members = await vibebase.data.list<TeamMember>('team_members', {
+        const members = await vibebase.data.list<Member>('members', {
           where: { team_id: team.id }
         });
         
@@ -362,7 +366,7 @@ describe('Team Management E2E Tests', () => {
       }
 
       // メンバーを追加
-      await vibebase.data.create('team_members', {
+      await vibebase.data.create('members', {
         team_id: cascadeTeam.id,
         user_id: testUsers[0].id,
         role: 'owner',
@@ -381,7 +385,7 @@ describe('Team Management E2E Tests', () => {
       await vibebase.data.delete('teams', cascadeTeam.id);
 
       // 関連データが削除されていることを確認
-      const members = await vibebase.data.list<TeamMember>('team_members', {
+      const members = await vibebase.data.list<Member>('members', {
         where: { team_id: cascadeTeam.id }
       });
       expect(members.data).toHaveLength(0);

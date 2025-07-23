@@ -24,7 +24,7 @@ async function teardown() {
       'task_comments',
       'tasks',
       'projects',
-      'team_members',
+      'members',
       'teams'
     ];
 

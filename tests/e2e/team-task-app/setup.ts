@@ -6,6 +6,8 @@ import { execSync } from 'child_process';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import * as crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = resolve(__dirname, '../../..');
@@ -73,6 +75,8 @@ const dropStatements = [
   // テストテーブルのインデックス
   'DROP INDEX IF EXISTS idx_team_members_team_id;',
   'DROP INDEX IF EXISTS idx_team_members_user_id;',
+  'DROP INDEX IF EXISTS idx_members_team_id;',
+  'DROP INDEX IF EXISTS idx_members_user_id;',
   'DROP INDEX IF EXISTS idx_projects_team_id;',
   'DROP INDEX IF EXISTS idx_tasks_project_id;',
   'DROP INDEX IF EXISTS idx_tasks_assigned_to;',
@@ -90,6 +94,7 @@ const dropStatements = [
   'DROP TABLE IF EXISTS tasks;',
   'DROP TABLE IF EXISTS projects;',
   'DROP TABLE IF EXISTS team_members;',
+  'DROP TABLE IF EXISTS members;',
   'DROP TABLE IF EXISTS teams;',
   'DROP TABLE IF EXISTS items;',
   'DROP TABLE IF EXISTS user_sessions;',
@@ -216,40 +221,273 @@ try {
 
 // Step 8: VAPIDキー初期化 (Push通知テスト用)
 console.log('\n🔔 Initializing VAPID keys for push notifications...');
-const vapidSQL = `
+
+// localhost:8787と一致するdeploymentDomainを使用してVAPIDキーを暗号化
+const deploymentDomain = 'localhost:8787';
+
+// 暗号化関数（VapidStorageと同じアルゴリズム）
+async function getDerivedKey(deploymentDomain: string): Promise<CryptoKey> {
+  const encoder = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(deploymentDomain.padEnd(32, '0').slice(0, 32)),
+    'PBKDF2',
+    false,
+    ['deriveKey']
+  );
+
+  return crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: encoder.encode('vibebase-vapid-salt'),
+      iterations: 100000,
+      hash: 'SHA-256',
+    },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+async function encryptData(
+  data: string,
+  key: CryptoKey
+): Promise<{ encrypted: string; iv: string }> {
+  const encoder = new TextEncoder();
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+
+  const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoder.encode(data));
+
+  return {
+    encrypted: btoa(String.fromCharCode(...new Uint8Array(encrypted))),
+    iv: btoa(String.fromCharCode(...iv)),
+  };
+}
+
+// テスト用のVAPIDキーペアを生成
+const testVapidKeys = {
+  publicKey: 'BMgxqujtHG0hhaOMtaEgHDX7TCMIeEF5n8m7S4-nA-tJ6s_1QJ3cHyNvn8LGwKFz5bTmYy1sRZj0PJFGBOaR2Vc',
+  privateKey: 'Qq_wOl4Pmu2fWgVkT5uQZQoI7pW5TQQz7ScfhZ5xLxg', // テスト用の固定値
+  subject: 'mailto:admin@localhost:8787'
+};
+
+try {
+  // deploymentDomainを使って暗号化キーを生成
+  const encryptionKey = await getDerivedKey(deploymentDomain);
+  const { encrypted, iv } = await encryptData(testVapidKeys.privateKey, encryptionKey);
+
+  const vapidSQL = `
 INSERT OR REPLACE INTO vapid_config (
   id, public_key, encrypted_private_key, encryption_iv, subject, created_at, updated_at
 ) VALUES (
   1,
-  'BMgxqujtHG0hhaOMtaEgHDX7TCMIeEF5n8m7S4-nA-tJ6s_1QJ3cHyNvn8LGwKFz5bTmYy1sRZj0PJFGBOaR2Vc',
-  'ZpcHuP1vjpXUalQn2/km3FEWGER00Whl44OlSGeQ9G1KIrBfzdpAKSZu8rz+diJqvQMkvSm843oTwJk=',
-  'W0tI3K7TMX01Q8+K',
-  'mailto:admin@localhost:8787',
+  '${testVapidKeys.publicKey}',
+  '${encrypted}',
+  '${iv}',
+  '${testVapidKeys.subject}',
   datetime('now'),
   datetime('now')
 );
 `;
 
-const tempVapidFile = resolve(__dirname, '.temp-vapid-key.sql');
-writeFileSync(tempVapidFile, vapidSQL);
+  const tempVapidFile = resolve(__dirname, '.temp-vapid-key.sql');
+  writeFileSync(tempVapidFile, vapidSQL);
 
-try {
   execSync(
     `cd ${rootDir}/packages/core && wrangler d1 execute ${dbName} --local -c wrangler.local.toml --file=${tempVapidFile}`,
     { stdio: 'inherit' }
   );
-  console.log('   ✅ VAPID keys initialized successfully');
-} catch (error) {
-  console.error('   ❌ Failed to initialize VAPID keys');
-  console.warn('   ⚠️  Push notification tests may fail');
-  // VAPIDキー初期化失敗は続行可能
-} finally {
+  console.log('   ✅ VAPID keys initialized successfully with correct domain encryption');
+
   if (existsSync(tempVapidFile)) {
     execSync(`rm ${tempVapidFile}`);
   }
+} catch (error) {
+  console.error('   ❌ Failed to initialize VAPID keys:', error);
+  console.warn('   ⚠️  Push notification tests may fail');
+  // VAPIDキー初期化失敗は続行可能
 }
 
-// Step 9: セットアップ完了メッセージ
+// Step 9: テーブルアクセスポリシーの設定
+console.log('\n🔒 Setting table access policies...');
+const tablePoliciesSQL = `
+-- tasksテーブルをpublicに設定（チームメンバー全員がアクセス可能）
+INSERT OR REPLACE INTO table_policies (
+  id, table_name, access_policy, created_at, updated_at
+) VALUES (
+  'policy_tasks_public',
+  'tasks',
+  'public',
+  datetime('now'),
+  datetime('now')
+);
+
+-- 他の関連テーブルをpublicに設定
+INSERT OR REPLACE INTO table_policies (
+  id, table_name, access_policy, created_at, updated_at
+) VALUES 
+  ('policy_teams_public', 'teams', 'public', datetime('now'), datetime('now')),
+  ('policy_members_public', 'members', 'public', datetime('now'), datetime('now')),
+  ('policy_projects_public', 'projects', 'public', datetime('now'), datetime('now')),
+  ('policy_task_comments_public', 'task_comments', 'public', datetime('now'), datetime('now')),
+  ('policy_task_attachments_public', 'task_attachments', 'public', datetime('now'), datetime('now')),
+  ('policy_activity_logs_public', 'activity_logs', 'public', datetime('now'), datetime('now'));
+
+-- usersテーブルをprivateに設定（本人のみアクセス可能）
+INSERT OR REPLACE INTO table_policies (
+  id, table_name, access_policy, created_at, updated_at
+) VALUES (
+  'policy_users_private',
+  'users', 
+  'private',
+  datetime('now'),
+  datetime('now')
+);
+`;
+
+const tempTablePoliciesFile = resolve(__dirname, '.temp-table-policies.sql');
+writeFileSync(tempTablePoliciesFile, tablePoliciesSQL);
+
+try {
+  execSync(
+    `cd ${rootDir}/packages/core && wrangler d1 execute ${dbName} --local -c wrangler.local.toml --file=${tempTablePoliciesFile}`,
+    { stdio: 'inherit' }
+  );
+  console.log('   ✅ Table access policies configured successfully');
+} catch (error) {
+  console.error('   ❌ Failed to configure table access policies');
+  throw error;
+} finally {
+  if (existsSync(tempTablePoliciesFile)) {
+    execSync(`rm ${tempTablePoliciesFile}`);
+  }
+}
+
+// Step 10: テスト用ユーザーセッションの作成
+console.log('\n🔐 Adding test user sessions...');
+
+// SHA-256ハッシュ化関数（サーバーのUserAuthManagerと同じアルゴリズム）
+function hashToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+// JWTシークレット（.dev.varsと同じ）
+const JWT_SECRET = "k7x9w2m5n8q3r6v1z4p7s0t3u6y9b2e5h8j1l4o7r0u3x6a9d2g5k8n1q4t7w0z3";
+
+// テスト用JWTトークンを生成
+const nowSec = Math.floor(Date.now() / 1000);
+
+// AliceのJWTトークン
+const aliceJwtPayload = {
+  type: 'access',
+  user_id: 'V1StGXR8_Z5jdHi6B-myT',
+  session_id: 'test-session-alice',
+  scope: ['user'],
+  aud: 'localhost:8787',
+  iss: 'vibebase-local',
+  exp: nowSec + 24 * 60 * 60,
+  iat: nowSec,
+};
+const aliceAccessToken = jwt.sign(aliceJwtPayload, JWT_SECRET);
+const aliceRefreshToken = jwt.sign({...aliceJwtPayload, type: 'refresh', exp: nowSec + 30 * 24 * 60 * 60}, JWT_SECRET);
+
+// BobのJWTトークン
+const bobJwtPayload = {
+  type: 'access',
+  user_id: '3ZjkQ2mN8pX9vC7bA-wEr',
+  session_id: 'test-session-bob',
+  scope: ['user'],
+  aud: 'localhost:8787',
+  iss: 'vibebase-local',
+  exp: nowSec + 24 * 60 * 60,
+  iat: nowSec,
+};
+const bobAccessToken = jwt.sign(bobJwtPayload, JWT_SECRET);
+const bobRefreshToken = jwt.sign({...bobJwtPayload, type: 'refresh', exp: nowSec + 30 * 24 * 60 * 60}, JWT_SECRET);
+
+// CharlieのJWTトークン
+const charlieJwtPayload = {
+  type: 'access',
+  user_id: 'LpH9mKj2nQ4vX8cD-zFgR',
+  session_id: 'test-session-charlie',
+  scope: ['user'],
+  aud: 'localhost:8787',
+  iss: 'vibebase-local',
+  exp: nowSec + 24 * 60 * 60,
+  iat: nowSec,
+};
+const charlieAccessToken = jwt.sign(charlieJwtPayload, JWT_SECRET);
+const charlieRefreshToken = jwt.sign({...charlieJwtPayload, type: 'refresh', exp: nowSec + 30 * 24 * 60 * 60}, JWT_SECRET);
+
+const userSessionsSQL = `
+-- Alice's session
+INSERT OR REPLACE INTO user_sessions (
+  id, user_id, access_token_hash, refresh_token_hash, expires_at, created_at, updated_at
+) VALUES (
+  'test-session-alice',
+  'V1StGXR8_Z5jdHi6B-myT',
+  '${hashToken(aliceAccessToken)}',
+  '${hashToken(aliceRefreshToken)}',
+  datetime('now', '+24 hours'),
+  datetime('now'),
+  datetime('now')
+);
+
+-- Bob's session
+INSERT OR REPLACE INTO user_sessions (
+  id, user_id, access_token_hash, refresh_token_hash, expires_at, created_at, updated_at
+) VALUES (
+  'test-session-bob',
+  '3ZjkQ2mN8pX9vC7bA-wEr',
+  '${hashToken(bobAccessToken)}',
+  '${hashToken(bobRefreshToken)}',
+  datetime('now', '+24 hours'),
+  datetime('now'),
+  datetime('now')
+);
+
+-- Charlie's session
+INSERT OR REPLACE INTO user_sessions (
+  id, user_id, access_token_hash, refresh_token_hash, expires_at, created_at, updated_at
+) VALUES (
+  'test-session-charlie',
+  'LpH9mKj2nQ4vX8cD-zFgR',
+  '${hashToken(charlieAccessToken)}',
+  '${hashToken(charlieRefreshToken)}',
+  datetime('now', '+24 hours'),
+  datetime('now'),
+  datetime('now')
+);
+`;
+
+console.log('   📝 Generated test tokens:');
+console.log(`   Alice access token: ${aliceAccessToken.substring(0, 50)}...`);
+console.log(`   Alice access hash: ${hashToken(aliceAccessToken)}`);
+console.log(`   Bob access token: ${bobAccessToken.substring(0, 50)}...`);
+console.log(`   Bob access hash: ${hashToken(bobAccessToken)}`);
+console.log(`   Charlie access token: ${charlieAccessToken.substring(0, 50)}...`);
+console.log(`   Charlie access hash: ${hashToken(charlieAccessToken)}`);
+
+const tempUserSessionsFile = resolve(__dirname, '.temp-user-sessions.sql');
+writeFileSync(tempUserSessionsFile, userSessionsSQL);
+
+try {
+  execSync(
+    `cd ${rootDir}/packages/core && wrangler d1 execute ${dbName} --local -c wrangler.local.toml --file=${tempUserSessionsFile}`,
+    { stdio: 'inherit' }
+  );
+  console.log('   ✅ Test user sessions added successfully');
+} catch (error) {
+  console.error('   ❌ Failed to add test user sessions');
+  throw error;
+} finally {
+  if (existsSync(tempUserSessionsFile)) {
+    execSync(`rm ${tempUserSessionsFile}`);
+  }
+}
+
+// Step 11: セットアップ完了メッセージ
 console.log('\n✨ E2E test environment setup complete!\n');
 console.log('📋 Next steps:');
 console.log('   1. Start the local Vibebase server:');
@@ -266,6 +504,11 @@ console.log('');
 const setupInfo = {
   setupDate: new Date().toISOString(),
   dbName,
+  testTokens: {
+    alice: aliceAccessToken,
+    bob: bobAccessToken,
+    charlie: charlieAccessToken,
+  },
   apiUrl: 'http://localhost:8787',
   schemaApplied: true
 };

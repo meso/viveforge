@@ -82,7 +82,7 @@ describe('Authentication E2E Tests', () => {
 
     it('should filter with multiple conditions (AND)', async () => {
       // 複数条件でのフィルタリング
-      const result = await vibebase.data.list('team_members', {
+      const result = await vibebase.data.list('members', {
         where: { 
           role: 'owner'
         }
@@ -107,20 +107,84 @@ describe('Authentication E2E Tests', () => {
     });
   });
 
-  describe.skip('User Token Authentication (TODO: Fix JWT/Session Issues)', () => {
-    // 現在、JWTトークン生成とセッション管理の問題でスキップ
-    // 将来的に解決予定
+  describe('User Token Authentication', () => {
+    let aliceToken: string;
+    let bobToken: string;
     
-    it('should authenticate with user token', () => {
-      // TODO: 実装予定
+    beforeAll(async () => {
+      // セットアップ情報からテストトークンを取得
+      const { readFileSync } = await import('fs');
+      const { resolve } = await import('path');
+      
+      const setupInfo = JSON.parse(
+        readFileSync(resolve(__dirname, '../.setup-info.json'), 'utf-8')
+      );
+      
+      aliceToken = setupInfo.testTokens.alice;
+      bobToken = setupInfo.testTokens.bob;
+    });
+    
+    it('should authenticate with valid user token', async () => {
+      // ユーザー認証クライアントを作成
+      const aliceClient = createClient({
+        apiUrl,
+        userToken: aliceToken
+      });
+
+      const result = await aliceClient.data.list('users');
+      expect(result.success).toBe(true);
+      expect(result.data).toHaveLength(1); // 自分のデータのみ
+      expect(result.data[0].email).toBe('alice@example.com');
     });
 
-    it('should respect user access control', () => {
-      // TODO: 実装予定
+    it('should respect owner-based access control for users table', async () => {
+      // Aliceクライアント
+      const aliceClient = createClient({
+        apiUrl,
+        userToken: aliceToken
+      });
+      
+      // Bobクライアント  
+      const bobClient = createClient({
+        apiUrl,
+        userToken: bobToken
+      });
+
+      // それぞれが自分のデータのみ取得できることを確認
+      const aliceData = await aliceClient.data.list('users');
+      const bobData = await bobClient.data.list('users');
+      
+      expect(aliceData.success).toBe(true);
+      expect(aliceData.data).toHaveLength(1);
+      expect(aliceData.data[0].id).toBe('V1StGXR8_Z5jdHi6B-myT');
+      
+      expect(bobData.success).toBe(true);
+      expect(bobData.data).toHaveLength(1);
+      expect(bobData.data[0].id).toBe('3ZjkQ2mN8pX9vC7bA-wEr');
     });
 
-    it('should access user data with proper filtering', () => {
-      // TODO: 実装予定
+    it('should access public tables with user authentication', async () => {
+      const aliceClient = createClient({
+        apiUrl,
+        userToken: aliceToken
+      });
+      
+      // publicテーブル（teams, members, projects, tasks）へのアクセス
+      const teams = await aliceClient.data.list('teams');
+      const members = await aliceClient.data.list('members');
+      const projects = await aliceClient.data.list('projects');
+      const tasks = await aliceClient.data.list('tasks');
+      
+      expect(teams.success).toBe(true);
+      expect(members.success).toBe(true);
+      expect(projects.success).toBe(true);
+      expect(tasks.success).toBe(true);
+      
+      // チームメンバーの情報が見えることを確認
+      expect(members.data.length).toBeGreaterThan(0);
+      const aliceMember = members.data.find((m: any) => m.user_id === 'V1StGXR8_Z5jdHi6B-myT');
+      expect(aliceMember).toBeDefined();
+      expect(aliceMember.display_name).toContain('Alice');
     });
   });
 

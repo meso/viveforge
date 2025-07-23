@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => {
       globals: true,
       testTimeout: 30000,
       hookTimeout: 30000,
-      setupFiles: [],
+      setupFiles: ['./vitest.setup.ts'],
       sequence: {
         shuffle: false, // E2Eテストは順序に依存する場合があるため
         concurrent: false, // 並列実行を無効化してリソース競合を防ぐ

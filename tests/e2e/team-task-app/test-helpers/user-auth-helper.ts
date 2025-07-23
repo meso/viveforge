@@ -2,7 +2,10 @@
 // テスト用ユーザー認証ヘルパー（JWT使用）
 
 import { createClient, type VibebaseClient } from '@vibebase/sdk';
-import * as jwt from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
+import { readFileSync } from 'fs';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
 interface TestUserSession {
   userId: string;
@@ -26,23 +29,15 @@ export class UserAuthTestHelper {
 
   /**
    * サーバーと同じJWT_SECRETを取得
-   * 複数のパターンを試行
+   * .dev.varsファイルと同じ値を使用
    */
   private async getJWTSecret(): Promise<string> {
-    // 開発環境で自動生成されるパターンを試行
-    const patterns = [
-      'vibebase-dev-jwt-secret-' + 'a'.repeat(32),
-      'development-jwt-secret-for-testing-' + '0'.repeat(32),
-      // security-utils.ts の generateSecureJWTSecret で生成される形式を模借
-      // 実際には32バイトのランダム値をbase64エンコード
-    ];
-    
-    // 最初のパターンを使用（必要に応じて複数試行）
-    return patterns[0];
+    // 開発環境の.dev.varsファイルと同じ固定シークレットを使用
+    return "k7x9w2m5n8q3r6v1z4p7s0t3u6y9b2e5h8j1l4o7r0u3x6a9d2g5k8n1q4t7w0z3";
   }
 
   /**
-   * テスト用ユーザーセッションを作成（JWT のみ、セッションDBなし）
+   * テスト用ユーザーセッションを作成（setupで作成済みのセッションを使用）
    */
   async createTestUserSession(email: string): Promise<TestUserSession> {
     // 1. ユーザーを取得
@@ -57,26 +52,39 @@ export class UserAuthTestHelper {
     const user = users.data[0];
     const userId = user.id;
 
-    // 2. 仮想セッションID（実際にはDBに保存しない）
-    const sessionId = 'test-session-' + Date.now() + '-' + Math.random().toString(36).substring(7);
+    // 2. setupで作成された固定セッションIDとトークンを使用
+    let sessionId: string;
+    let userToken: string;
+    
+    // setup-info.jsonからトークンを読み取り
+    const __dirname = dirname(fileURLToPath(import.meta.url));
+    // e2eディレクトリの.setup-info.jsonへのパス
+    const setupInfoPath = resolve(__dirname, '../../.setup-info.json');
+    const setupInfo = JSON.parse(readFileSync(setupInfoPath, 'utf-8'));
+    
+    if (email === 'alice@example.com') {
+      sessionId = 'test-session-alice';
+      userToken = setupInfo.testTokens.alice;
+    } else if (email === 'bob@example.com') {
+      sessionId = 'test-session-bob';
+      userToken = setupInfo.testTokens.bob;
+    } else if (email === 'charlie@example.com') {
+      sessionId = 'test-session-charlie';
+      userToken = setupInfo.testTokens.charlie;
+    } else {
+      throw new Error(`No test session configured for user ${email}`);
+    }
 
-    // 3. 長期間有効なJWTトークンを生成（テスト用）
-    const now = Math.floor(Date.now() / 1000);
-    const jwtPayload = {
-      type: 'access',
-      user_id: userId,
-      session_id: sessionId,
-      scope: ['user'],
-      aud: 'localhost',
-      iss: 'vibebase-local',
-      exp: now + 24 * 60 * 60, // 24 hours (セッション有効性チェックをスキップ)
-      iat: now,
-    };
+    // セッションIDを記録（クリーンアップ用）
+    this.createdSessions.push(sessionId);
 
-    const jwtSecret = await this.getJWTSecret();
-    const userToken = jwt.sign(jwtPayload, jwtSecret);
+    // デバッグ用ログ
+    console.log(`Using setup token for ${email}:`);
+    console.log('User ID:', userId);
+    console.log('Session ID:', sessionId);
+    console.log('JWT token:', userToken.substring(0, 50) + '...');
 
-    // 4. ユーザークライアントを作成
+    // 3. ユーザークライアントを作成
     const userClient = createClient({
       apiUrl: this.apiUrl,
       userToken
@@ -92,15 +100,11 @@ export class UserAuthTestHelper {
 
   /**
    * 作成したテストセッションをクリーンアップ
+   * （setupで作成されたセッションなので、実際には削除しない）
    */
   async cleanup(): Promise<void> {
-    for (const sessionId of this.createdSessions) {
-      try {
-        await this.adminClient.data.delete('user_sessions', sessionId);
-      } catch (error) {
-        console.warn(`Failed to cleanup test session ${sessionId}:`, error);
-      }
-    }
+    // setupで作成されたセッションは永続的なので、クリーンアップ不要
+    // テスト間で再利用される
     this.createdSessions = [];
   }
 }

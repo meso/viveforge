@@ -10,6 +10,23 @@ export interface Team {
   created_by: string;
 }
 
+export interface Member {
+  id: string;
+  team_id: string;
+  user_id: string;
+  role: 'owner' | 'admin' | 'member';
+  display_name: string;
+  avatar_url?: string;
+  bio?: string;
+  job_title?: string;
+  timezone?: string;
+  joined_at: string;
+  invited_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// 後方互換性のために残す
 export interface TeamMember {
   id: string;
   team_id: string;

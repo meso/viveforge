@@ -1,7 +1,7 @@
 // Test Data Generator for Team Task Management App
 // チームタスク管理アプリのテストデータ生成
 
-import type { Team, TeamMember, Project, Task, TaskComment, User } from './types';
+import type { Team, Member, Project, Task, TaskComment, User } from './types';
 
 // テストユーザー
 export const testUsers: Omit<User, 'id' | 'created_at' | 'updated_at'>[] = [
@@ -51,23 +51,93 @@ export const generateTeams = (userIds: string[]): Omit<Team, 'id' | 'created_at'
   }
 ];
 
-// チームメンバー関係
-export const generateTeamMembers = (teamIds: string[], userIds: string[]): Omit<TeamMember, 'id' | 'joined_at'>[] => [
+// チームメンバー（チーム固有プロフィール含む）
+export const generateMembers = (teamIds: string[], userIds: string[]): Omit<Member, 'id' | 'joined_at' | 'created_at' | 'updated_at'>[] => [
   // Engineering Team
-  { team_id: teamIds[0], user_id: userIds[0], role: 'owner', invited_by: userIds[0] },
-  { team_id: teamIds[0], user_id: userIds[1], role: 'admin', invited_by: userIds[0] },
-  { team_id: teamIds[0], user_id: userIds[2], role: 'member', invited_by: userIds[0] },
-  { team_id: teamIds[0], user_id: userIds[3], role: 'member', invited_by: userIds[1] },
+  { 
+    team_id: teamIds[0], user_id: userIds[0], role: 'owner', invited_by: userIds[0],
+    display_name: 'Alice (Tech Lead)', 
+    avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=alice-eng',
+    bio: 'Full-stack engineer with 8 years experience',
+    job_title: 'Senior Engineering Manager',
+    timezone: 'America/New_York'
+  },
+  { 
+    team_id: teamIds[0], user_id: userIds[1], role: 'admin', invited_by: userIds[0],
+    display_name: 'Bob Smith',
+    avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=bob-eng',
+    bio: 'Backend specialist, loves GraphQL and microservices',
+    job_title: 'Senior Backend Engineer',
+    timezone: 'America/Los_Angeles'
+  },
+  { 
+    team_id: teamIds[0], user_id: userIds[2], role: 'member', invited_by: userIds[0],
+    display_name: 'Charlie Brown',
+    avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=charlie-eng',
+    bio: 'Frontend enthusiast, React and TypeScript expert',
+    job_title: 'Frontend Developer',
+    timezone: 'Europe/London'
+  },
+  { 
+    team_id: teamIds[0], user_id: userIds[3], role: 'member', invited_by: userIds[1],
+    display_name: 'Diana Prince',
+    avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=diana-eng',
+    bio: 'Mobile developer focused on React Native',
+    job_title: 'Mobile Developer',
+    timezone: 'America/New_York'
+  },
   
-  // Marketing Team
-  { team_id: teamIds[1], user_id: userIds[1], role: 'owner', invited_by: userIds[1] },
-  { team_id: teamIds[1], user_id: userIds[3], role: 'admin', invited_by: userIds[1] },
-  { team_id: teamIds[1], user_id: userIds[4], role: 'member', invited_by: userIds[1] },
+  // Marketing Team - 異なるペルソナ
+  { 
+    team_id: teamIds[1], user_id: userIds[1], role: 'owner', invited_by: userIds[1],
+    display_name: 'Bobby (Growth)', 
+    avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=bob-marketing',
+    bio: 'Growth hacker with data-driven mindset',
+    job_title: 'VP of Growth',
+    timezone: 'America/Los_Angeles'
+  },
+  { 
+    team_id: teamIds[1], user_id: userIds[3], role: 'admin', invited_by: userIds[1],
+    display_name: 'Wonder Woman',
+    avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=diana-marketing', 
+    bio: 'Creative marketing strategist',
+    job_title: 'Marketing Director',
+    timezone: 'America/New_York'
+  },
+  { 
+    team_id: teamIds[1], user_id: userIds[4], role: 'member', invited_by: userIds[1],
+    display_name: 'Eve Wilson',
+    avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=eve-marketing',
+    bio: 'Content creator and social media expert',
+    job_title: 'Content Marketing Manager', 
+    timezone: 'America/Chicago'
+  },
   
-  // Design Team
-  { team_id: teamIds[2], user_id: userIds[2], role: 'owner', invited_by: userIds[2] },
-  { team_id: teamIds[2], user_id: userIds[0], role: 'member', invited_by: userIds[2] },
-  { team_id: teamIds[2], user_id: userIds[4], role: 'member', invited_by: userIds[2] }
+  // Design Team - クリエイティブペルソナ
+  { 
+    team_id: teamIds[2], user_id: userIds[2], role: 'owner', invited_by: userIds[2],
+    display_name: '🎨 Charlie Design',
+    avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=charlie-design',
+    bio: 'Design systems enthusiast, accessibility advocate',
+    job_title: 'Lead Product Designer',
+    timezone: 'Europe/London'
+  },
+  { 
+    team_id: teamIds[2], user_id: userIds[0], role: 'member', invited_by: userIds[2],
+    display_name: 'Alice J.',
+    avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=alice-design',
+    bio: 'Engineer with design background',
+    job_title: 'Design Engineer',
+    timezone: 'America/New_York'
+  },
+  { 
+    team_id: teamIds[2], user_id: userIds[4], role: 'member', invited_by: userIds[2],
+    display_name: 'Evie ✨',
+    avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=eve-design',
+    bio: 'UI designer passionate about micro-interactions',
+    job_title: 'UI Designer',
+    timezone: 'America/Chicago'
+  }
 ];
 
 // プロジェクト
@@ -398,4 +468,26 @@ export const generateActivityLogs = (teamIds: string[], projectIds: string[], ta
   }
 
   return activities;
+};
+
+// ユーザーセッション（テスト用）
+export const generateUserSessions = (userIds: string[]) => {
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 hours
+  
+  return userIds.slice(0, 3).map((userId, index) => {
+    const sessionId = `test-session-${userId}-${index}`;
+    const accessTokenHash = btoa(`access-${sessionId}-${Date.now()}`);
+    const refreshTokenHash = btoa(`refresh-${sessionId}-${Date.now()}`);
+    
+    return {
+      id: sessionId,
+      user_id: userId,
+      access_token_hash: accessTokenHash,
+      refresh_token_hash: refreshTokenHash,
+      expires_at: expiresAt.toISOString(),
+      created_at: now.toISOString(),
+      updated_at: now.toISOString()
+    };
+  });
 };
